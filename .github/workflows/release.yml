@@ -55,6 +55,8 @@ jobs:
           echo "Signing key restored (stable signature, upgrades install over old builds)."
 
       - name: Build release APK
+        env:
+          DEFAULT_STUDIO_URL: ${{ vars.DEFAULT_STUDIO_URL }}
         run: gradle --no-daemon assembleRelease --stacktrace
 
       - name: Collect APK
