@@ -1,0 +1,2265 @@
+package xyz.rflg.hstudiodirect
+
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+/**
+ * Thin client over the Hermes Studio HTTP API.
+ *
+ * Every endpoint used here is the same one the Studio web UI calls, so the app
+ * stays compatible with a stock server. Keeping all of them in one file means a
+ * server-side change only ever has to be chased in a single place.
+ */
+class HermesApi(
+    private var baseUrl: String,
+    private var token: String,
+) {
+    private val json = "application/json; charset=utf-8".toMediaType()
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    fun update(baseUrl: String, token: String) {
+        this.baseUrl = baseUrl.trimEnd('/')
+        this.token = token
+    }
+
+    private fun url(path: String) = baseUrl.trimEnd('/') + path
+
+    private fun request(path: String, method: String, body: JSONObject?, profile: String? = null): Request {
+        val builder = Request.Builder().url(url(path))
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        if (!profile.isNullOrBlank()) builder.header("X-Hermes-Profile", profile)
+        builder.header("Accept", "application/json")
+        when (method) {
+            "POST" -> builder.post((body ?: JSONObject()).toString().toRequestBody(json))
+            "PUT" -> builder.put((body ?: JSONObject()).toString().toRequestBody(json))
+            "PATCH" -> builder.patch((body ?: JSONObject()).toString().toRequestBody(json))
+            "DELETE" -> if (body == null) builder.delete() else builder.delete(body.toString().toRequestBody(json))
+            else -> builder.get()
+        }
+        return builder.build()
+    }
+
+    private fun call(
+        path: String,
+        method: String = "GET",
+        body: JSONObject? = null,
+        profile: String? = null,
+    ): JSONObject {
+        client.newCall(request(path, method, body, profile)).execute().use { response ->
+            val text = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val detail = errorDetail(text)
+                throw HermesException(
+                    if (detail.isNullOrBlank()) "HTTP ${response.code}" else "HTTP ${response.code}: $detail",
+                    statusCode = response.code,
+                )
+            }
+            if (text.isBlank()) return JSONObject()
+            return runCatching { JSONObject(text) }.getOrElse {
+                JSONObject().put("data", runCatching { JSONArray(text) }.getOrDefault(JSONArray()))
+            }
+        }
+    }
+
+    /** POST /api/auth/login — returns the bearer token used by every other call. */
+    fun login(username: String, password: String): String {
+        val body = JSONObject().put("username", username).put("password", password)
+        val result = call("/api/auth/login", "POST", body)
+        val issued = result.optString("token")
+        if (issued.isBlank()) throw HermesException("Login succeeded but no token was returned")
+        return issued
+    }
+
+    /** GET /api/auth/me — cheap check that a stored token is still valid. */
+    fun verifyToken(): String {
+        val me = call("/api/auth/me")
+        val user = me.optJSONObject("user")
+        return user?.optString("username").orEmpty()
+            .ifBlank { user?.optString("id").orEmpty() }
+            .ifBlank { me.optString("username") }
+            .ifBlank { me.optString("userId") }
+    }
+
+    /** GET /api/auth/me — full account metadata used by Settings. */
+    fun currentUser(): CurrentUser {
+        val result = call("/api/auth/me")
+        val user = result.optJSONObject("user") ?: result
+        return CurrentUser(
+            id = user.optInt("id", 0),
+            username = user.optString("username").ifBlank { user.optString("userId") },
+            role = user.optString("role").ifBlank { "admin" },
+            status = user.optString("status").ifBlank { "active" },
+            lastLoginAt = user.optLong("last_login_at", 0).takeIf { it > 0 },
+            avatar = user.optString("avatar").takeIf { it.isNotBlank() },
+        )
+    }
+
+    fun changePassword(currentPassword: String, newPassword: String) {
+        call(
+            "/api/auth/change-password",
+            "POST",
+            JSONObject().put("currentPassword", currentPassword).put("newPassword", newPassword),
+        )
+    }
+
+    fun changeUsername(currentPassword: String, newUsername: String) {
+        call(
+            "/api/auth/change-username",
+            "POST",
+            JSONObject().put("currentPassword", currentPassword).put("newUsername", newUsername),
+        )
+    }
+
+    fun updateMyAvatar(dataUrl: String, seed: String? = null) {
+        val avatar = JSONObject().put("type", "image").put("dataUrl", dataUrl)
+            .apply { if (!seed.isNullOrBlank()) put("seed", seed) }
+            .toString()
+        call("/api/auth/avatar", "PUT", JSONObject().put("avatar", avatar))
+    }
+
+    fun resetMyAvatar() {
+        call("/api/auth/avatar", "PUT", JSONObject().put("avatar", JSONObject().put("type", "default")))
+    }
+
+    fun myAvatar(username: String): AvatarSpec {
+        val raw = call("/api/auth/avatar").opt("avatar")
+        val json = when (raw) {
+            is JSONObject -> raw
+            is String -> runCatching { JSONObject(raw) }.getOrNull()
+            else -> null
+        }
+        val parsed = AvatarSpec.from(json)
+            ?: return AvatarSpec(type = "default", seed = username, dataUrl = null, updatedAt = 0)
+        return if (parsed.type != "image" && parsed.seed.isNullOrBlank()) parsed.copy(seed = username) else parsed
+    }
+
+    fun lockedIps(): List<LockedIp> {
+        val array = call("/api/auth/locked-ips").optJSONArray("locks") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            LockedIp(
+                ip = item.optString("ip"),
+                type = item.optString("type"),
+                failures = item.optInt("failures", 0),
+                lockedUntil = item.optLong("lockedUntil", 0),
+            ).takeIf { it.ip.isNotBlank() }
+        }
+    }
+
+    fun unlockIp(ip: String) {
+        call("/api/auth/locked-ips?ip=${enc(ip)}", "DELETE")
+    }
+
+    fun unlockAllIps(): Int = call("/api/auth/locked-ips", "DELETE").optInt("count", 0)
+
+    fun managedUsers(): ManagedUsers {
+        val result = call("/api/auth/users")
+        return ManagedUsers(
+            users = parseManagedUsers(result.optJSONArray("users")),
+            profiles = strings(result.optJSONArray("profiles")),
+        )
+    }
+
+    fun createManagedUser(draft: ManagedUserDraft) {
+        call("/api/auth/users", "POST", draft.toJson(includeEmptyPassword = true))
+    }
+
+    fun updateManagedUser(id: Int, draft: ManagedUserDraft) {
+        call("/api/auth/users/$id", "PUT", draft.toJson(includeEmptyPassword = false))
+    }
+
+    fun deleteManagedUser(id: Int) {
+        call("/api/auth/users/$id", "DELETE")
+    }
+
+    /** GET /api/hermes/profiles */
+    fun profiles(): List<Profile> {
+        val array = call("/api/hermes/profiles").optJSONArray("profiles") ?: JSONArray()
+        return (0 until array.length()).map { index ->
+            val item = array.getJSONObject(index)
+            Profile(
+                name = item.optString("name"),
+                model = item.optString("model").takeIf { it.isNotBlank() && it != "—" },
+                active = item.optBoolean("active", false),
+                gatewayStatus = item.optString("gatewayStatus").ifBlank { item.optString("alias") },
+                avatar = AvatarSpec.from(item.optJSONObject("avatar")),
+            )
+        }.filter { it.name.isNotBlank() }
+    }
+
+    fun profileRuntimeStatuses(): Map<String, String> {
+        val array = call("/api/hermes/profiles/runtime-statuses?refresh=true").optJSONArray("profiles") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            val name = item.optString("name").ifBlank { item.optString("profile") }
+            val gateway = item.optJSONObject("gateway")
+            val bridge = item.optJSONObject("bridge")
+            val label = when {
+                gateway?.optBoolean("running") == true || bridge?.optBoolean("running") == true -> "running"
+                firstNonBlank(item, "error") != null -> "error"
+                else -> "stopped"
+            }
+            name.takeIf(String::isNotBlank)?.let { it to label }
+        } }.toMap()
+    }
+
+    /** GET /api/agents/status — the five runtimes owned by three Studio families. */
+    fun agentRuntimes(): List<AgentRuntimeStatus> {
+        val array = call("/api/agents/status").optJSONArray("agents") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val rawId = firstNonBlank(item, "id", "agent") ?: return@mapNotNull null
+            val id = when (rawId.lowercase()) {
+                "ekko" -> "ekko-agent"
+                "claude" -> "claude-code"
+                else -> rawId.lowercase()
+            }
+            val family = when (id) {
+                "hermes" -> "hermes"
+                "ekko-agent" -> "ekko"
+                else -> "coding"
+            }
+            AgentRuntimeStatus(
+                id = id,
+                family = family,
+                name = when (id) {
+                    "hermes" -> "Hermes"
+                    "ekko-agent" -> "Ekko"
+                    "claude-code" -> "Claude Code"
+                    "codex" -> "Codex"
+                    "pi" -> "Pi"
+                    else -> rawId
+                },
+                installed = item.optBoolean("installed", false),
+                source = item.optString("source").ifBlank { "not-installed" },
+                version = firstNonBlank(item, "version"),
+                path = firstNonBlank(item, "path"),
+                error = firstNonBlank(item, "error"),
+            )
+        }
+    }
+
+    /** POST /api/hermes/sessions/{id}/rename */
+    fun renameSession(sessionId: String, title: String) {
+        runCatching { call("/api/studio/sessions/${enc(sessionId)}/rename", "POST", JSONObject().put("title", title)) }
+            .getOrElse { call("/api/hermes/sessions/${enc(sessionId)}/rename", "POST", JSONObject().put("title", title)) }
+    }
+
+    /** DELETE /api/hermes/sessions/{id} */
+    fun deleteSession(sessionId: String) {
+        runCatching { call("/api/studio/sessions/${enc(sessionId)}", "DELETE") }
+            .getOrElse { call("/api/hermes/sessions/${enc(sessionId)}", "DELETE") }
+    }
+
+    fun archiveSession(sessionId: String, archived: Boolean) {
+        call("/api/studio/sessions/${enc(sessionId)}/${if (archived) "archive" else "unarchive"}", "POST", JSONObject())
+    }
+
+    fun sessionCategories(): List<SessionCategory> {
+        val array = call("/api/studio/session-categories").optJSONArray("categories") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { SessionCategory(it.optInt("id"), it.optString("name")) } }.filter { it.id > 0 && it.name.isNotBlank() }
+    }
+
+    fun createSessionCategory(name: String): SessionCategory {
+        val item = call("/api/studio/session-categories", "POST", JSONObject().put("name", name)).getJSONObject("category")
+        return SessionCategory(item.getInt("id"), item.getString("name"))
+    }
+    fun renameSessionCategory(id: Int, name: String) { call("/api/studio/session-categories/$id", "PATCH", JSONObject().put("name", name)) }
+    fun deleteSessionCategory(id: Int) { call("/api/studio/session-categories/$id", "DELETE") }
+
+    fun setSessionCategory(sessionId: String, categoryId: Int?) {
+        call("/api/studio/sessions/${enc(sessionId)}/category", "POST", JSONObject().put("categoryId", categoryId ?: JSONObject.NULL))
+    }
+    fun batchDeleteSessions(ids: List<String>) { val sessions = JSONArray(ids.map { JSONObject().put("id", it) }); call("/api/studio/sessions/batch-delete", "POST", JSONObject().put("ids", JSONArray(ids)).put("sessions", sessions)) }
+    fun setSessionWorkspace(id: String, workspace: String) { call("/api/studio/sessions/${enc(id)}/workspace", "POST", JSONObject().put("workspace", workspace)) }
+    fun sessionExportUrl(id: String, compressed: Boolean = false, ext: String = "json"): String = url("/api/studio/sessions/${enc(id)}/export?mode=${if (compressed) "compressed" else "full"}&ext=${enc(ext)}&token=${enc(token)}")
+
+    fun searchSessions(query: String, profile: String?): List<SessionSummary> {
+        val path = "/api/studio/search/sessions?q=${enc(query)}&limit=50" + if (profile.isNullOrBlank()) "" else "&profile=${enc(profile)}"
+        return parseSessions(call(path).optJSONArray("results") ?: JSONArray())
+    }
+
+    /** POST /api/hermes/profiles */
+    fun createProfile(name: String) {
+        call("/api/hermes/profiles", "POST", JSONObject().put("name", name))
+    }
+
+    /** POST /api/hermes/profiles/{name}/rename */
+    fun renameProfile(name: String, newName: String) {
+        call("/api/hermes/profiles/${enc(name)}/rename", "POST", JSONObject().put("new_name", newName))
+    }
+
+    /** DELETE /api/hermes/profiles/{name} */
+    fun deleteProfile(name: String) {
+        call("/api/hermes/profiles/${enc(name)}", "DELETE")
+    }
+
+    /**
+     * POST /api/hermes/group-chat/rooms — a room needs a name and an invite
+     * code, and the agents it starts with are profiles.
+     */
+    fun createRoom(name: String, inviteCode: String, agents: List<String>): Room {
+        val body = JSONObject()
+            .put("name", name)
+            .put("inviteCode", inviteCode)
+            .put("agents", JSONArray().apply { agents.forEach { put(JSONObject().put("profile", it)) } })
+        val result = call("/api/hermes/group-chat/rooms", "POST", body)
+        val room = result.optJSONObject("room") ?: throw HermesException("The server returned no room")
+        return Room(
+            id = firstNonBlank(room, "id") ?: throw HermesException("The new room has no id"),
+            name = firstNonBlank(room, "name") ?: name,
+            agentCount = room.optInt("agentCount", agents.size),
+            memberCount = room.optInt("memberCount", 1),
+            updatedAt = firstNonBlank(room, "updatedAt", "updated_at"),
+        )
+    }
+
+    /** DELETE /api/hermes/group-chat/rooms/{id} */
+    fun deleteRoom(roomId: String) {
+        call("/api/hermes/group-chat/rooms/${enc(roomId)}", "DELETE")
+    }
+
+    /** POST /api/hermes/group-chat/rooms/{id}/agents */
+    fun addRoomAgent(roomId: String, profile: String) {
+        call("/api/hermes/group-chat/rooms/${enc(roomId)}/agents", "POST", JSONObject().put("profile", profile))
+    }
+
+    /** GET /api/hermes/config — the pieces of it the app can act on. */
+    fun serverConfig(profile: String): ServerConfig {
+        val result = call("/api/hermes/config?profile=${enc(profile)}")
+        val platforms = result.optJSONObject("platforms")
+        val credentials = result.optJSONObject("platformCredentialStatus")
+        val channels = buildList {
+            val names = LinkedHashSet<String>()
+            CHANNELS.forEach { names.add(it.platform) }
+            platforms?.keys()?.forEach { names.add(it) }
+            credentials?.keys()?.forEach { names.add(it) }
+            names.forEach { platform ->
+                val settings = platforms?.optJSONObject(platform)
+                val stored = settings?.let(::flattenChannelSettings).orEmpty()
+                val explicitlyConfigured = credentials
+                    ?.takeIf { it.has(platform) }
+                    ?.optBoolean(platform, false)
+                add(
+                    ChannelStatus(
+                        platform = platform,
+                        // Hermes runs a channel unless it is explicitly turned off.
+                        enabled = settings?.optBoolean("enabled", true) ?: true,
+                        configured = explicitlyConfigured ?: inferChannelConfigured(platform, stored),
+                        values = stored,
+                    ),
+                )
+            }
+        }
+        return ServerConfig(
+            defaultModel = result.optJSONObject("model")?.let { firstNonBlank(it, "default") },
+            // The server treats anything other than an explicit false as "yes".
+            gatewayAutoStart = result.optJSONObject("gatewayAutoStart")?.optBoolean("enabled", true) ?: true,
+            channels = channels,
+        )
+    }
+
+    /** Preserve every Studio channel value, including nested extras and lists. */
+    private fun flattenChannelSettings(root: JSONObject): Map<String, String> {
+        val values = linkedMapOf<String, String>()
+        fun visit(value: Any?, path: String) {
+            when (value) {
+                is JSONObject -> value.keys().forEach { key ->
+                    visit(value.opt(key), if (path.isEmpty()) key else "$path.$key")
+                }
+                is JSONArray -> values[path] = (0 until value.length())
+                    .mapNotNull { index -> value.opt(index)?.takeUnless { it == JSONObject.NULL }?.toString() }
+                    .joinToString(", ")
+                null, JSONObject.NULL -> Unit
+                else -> values[path] = value.toString()
+            }
+        }
+        visit(root, "")
+        return values
+    }
+
+    private fun inferChannelConfigured(platform: String, values: Map<String, String>): Boolean = when (platform) {
+        "matrix" -> values["extra.homeserver"].orEmpty().isNotBlank() &&
+            (values["token"].orEmpty().isNotBlank() ||
+                (values["extra.user_id"].orEmpty().isNotBlank() && values["extra.password"].orEmpty().isNotBlank()))
+        "whatsapp" -> values["enabled"].toBoolean()
+        else -> channelSpec(platform).fields
+            .asSequence()
+            .filter { it.target == ChannelFieldTarget.Credentials && it.kind != ChannelFieldKind.Toggle }
+            .any { values[it.path].orEmpty().isNotBlank() }
+    }
+
+    /**
+     * PUT /api/hermes/config/credentials — writes a channel's secrets into the
+     * profile's env file. The server restarts the gateway itself afterwards,
+     * which is what actually puts the channel online.
+     */
+    fun updateChannelCredentials(profile: String, platform: String, values: Map<String, Any?>) {
+        val payload = JSONObject()
+        values.forEach { (path, value) ->
+            val parts = path.split('.')
+            var target = payload
+            parts.dropLast(1).forEach { part ->
+                target = target.optJSONObject(part) ?: JSONObject().also { target.put(part, it) }
+            }
+            target.put(parts.last(), value ?: JSONObject.NULL)
+        }
+        val body = JSONObject().put("platform", platform).put("values", payload)
+        call("/api/hermes/config/credentials?profile=${enc(profile)}", "PUT", body)
+    }
+
+    /** DELETE /api/hermes/config/credentials/{platform} */
+    fun clearChannelCredentials(profile: String, platform: String) {
+        call("/api/hermes/config/credentials/${enc(platform)}?profile=${enc(profile)}", "DELETE")
+    }
+
+    /** Starts Studio's native Weixin iLink login flow. */
+    fun weixinQrCode(profile: String): WeixinQrCode {
+        val result = call("/api/hermes/weixin/qrcode", profile = profile)
+        return WeixinQrCode(
+            id = result.optString("qrcode"),
+            url = result.optString("qrcode_url"),
+        ).takeIf { it.id.isNotBlank() && it.url.isNotBlank() }
+            ?: throw HermesException("Studio returned an invalid Weixin QR code")
+    }
+
+    fun weixinQrStatus(profile: String, qrCode: String): WeixinQrPoll {
+        val result = call(
+            "/api/hermes/weixin/qrcode/status?qrcode=${enc(qrCode)}",
+            profile = profile,
+        )
+        return WeixinQrPoll(
+            status = result.optString("status", "wait"),
+            accountId = result.optString("account_id").takeIf(String::isNotBlank),
+            token = result.optString("token").takeIf(String::isNotBlank),
+            baseUrl = result.optString("base_url").takeIf(String::isNotBlank),
+        )
+    }
+
+    fun saveWeixinCredentials(profile: String, poll: WeixinQrPoll) {
+        val accountId = poll.accountId ?: throw HermesException("Weixin account ID was missing")
+        val issuedToken = poll.token ?: throw HermesException("Weixin token was missing")
+        val body = JSONObject().put("account_id", accountId).put("token", issuedToken)
+        poll.baseUrl?.let { body.put("base_url", it) }
+        call("/api/hermes/weixin/save", "POST", body, profile)
+    }
+
+    /** Turns a channel on or off without touching its credentials. */
+    fun setChannelEnabled(profile: String, platform: String, enabled: Boolean) {
+        updateConfigSection(profile, platform, JSONObject().put("enabled", enabled), restart = true)
+    }
+
+    /** The agent knobs Studio keeps under its Agent tab. */
+    fun agentSettings(profile: String): AgentSettings {
+        val agent = call("/api/hermes/config?profile=${enc(profile)}&section=agent").optJSONObject("agent")
+        return AgentSettings(
+            maxTurns = agent?.optInt("max_turns", 0)?.takeIf { it > 0 },
+            gatewayTimeout = agent?.optInt("gateway_timeout", -1)?.takeIf { it >= 0 },
+            restartDrainTimeout = agent?.optInt("restart_drain_timeout", 0)?.takeIf { it > 0 },
+            toolEnforcement = agent?.optString("tool_use_enforcement").orEmpty().ifBlank { "auto" },
+        )
+    }
+
+    /** All server-side tabs from Studio's Settings view, merged with its UI defaults. */
+    fun studioSettings(profile: String): StudioSettings {
+        val result = call("/api/hermes/config?profile=${enc(profile)}")
+        val display = result.optJSONObject("display") ?: JSONObject()
+        val proxy = result.optJSONObject("proxy") ?: JSONObject()
+        val memory = result.optJSONObject("memory") ?: JSONObject()
+        val skills = result.optJSONObject("skills") ?: JSONObject()
+        val compression = result.optJSONObject("compression") ?: JSONObject()
+        val reset = result.optJSONObject("sessionReset")
+            ?: result.optJSONObject("session_reset")
+            ?: JSONObject()
+        val approvals = result.optJSONObject("approvals") ?: JSONObject()
+        val privacy = result.optJSONObject("privacy") ?: JSONObject()
+        return StudioSettings(
+            display = DisplaySettings(
+                streaming = display.optBoolean("streaming", true),
+                compact = display.optBoolean("compact", false),
+                showReasoning = display.optBoolean("show_reasoning", true),
+                showCost = display.optBoolean("show_cost", false),
+                inlineDiffs = display.optBoolean("inline_diffs", true),
+                bellOnComplete = display.optBoolean("bell_on_complete", false),
+                notifyOnComplete = display.optBoolean("notify_on_complete", false),
+                chatInputHeight = display.optInt("chat_input_height", 0).takeIf { it > 0 },
+            ),
+            proxy = ProxySettings(
+                https = proxy.optString("HTTPS_PROXY"),
+                http = proxy.optString("HTTP_PROXY"),
+                all = proxy.optString("ALL_PROXY"),
+                noProxy = proxy.optString("NO_PROXY"),
+            ),
+            memory = MemorySettings(
+                enabled = memory.optBoolean("memory_enabled", true),
+                userProfileEnabled = memory.optBoolean("user_profile_enabled", true),
+                memoryCharLimit = memory.optInt("memory_char_limit", 2000),
+                userCharLimit = memory.optInt("user_char_limit", 2000),
+                writeApproval = memory.optBoolean("write_approval", false),
+            ),
+            compression = CompressionSettings(
+                enabled = compression.optBoolean("enabled", true),
+                threshold = compression.optDouble("threshold", 0.5),
+                targetRatio = compression.optDouble("target_ratio", 0.2),
+                protectLast = compression.optInt("protect_last_n", 20),
+                protectFirst = compression.optInt("protect_first_n", 3),
+            ),
+            session = SessionSettings(
+                approvalsMode = approvals.optString("mode").ifBlank { "off" },
+                skillsWriteApproval = skills.optBoolean("write_approval", false),
+                resetMode = reset.optString("mode").ifBlank { "both" },
+                idleMinutes = reset.optInt("idle_minutes", 60),
+                atHour = reset.optInt("at_hour", 0),
+            ),
+            privacy = PrivacySettings(redactPii = privacy.optBoolean("redact_pii", false)),
+        )
+    }
+
+    /** GET /api/hermes/config?section=gatewayAutoStart — the whole policy. */
+    fun autoStartPolicy(): AutoStartPolicy {
+        val policy = call("/api/hermes/config?section=gatewayAutoStart").optJSONObject("gatewayAutoStart")
+        val include = policy?.optJSONArray("include")
+        val exclude = policy?.optJSONArray("exclude")
+        fun names(array: JSONArray?): List<String>? = array?.let { list ->
+            (0 until list.length()).mapNotNull { list.optString(it).takeIf { name -> name.isNotBlank() } }
+        }
+        return AutoStartPolicy(
+            enabled = policy?.optBoolean("enabled", true) ?: true,
+            include = names(include),
+            exclude = names(exclude).orEmpty(),
+            management = policy?.optString("management").orEmpty().ifBlank { "per_profile" },
+        )
+    }
+
+    /**
+     * Writes the auto-start policy. A null include list means "every profile
+     * the server discovers", which is what Studio calls the all policy.
+     */
+    fun setAutoStartPolicy(policy: AutoStartPolicy) {
+        val values = JSONObject().put("enabled", policy.enabled)
+        if (policy.include == null) values.put("include", JSONObject.NULL)
+        else values.put("include", JSONArray().apply { policy.include.forEach { put(it) } })
+        values.put("exclude", JSONArray().apply { policy.exclude.forEach { put(it) } })
+        values.put("management", policy.management)
+        call("/api/hermes/config", "PUT", JSONObject().put("section", "gatewayAutoStart").put("values", values))
+    }
+
+    /** PUT /api/hermes/config — one section at a time, as Studio does. */
+    fun updateConfigSection(profile: String, section: String, values: JSONObject, restart: Boolean = false) {
+        val body = JSONObject()
+            .put("section", section)
+            .put("values", values)
+            .put("restart", restart)
+        call("/api/hermes/config?profile=${enc(profile)}", "PUT", body)
+    }
+
+    /** GET /api/hermes/sessions — most recent conversations for a profile. */
+    fun sessions(profile: String?, limit: Int = 80): List<SessionSummary> {
+        val canonical = if (profile.isNullOrBlank()) {
+            "/api/studio/sessions?limit=$limit"
+        } else {
+            "/api/studio/sessions?profile=${enc(profile)}&limit=$limit"
+        }
+        val result = runCatching { call(canonical) }.getOrElse {
+            val legacy = canonical.replace("/api/studio/sessions", "/api/hermes/sessions")
+            call(legacy)
+        }
+        return parseSessions(result.optJSONArray("sessions") ?: JSONArray())
+    }
+
+    private fun parseSessions(array: JSONArray): List<SessionSummary> =
+        (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = firstNonBlank(item, "id", "session_id", "sessionId") ?: return@mapNotNull null
+            SessionSummary(
+                id = id,
+                title = firstNonBlank(item, "title", "name", "summary") ?: id.take(8),
+                model = firstNonBlank(item, "model"),
+                provider = firstNonBlank(item, "provider"),
+                updatedAt = firstNonBlank(
+                    item,
+                    "last_active",
+                    "ended_at",
+                    "started_at",
+                    "updated_at",
+                    "updatedAt",
+                    "created_at",
+                    "createdAt",
+                ),
+                profile = firstNonBlank(item, "profile"),
+                source = firstNonBlank(item, "source", "session_source") ?: "cli",
+                agentId = firstNonBlank(item, "coding_agent_id", "agent_id", "agent"),
+                agentMode = firstNonBlank(item, "agent_mode", "mode", "coding_agent_mode"),
+                archived = item.optBoolean("is_archived", false) || item.optInt("is_archived", 0) != 0,
+                categoryId = item.optInt("category_id", 0).takeIf { it > 0 },
+                workspace = firstNonBlank(item, "workspace", "cwd"),
+                running = item.optBoolean("running", false) || item.optString("status", "") == "running" || item.optString("kanban_status", "") == "running",
+                activity = firstNonBlank(item, "activity", "live_activity", "current_step"),
+            )
+        }
+
+    fun workflows(profile: String?): List<StudioWorkflow> {
+        val path = "/api/studio/workflows" + if (profile.isNullOrBlank()) "" else "?profile=${enc(profile)}"
+        val array = call(path).optJSONArray("workflows") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            StudioWorkflow(item.optString("id"), item.optString("name"), item.optString("profile").ifBlank { "default" }, firstNonBlank(item, "workspace"), item.optJSONArray("nodes")?.length() ?: 0, item.optJSONArray("edges")?.length() ?: 0, (item.optJSONArray("nodes") ?: JSONArray()).toString(2), (item.optJSONArray("edges") ?: JSONArray()).toString(2))
+        } }.filter { it.id.isNotBlank() }
+    }
+
+    fun workflowRuns(workflowId: String): List<StudioWorkflowRun> {
+        val array = call("/api/studio/workflows/${enc(workflowId)}/runs?limit=30").optJSONArray("runs") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { parseWorkflowRun(it) } }
+    }
+
+    fun runWorkflow(workflowId: String, input: String?) {
+        call("/api/studio/workflows/${enc(workflowId)}/run", "POST", JSONObject().apply { if (!input.isNullOrBlank()) put("input", input) })
+    }
+
+    fun stopWorkflowRun(workflowId: String, runId: String) { call("/api/studio/workflows/${enc(workflowId)}/runs/${enc(runId)}/stop", "POST", JSONObject()) }
+
+    fun approveWorkflowNode(workflowId: String, runId: String, nodeId: String, approved: Boolean) {
+        call("/api/studio/workflows/${enc(workflowId)}/runs/${enc(runId)}/nodes/${enc(nodeId)}/approval", "POST", JSONObject().put("approved", approved))
+    }
+    fun createWorkflow(name: String, profile: String?, workspace: String?, nodes: String, edges: String) { call("/api/studio/workflows", "POST", JSONObject().put("name", name).put("profile", profile ?: JSONObject.NULL).put("workspace", workspace?.takeIf(String::isNotBlank) ?: JSONObject.NULL).put("nodes", JSONArray(nodes)).put("edges", JSONArray(edges))) }
+    fun updateWorkflow(id: String, name: String, workspace: String?, nodes: String, edges: String) { call("/api/studio/workflows/${enc(id)}", "PATCH", JSONObject().put("name", name).put("workspace", workspace?.takeIf(String::isNotBlank) ?: JSONObject.NULL).put("nodes", JSONArray(nodes)).put("edges", JSONArray(edges))) }
+    fun deleteWorkflow(id: String) { call("/api/studio/workflows/${enc(id)}", "DELETE") }
+    fun batchDeleteWorkflows(ids: List<String>) { call("/api/studio/workflows/batch-delete", "POST", JSONObject().put("ids", JSONArray(ids))) }
+    fun workflowExportUrl(id: String): String = url("/api/studio/workflows/${enc(id)}/export?token=${enc(token)}")
+    fun importWorkflow(document: String, profile: String?): String { val preview = call("/api/studio/workflows/import/preview", "POST", JSONObject().put("document", document).put("profile", profile ?: JSONObject.NULL)).getJSONObject("preview"); val token = preview.getString("token"); call("/api/studio/workflows/import/confirm", "POST", JSONObject().put("token", token).put("profile", profile ?: JSONObject.NULL)); return preview.optJSONObject("summary")?.optString("name") ?: "" }
+    fun deleteWorkflowRun(workflowId: String, runId: String) { call("/api/studio/workflows/${enc(workflowId)}/runs/${enc(runId)}", "DELETE") }
+    fun rerunWorkflow(workflowId: String, runId: String, nodeId: String) { call("/api/studio/workflows/${enc(workflowId)}/runs/${enc(runId)}/rerun-from-node", "POST", JSONObject().put("node_id", nodeId).put("preserve_start_node", true)) }
+    fun workflowSchedules(id: String): List<WorkflowSchedule> { val a = call("/api/studio/workflows/${enc(id)}/schedules").optJSONArray("schedules") ?: JSONArray(); return (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { s -> WorkflowSchedule(s.optString("id"), s.optString("workflow_id"), s.optString("schedule"), s.optString("timezone"), s.optBoolean("enabled"), s.firstLong("next_run_at", "nextRunAt")) } } }
+    fun createWorkflowSchedule(id: String, schedule: String, timezone: String) { call("/api/studio/workflows/${enc(id)}/schedules", "POST", JSONObject().put("schedule", schedule).put("timezone", timezone).put("enabled", true)) }
+    fun toggleWorkflowSchedule(item: WorkflowSchedule) { call("/api/studio/workflows/${enc(item.workflowId)}/schedules/${enc(item.id)}", "PATCH", JSONObject().put("enabled", !item.enabled)) }
+    fun deleteWorkflowSchedule(item: WorkflowSchedule) { call("/api/studio/workflows/${enc(item.workflowId)}/schedules/${enc(item.id)}", "DELETE") }
+
+    private fun parseWorkflowRun(item: JSONObject): StudioWorkflowRun {
+        val sessions = item.optJSONArray("node_sessions") ?: JSONArray()
+        val pending = (0 until sessions.length()).mapNotNull { sessions.optJSONObject(it) }.firstOrNull { it.optString("status") == "blocked" }?.optString("node_id")
+        return StudioWorkflowRun(item.optString("id"), item.optString("workflow_id"), item.optString("status"), item.optLong("created_at"), firstNonBlank(item, "error"), pending)
+    }
+
+    /** GET /api/hermes/available-models — flattened to what the picker needs. */
+    fun availableModels(profile: String): List<ModelOption> {
+        val result = call("/api/hermes/available-models?profile=${enc(profile)}")
+        val options = LinkedHashMap<String, ModelOption>()
+
+        fun collect(container: JSONObject) {
+            val provider = firstNonBlank(container, "provider", "name", "label") ?: return
+            val models = container.optJSONArray("models") ?: return
+            for (index in 0 until models.length()) {
+                val id = models.optString(index).takeIf { it.isNotBlank() }
+                    ?: models.optJSONObject(index)?.let { firstNonBlank(it, "id", "name", "model") }
+                    ?: continue
+                if (id == "*") continue
+                options.putIfAbsent(id, ModelOption(id = id, provider = provider))
+            }
+        }
+
+        result.optJSONArray("groups")?.let { groups ->
+            for (index in 0 until groups.length()) groups.optJSONObject(index)?.let(::collect)
+        }
+        if (options.isEmpty()) {
+            result.optJSONArray("allProviders")?.let { providers ->
+                for (index in 0 until providers.length()) providers.optJSONObject(index)?.let(::collect)
+            }
+        }
+        return options.values.toList()
+    }
+
+    /** Provider credentials shown by Studio's Settings > Models tab. */
+    fun modelProviders(profile: String): List<ModelProvider> {
+        val result = call("/api/hermes/available-models?profile=${enc(profile)}")
+        val groups = result.optJSONArray("groups") ?: JSONArray()
+        return (0 until groups.length()).mapNotNull { index ->
+            val item = groups.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optString("provider").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            if (id == "moa") return@mapNotNull null
+            ModelProvider(
+                id = id,
+                label = item.optString("label").ifBlank { id.removePrefix("custom:") },
+                builtin = item.optBoolean("builtin", !id.startsWith("custom:")),
+                configured = item.optString("api_key").isNotBlank(),
+                baseUrl = item.optString("base_url"),
+                modelCount = item.optJSONArray("models")?.length() ?: 0,
+            )
+        }
+    }
+
+    fun updateProviderApiKey(profile: String, provider: String, apiKey: String) {
+        call(
+            "/api/hermes/config/providers/${enc(provider)}?profile=${enc(profile)}",
+            "PUT",
+            JSONObject().put("api_key", apiKey),
+        )
+    }
+
+    /** PUT /api/hermes/config/model — the profile's default model. */
+    fun setDefaultModel(profile: String, model: String, provider: String?) {
+        val body = JSONObject().put("default", model)
+        if (!provider.isNullOrBlank()) body.put("provider", provider)
+        call("/api/hermes/config/model?profile=${enc(profile)}", "PUT", body)
+    }
+
+    /** GET /api/hermes/config — the profile's current default model, if any. */
+    fun defaultModel(profile: String): String? {
+        val model = call("/api/hermes/config?profile=${enc(profile)}").optJSONObject("model")
+        return model?.let { firstNonBlank(it, "default") }
+    }
+
+    /** POST /api/hermes/profiles/{name}/gateway/restart */
+    fun restartGateway(profile: String) {
+        call("/api/hermes/profiles/${enc(profile)}/gateway/restart", "POST", JSONObject())
+    }
+
+    fun restartProfileRuntime(profile: String) { call("/api/hermes/profiles/${enc(profile)}/restart", "POST", JSONObject()) }
+
+    fun refreshProviderModels(profile: String, provider: String) {
+        call("/api/hermes/config/providers/${enc(provider)}/models/refresh?profile=${enc(profile)}", "POST", JSONObject(), profile)
+    }
+
+    fun testProvider(profile: String, provider: String): String {
+        val result = call("/api/hermes/config/providers/${enc(provider)}/editor/test?profile=${enc(profile)}", "POST", JSONObject(), profile)
+        return firstNonBlank(result, "message", "status") ?: "OK"
+    }
+
+    fun ekkoMemories(profile: String): List<EkkoMemory> {
+        val array = call("/api/ekko/memory?limit=200", profile = profile).optJSONArray("memories") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            EkkoMemory(item.optString("id"), item.optString("title"), item.optString("content"), item.optString("status"), item.optInt("revision", 1), strings(item.optJSONArray("tags")))
+        } }.filter { it.id.isNotBlank() }
+    }
+
+    fun updateEkkoMemory(profile: String, memory: EkkoMemory, title: String, content: String) {
+        call("/api/ekko/memory/${enc(memory.id)}", "PATCH", JSONObject().put("expectedRevision", memory.revision).put("title", title).put("content", content).put("tags", JSONArray(memory.tags)), profile)
+    }
+
+    fun deleteEkkoMemory(profile: String, memory: EkkoMemory) {
+        call("/api/ekko/memory/${enc(memory.id)}", "DELETE", JSONObject().put("expectedRevision", memory.revision), profile)
+    }
+
+    fun ekkoSkills(profile: String): List<SkillCategory> {
+        val array = call("/api/ekko/skills", profile = profile).optJSONArray("skills") ?: JSONArray()
+        val skills = (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            SkillInfo(item.optString("name"), item.optString("description"), item.optBoolean("enabled", true), item.optString("source"), false, 0)
+        } }.filter { it.name.isNotBlank() }
+        return skills.groupBy { it.source.ifBlank { "Ekko" } }.map { (name, values) -> SkillCategory(name, "", values) }
+    }
+
+    fun setEkkoSkillEnabled(profile: String, name: String, enabled: Boolean) {
+        call("/api/ekko/skills/${enc(name)}/toggle", "PUT", JSONObject().put("enabled", enabled), profile)
+    }
+
+    fun ekkoMcpServers(profile: String): List<EkkoMcpServer> {
+        val array = call("/api/ekko/mcp/servers", profile = profile).optJSONArray("servers") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            val config = item.optJSONObject("config") ?: JSONObject()
+            EkkoMcpServer(item.optString("name"), item.optBoolean("enabled", true), config.optString("transport", "stdio"), config.toString(2))
+        } }.filter { it.name.isNotBlank() }
+    }
+
+    fun saveEkkoMcpServer(profile: String, original: String?, name: String, configText: String) {
+        val config = JSONObject(configText)
+        if (original == null) call("/api/ekko/mcp/servers", "POST", JSONObject().put("name", name).put("config", config), profile)
+        else call("/api/ekko/mcp/servers/${enc(original)}", "PATCH", JSONObject().put("config", config), profile)
+    }
+
+    fun toggleEkkoMcpServer(profile: String, server: EkkoMcpServer) { call("/api/ekko/mcp/servers/${enc(server.name)}", "PATCH", JSONObject().put("enabled", !server.enabled), profile) }
+    fun testEkkoMcpServer(profile: String, name: String) { call("/api/ekko/mcp/servers/${enc(name)}/test", "POST", JSONObject(), profile) }
+    fun deleteEkkoMcpServer(profile: String, name: String) { call("/api/ekko/mcp/servers/${enc(name)}", "DELETE", profile = profile) }
+
+    fun studioFiles(profile: String, path: String): List<StudioFile> {
+        val array = call("/api/studio/files/list?path=${enc(path)}", profile = profile).optJSONArray("entries") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item -> StudioFile(item.optString("name"), item.optString("path"), item.optBoolean("isDir"), item.optLong("size")) } }.filter { it.name.isNotBlank() }
+    }
+    fun readStudioFile(profile: String, path: String): String = call("/api/studio/files/read?path=${enc(path)}", profile = profile).optString("content")
+    fun writeStudioFile(profile: String, path: String, content: String) { call("/api/studio/files/write", "PUT", JSONObject().put("path", path).put("content", content), profile) }
+    fun mkdirStudioFile(profile: String, path: String) { call("/api/studio/files/mkdir", "POST", JSONObject().put("path", path), profile) }
+    fun renameStudioFile(profile: String, old: String, new: String) { call("/api/studio/files/rename", "POST", JSONObject().put("oldPath", old).put("newPath", new), profile) }
+    fun copyStudioFile(profile: String, source: String, destination: String) { call("/api/studio/files/copy", "POST", JSONObject().put("srcPath", source).put("destPath", destination), profile) }
+    fun deleteStudioFile(profile: String, file: StudioFile) { call("/api/studio/files/delete", "DELETE", JSONObject().put("path", file.path).put("recursive", file.directory), profile) }
+    fun studioFilePreviewUrl(profile: String, path: String): String = url("/api/studio/files/preview?path=${enc(path)}&profile=${enc(profile)}&token=${enc(token)}")
+    fun uploadStudioFile(profile: String, directory: String, bytes: ByteArray, filename: String, mime: String) {
+        multipart("/api/studio/files/upload?path=${enc(directory)}", "file", bytes, filename, mime, emptyMap(), profile)
+    }
+
+    fun studioLogs(): List<StudioLogFile> {
+        val array = call("/api/studio/logs").optJSONArray("files") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { StudioLogFile(it.optString("name"), it.optString("size"), it.optString("modified")) } }.filter { it.name.isNotBlank() }
+    }
+    fun studioLog(name: String, profile: String): List<StudioLogEntry> {
+        val array = call("/api/studio/logs/${enc(name)}?lines=300&profile=${enc(profile)}").optJSONArray("entries") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { StudioLogEntry(it.optString("timestamp"), it.optString("level"), it.optString("logger"), it.optString("message")) } }
+    }
+
+    fun appRelayStatus(): AppRelayStatus = parseRelay(call("/api/app-relay/status").optJSONObject("relay") ?: JSONObject())
+    fun connectAppRelay(): AppRelayStatus = parseRelay(call("/api/app-relay/connect", "POST", JSONObject()).optJSONObject("relay") ?: JSONObject())
+    fun refreshAppRelayCode(): AppRelayStatus = parseRelay(call("/api/app-relay/pairing-code", "POST", JSONObject()).optJSONObject("relay") ?: JSONObject())
+    fun disconnectAppRelay(): AppRelayStatus = parseRelay(call("/api/app-relay/disconnect", "POST", JSONObject()).optJSONObject("relay") ?: JSONObject())
+    private fun parseRelay(item: JSONObject) = AppRelayStatus(item.optBoolean("connected"), item.optString("machineId"), item.optString("pairingCode"), item.optLong("pairingExpiresAt"), item.optString("route"), item.optString("relayUrl"))
+
+    fun studioDevices(): List<StudioDevice> {
+        val root = call("/api/devices")
+        val array = root.optJSONArray("devices") ?: root.optJSONArray("relations") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item ->
+            val id = firstNonBlank(item, "id", "device_id") ?: return@let null
+            StudioDevice(id, firstNonBlank(item, "computer_name", "name") ?: id.take(8), firstNonBlank(item, "url", "ip") ?: "", item.optString("inbound_status"), item.optString("outbound_status"))
+        } }
+    }
+    fun deviceAction(id: String, action: String) { call("/api/devices/${enc(id)}/$action", "POST", JSONObject()) }
+
+    fun appConnections(): List<AppConnection> {
+        val array = call("/api/app-connections").optJSONArray("connections") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item -> AppConnection(item.optInt("id"), firstNonBlank(item, "device_name", "device_model") ?: item.optString("device_code"), item.optString("connection_type"), item.optBoolean("active"), item.optBoolean("online")) } }.filter { it.id > 0 }
+    }
+    fun createAppAuthorization(cloud: Boolean): AppAuthorization {
+        val result = call("/api/app-connections/authorization-codes/${if (cloud) "cloud" else "lan"}", "POST", JSONObject())
+        val code = firstNonBlank(result, "matching_code", "authorization_code", "code") ?: ""
+        return AppAuthorization(code, result.firstLong("expires_at", "expiresAt") ?: 0, result.optString("connection_type").ifBlank { if (cloud) "cloud" else "lan" }, firstNonBlank(result, "qr_payload", "qrPayload") ?: code)
+    }
+    fun revokeAppConnection(id: Int) { call("/api/app-connections/$id", "DELETE") }
+
+    fun switchActiveProfile(name: String) { call("/api/hermes/profiles/active", "PUT", JSONObject().put("name", name)) }
+    fun updateProfileAvatar(name: String, dataUrl: String) { call("/api/hermes/profiles/${enc(name)}/avatar", "PUT", JSONObject().put("avatar", JSONObject().put("type", "image").put("dataUrl", dataUrl))) }
+    fun clearProfileAvatar(name: String) { call("/api/hermes/profiles/${enc(name)}/avatar", "DELETE") }
+    fun importProfile(bytes: ByteArray, filename: String) { multipart("/api/hermes/profiles/import", "file", bytes, filename, "application/gzip", emptyMap(), null) }
+    fun profileExportUrl(name: String): String = url("/api/hermes/profiles/${enc(name)}/export?token=${enc(token)}")
+
+    fun ekkoSkillDetail(profile: String, name: String): String {
+        val skill = call("/api/ekko/skills/${enc(name)}", profile = profile).optJSONObject("skill") ?: JSONObject()
+        return skill.optString("content")
+    }
+    fun createEkkoSkill(profile: String, name: String, content: String) { call("/api/ekko/skills", "POST", JSONObject().put("name", name).put("content", content), profile) }
+    fun saveEkkoSkill(profile: String, name: String, content: String) { call("/api/ekko/skills/${enc(name)}", "PUT", JSONObject().put("content", content), profile) }
+    fun deleteEkkoSkill(profile: String, name: String) { call("/api/ekko/skills/${enc(name)}", "DELETE", profile = profile) }
+    fun importEkkoSkill(profile: String, bytes: ByteArray, filename: String) { multipart("/api/ekko/skills/import", "file", bytes, filename, "application/zip", emptyMap(), profile) }
+    fun ekkoExternalDirectories(profile: String): List<String> = strings(call("/api/ekko/skills/external-directories", profile = profile).optJSONArray("directories"))
+    fun saveEkkoExternalDirectories(profile: String, dirs: List<String>) { call("/api/ekko/skills/external-directories", "PUT", JSONObject().put("directories", JSONArray(dirs)), profile) }
+    fun ekkoSkillFiles(profile: String, name: String): List<String> {
+        val array = call("/api/ekko/skills/${enc(name)}/files", profile = profile).optJSONArray("files") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> when (val value = array.opt(i)) { is String -> value; is JSONObject -> firstNonBlank(value, "path", "name"); else -> null } }
+    }
+    fun ekkoSkillFile(profile: String, name: String, path: String): String = call("/api/ekko/skills/${enc(name)}/file?path=${enc(path)}", profile = profile).optString("content")
+
+    fun devicePairingLink(): String { val root = call("/api/devices/pairing-link"); return firstNonBlank(root, "url", "link", "pairingLink") ?: "" }
+    fun manualDeviceRequest(url: String) { call("/api/devices/manual-request", "POST", JSONObject().put("url", url)) }
+    fun peerConnections(): List<PeerConnection> {
+        val array = call("/api/devices/peer-connections").optJSONArray("connections") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item -> val id = firstNonBlank(item, "id", "connectionId") ?: return@let null; PeerConnection(id, firstNonBlank(item, "device_id", "deviceId") ?: "", firstNonBlank(item, "computer_name", "name") ?: id.take(8)) } }
+    }
+    fun disconnectPeer(id: String) { call("/api/devices/peer-connections/${enc(id)}/disconnect", "POST", JSONObject()) }
+
+    fun journey(): JourneyGraph {
+        val root = call("/api/hermes/journey"); val graph = root.optJSONObject("graph") ?: JSONObject()
+        val nodes = graph.optJSONArray("nodes") ?: JSONArray(); val edges = graph.optJSONArray("edges") ?: JSONArray(); val clusters = graph.optJSONArray("clusters") ?: JSONArray()
+        return JourneyGraph(root.optString("profile"), (0 until nodes.length()).mapNotNull { nodes.optJSONObject(it)?.let { n -> JourneyNode(n.optString("id"), n.optString("label"), n.optString("kind"), n.optString("category"), n.optInt("useCount")) } }, (0 until edges.length()).mapNotNull { edges.optJSONObject(it)?.let { e -> e.optString("source") to e.optString("target") } }, (0 until clusters.length()).mapNotNull { clusters.optJSONObject(it)?.let { c -> c.optString("category") to c.optInt("count") } })
+    }
+    fun skillUsage(days: Int = 7): SkillUsage { val root = call("/api/hermes/skills/usage/stats?days=$days"); val s = root.optJSONObject("summary") ?: JSONObject(); val top = root.optJSONArray("top_skills") ?: JSONArray(); return SkillUsage(s.optInt("total_skill_loads"), s.optInt("total_skill_edits"), s.optInt("total_skill_actions"), s.optInt("distinct_skills_used"), (0 until top.length()).mapNotNull { top.optJSONObject(it)?.let { row -> (firstNonBlank(row, "skill", "name") ?: return@let null) to row.optInt("total_count", row.optInt("count")) } }) }
+    fun webhooks(): List<WebhookEndpoint> { val a = call("/api/studio/webhooks/endpoints").optJSONArray("endpoints") ?: JSONArray(); return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { w -> val runtime = w.optJSONObject("runtime") ?: JSONObject(); WebhookEndpoint(w.optString("id"), w.optString("name"), w.optString("url"), w.optBoolean("enabled"), runtime.optString("state"), runtime.optInt("delivered"), runtime.optInt("failed")) } } }
+    fun createWebhook(name: String, url: String) { call("/api/studio/webhooks/endpoints", "POST", JSONObject().put("name", name).put("url", url).put("event_types", JSONArray().put("chat.run.completed").put("chat.run.failed")).put("profiles", JSONArray()).put("enabled", true).put("include_content", false).put("include_user_content", false).put("allow_private_network", false).put("max_retries", 3)) }
+    fun toggleWebhook(item: WebhookEndpoint) { call("/api/studio/webhooks/endpoints/${enc(item.id)}", "PATCH", JSONObject().put("enabled", !item.enabled)) }
+    fun updateWebhook(id: String, name: String, url: String) { call("/api/studio/webhooks/endpoints/${enc(id)}", "PATCH", JSONObject().put("name", name).put("url", url)) }
+    fun deleteWebhook(id: String) { call("/api/studio/webhooks/endpoints/${enc(id)}", "DELETE") }
+    fun testWebhook(id: String): String { val r = call("/api/studio/webhooks/endpoints/${enc(id)}/test", "POST", JSONObject()); return if (r.optBoolean("ok")) "OK (${r.optInt("status")})" else r.optString("error", "Failed") }
+    fun webhookEvents(): List<String> { val a = call("/api/studio/webhooks/local-test-events").optJSONArray("events") ?: JSONArray(); return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { e -> "${e.optString("received_at")} · ${e.optString("event")}" } } }
+    fun clearWebhookEvents() { call("/api/studio/webhooks/local-test-events", "DELETE") }
+    fun runtimeVersions(): RuntimeVersions {
+        val root = call("/api/hermes/runtime-versions")
+        val hermes = root.optJSONObject("hermes") ?: JSONObject()
+        val webUi = root.optJSONObject("webui") ?: JSONObject()
+        fun installed(array: JSONArray?, kind: String): List<RuntimeVersion> =
+            (0 until (array?.length() ?: 0)).mapNotNull { index ->
+                array?.optJSONObject(index)?.let { version ->
+                    RuntimeVersion(version.optString("version"), version.optBoolean("active"), kind)
+                }
+            }
+        return RuntimeVersions(
+            platform = root.optString("platform"),
+            activeRuntime = hermes.optString("activeVersion"),
+            activeWebUi = webUi.optString("activeVersion"),
+            runtime = installed(hermes.optJSONArray("installed"), "runtime"),
+            webUi = installed(webUi.optJSONArray("installed"), "webui"),
+            remoteRuntime = strings(hermes.optJSONArray("remoteVersions")),
+            remoteWebUi = strings(webUi.optJSONArray("remoteVersions")),
+        )
+    }
+    fun activateVersion(version: String, webUi: Boolean) { call("/api/hermes/runtime-versions/${if (webUi) "active-webui" else "active-runtime"}", "POST", JSONObject().put("version", version)) }
+    fun downloadVersion(version: String, webUi: Boolean) { call("/api/hermes/runtime-versions/${if (webUi) "webui" else "runtime"}/download", "POST", JSONObject().put("version", version).put("source", "github")) }
+    fun restartWebUi() { call("/api/hermes/runtime-versions/restart-webui", "POST", JSONObject()) }
+    fun themeSettings(): ThemeSettings { val r = call("/api/theme"); return ThemeSettings(r.optInt("fontSize", 16), r.optString("textColor"), r.optString("accentColor"), r.optJSONObject("background")?.optString("name") ?: "") }
+    fun updateTheme(fontSize: Int, text: String, accent: String) { call("/api/theme", "PUT", JSONObject().put("fontSize", fontSize).put("textColor", text.ifBlank { JSONObject.NULL }).put("accentColor", accent.ifBlank { JSONObject.NULL })) }
+    fun removeThemeBackground() { call("/api/theme/background", "DELETE") }
+    fun uploadThemeBackground(bytes: ByteArray, name: String, mime: String) { multipart("/api/theme/background", "background", bytes, name, mime, emptyMap(), null) }
+    fun kanbanStats(board: String): String = call("/api/hermes/kanban/stats?board=${enc(board)}").optJSONObject("stats")?.toString(2) ?: ""
+    fun kanbanDiagnostics(board: String, task: String? = null): List<String> { val q = "?board=${enc(board)}" + (task?.let { "&task=${enc(it)}" } ?: ""); val a = call("/api/hermes/kanban/diagnostics$q").optJSONArray("diagnostics") ?: JSONArray(); return (0 until a.length()).map { a.opt(it).toString() } }
+    fun kanbanLog(board: String, task: String): String = call("/api/hermes/kanban/${enc(task)}/log?board=${enc(board)}&tail=200").toString(2)
+    fun kanbanAttachments(board: String, task: String): List<String> { val r = call("/api/hermes/kanban/${enc(task)}/attachments?board=${enc(board)}"); val a = r.optJSONArray("attachments") ?: JSONArray(); return (0 until a.length()).mapNotNull { i -> when(val v=a.opt(i)){ is JSONObject -> firstNonBlank(v,"name","filename","path"); is String -> v; else -> null } } }
+    fun kanbanCommand(board: String, task: String, action: String, value: String = "") { val body: JSONObject; val path = when(action) { "complete" -> { body = JSONObject().put("task_ids", JSONArray().put(task)).put("summary", value); "/api/hermes/kanban/complete" }; "unblock" -> { body = JSONObject().put("task_ids", JSONArray().put(task)); "/api/hermes/kanban/unblock" }; "dispatch" -> { body = JSONObject().put("max", 1); "/api/hermes/kanban/dispatch" }; "block" -> { body = JSONObject().put("reason", value); "/api/hermes/kanban/${enc(task)}/block" }; "reassign" -> { body = JSONObject().put("profile", value).put("reclaim", true); "/api/hermes/kanban/${enc(task)}/reassign" }; else -> return }; call("$path?board=${enc(board)}", "POST", body) }
+
+    /** POST /api/hermes/sessions/{id}/model */
+    fun setSessionModel(sessionId: String, model: String, provider: String?) {
+        val body = JSONObject().put("model", model)
+        if (!provider.isNullOrBlank()) body.put("provider", provider)
+        call("/api/hermes/sessions/${enc(sessionId)}/model", "POST", body)
+    }
+
+    /** GET /api/hermes/sessions/conversations/{id}/messages — existing history. */
+    fun conversationHistory(sessionId: String, humanOnly: Boolean = true): ConversationHistory {
+        val path = "/api/hermes/sessions/conversations/${enc(sessionId)}/messages?humanOnly=$humanOnly"
+        val root = call(path)
+        val array = root.optJSONArray("messages") ?: JSONArray()
+        val messages = (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val content = item.optString("content")
+            if (content.isBlank()) return@mapNotNull null
+            Message(
+                id = item.optString("id"),
+                role = item.optString("role").ifBlank { "assistant" },
+                content = content,
+                timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
+            )
+        }
+        return ConversationHistory(
+            messages = messages,
+            contextTokens = root.firstLong("contextTokens", "context_tokens", "tokenCount", "token_count"),
+        )
+    }
+
+    fun messages(sessionId: String, humanOnly: Boolean = true): List<Message> =
+        conversationHistory(sessionId, humanOnly).messages
+
+    fun pendingSkillWrites(profile: String): List<PendingSkillWrite> {
+        val records = call("/api/hermes/write-gate/pending", profile = profile).optJSONArray("records") ?: JSONArray()
+        return (0 until records.length()).mapNotNull { index ->
+            val item = records.optJSONObject(index) ?: return@mapNotNull null
+            if (item.optString("subsystem") != "skills") return@mapNotNull null
+            PendingSkillWrite(
+                id = item.optString("id"),
+                subsystem = "skills",
+                action = item.optString("action"),
+                summary = item.optString("summary"),
+                origin = item.optString("origin"),
+                createdAt = item.optLong("created_at").takeIf { it > 0 },
+            )
+        }.filter { it.id.isNotBlank() }
+    }
+
+    fun resolvePendingSkillWrite(profile: String, id: String, approve: Boolean) {
+        call(
+            "/api/hermes/write-gate/pending/skills/${enc(id)}/${if (approve) "approve" else "reject"}",
+            method = "POST",
+            profile = profile,
+        )
+    }
+
+    /** Maximum context window for the profile's currently selected model. */
+    fun contextLength(profile: String, provider: String?, model: String?): Long {
+        val query = listOfNotNull(
+            "profile=${enc(profile)}",
+            provider?.takeIf(String::isNotBlank)?.let { "provider=${enc(it)}" },
+            model?.takeIf(String::isNotBlank)?.let { "model=${enc(it)}" },
+        ).joinToString("&")
+        val root = call("/api/hermes/sessions/context-length?$query", profile = profile)
+        return root.firstLong("context_length", "contextLength")?.takeIf { it > 0 }
+            ?: throw HermesException("Studio returned no context length")
+    }
+
+    fun usageStats(days: Int): UsageStats {
+        val root = call("/api/hermes/usage/stats?days=${days.coerceIn(1, 365)}")
+        fun entries(key: String, nameKey: String) = root.optJSONArray(key).objects().map { item ->
+            UsageBreakdown(
+                name = item.optString(nameKey).ifBlank { "unknown" },
+                inputTokens = item.optLong("input_tokens"),
+                outputTokens = item.optLong("output_tokens"),
+                cacheReadTokens = item.optLong("cache_read_tokens"),
+                sessions = item.optInt("sessions"),
+                cost = item.optDouble("cost"),
+            )
+        }
+        val daily = root.optJSONArray("daily_usage").objects().map { item ->
+            DailyUsage(
+                date = item.optString("date"),
+                inputTokens = item.optLong("input_tokens"),
+                outputTokens = item.optLong("output_tokens"),
+                cacheReadTokens = item.optLong("cache_read_tokens"),
+                sessions = item.optInt("sessions"),
+                cost = item.optDouble("cost"),
+            )
+        }
+        return UsageStats(
+            inputTokens = root.optLong("total_input_tokens"),
+            outputTokens = root.optLong("total_output_tokens"),
+            cacheReadTokens = root.optLong("total_cache_read_tokens"),
+            cacheWriteTokens = root.optLong("total_cache_write_tokens"),
+            reasoningTokens = root.optLong("total_reasoning_tokens"),
+            sessions = root.optInt("total_sessions"),
+            cost = root.optDouble("total_cost"),
+            models = entries("model_usage", "model"),
+            agents = entries("agent_usage", "agent"),
+            daily = daily,
+        )
+    }
+
+    fun runtimePerformance(): RuntimePerformance {
+        val root = call("/api/hermes/performance/runtime")
+        val system = root.optJSONObject("system") ?: JSONObject()
+        val bridge = root.optJSONObject("bridge") ?: JSONObject()
+        val web = root.optJSONObject("web") ?: JSONObject()
+        val workers = bridge.optJSONArray("workers") ?: JSONArray()
+        val sessions = root.optJSONObject("sessions") ?: JSONObject()
+        return RuntimePerformance(
+            cpuPercent = system.optDouble("cpuPercent", Double.NaN).takeIf(Double::isFinite),
+            memoryPercent = system.optDouble("memoryPercent", Double.NaN).takeIf(Double::isFinite),
+            usedMemoryBytes = system.optLong("usedMemoryBytes").takeIf { it > 0 },
+            totalMemoryBytes = system.optLong("totalMemoryBytes").takeIf { it > 0 },
+            studioMemoryBytes = web.optJSONObject("memory")?.optLong("rss")?.takeIf { it > 0 },
+            workerCount = workers.length(),
+            runningWorkers = (0 until workers.length()).count { workers.optJSONObject(it)?.optBoolean("running") == true },
+            sessionCount = sessions.optInt("total", sessions.optJSONObject("byProfile")?.length() ?: 0),
+        )
+    }
+
+    // ── scheduled jobs ──────────────────────────────────────────────────
+
+    /** The same profile-scoped list shown by Studio's Scheduled Jobs page. */
+    fun cronJobs(profile: String): List<CronJob> {
+        val array = call(
+            path = "/api/hermes/jobs?include_disabled=true",
+            profile = profile,
+        ).optJSONArray("jobs") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let(::parseCronJob)
+        }
+    }
+
+    /** Fetches the raw job before editing so inherited model defaults stay inherited. */
+    fun cronJob(profile: String, jobId: String): CronJob {
+        val item = call(
+            path = "/api/hermes/jobs/${enc(jobId)}",
+            profile = profile,
+        ).optJSONObject("job") ?: throw HermesException("The server returned no job")
+        return parseCronJob(item) ?: throw HermesException("The job has no id")
+    }
+
+    fun createCronJob(profile: String, draft: CronJobDraft): CronJob {
+        val result = call(
+            path = "/api/hermes/jobs",
+            method = "POST",
+            body = draft.toJson(includeNullRepeat = false),
+            profile = profile,
+        )
+        return parseJobResponse(result)
+    }
+
+    fun updateCronJob(profile: String, original: CronJob, draft: CronJobDraft): CronJob {
+        val body = JSONObject()
+        if (draft.name != original.name) body.put("name", draft.name)
+        if (draft.schedule != original.scheduleInput) body.put("schedule", draft.schedule)
+        if (draft.prompt != original.prompt) body.put("prompt", draft.prompt)
+        if (draft.deliver != original.deliver) body.put("deliver", draft.deliver)
+        if (draft.skills != original.skills) {
+            body.put("skills", JSONArray().apply { draft.skills.forEach(::put) })
+        }
+        if (draft.repeatTimes != original.repeatTimes) {
+            body.put("repeat", draft.repeatTimes ?: JSONObject.NULL)
+        }
+        if (draft.model.orEmpty() != original.model.orEmpty()) {
+            body.put("model", draft.model?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+        }
+        if (draft.provider.orEmpty() != original.provider.orEmpty()) {
+            body.put("provider", draft.provider?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+        }
+
+        val result = call(
+            path = "/api/hermes/jobs/${enc(original.id)}",
+            method = "PATCH",
+            body = body,
+            profile = profile,
+        )
+        return parseJobResponse(result)
+    }
+
+    fun deleteCronJob(profile: String, jobId: String) {
+        call("/api/hermes/jobs/${enc(jobId)}", "DELETE", profile = profile)
+    }
+
+    fun pauseCronJob(profile: String, jobId: String): CronJob = cronJobAction(profile, jobId, "pause")
+
+    fun resumeCronJob(profile: String, jobId: String): CronJob = cronJobAction(profile, jobId, "resume")
+
+    fun runCronJob(profile: String, jobId: String): CronJob = cronJobAction(profile, jobId, "run")
+
+    /** Targets are generated by Studio from the profile's channel directory. */
+    fun cronDeliveryTargets(profile: String): List<CronDeliveryTarget> {
+        val array = call(
+            path = "/api/hermes/jobs/delivery-targets",
+            profile = profile,
+        ).optJSONArray("targets") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val value = firstNonBlank(item, "value") ?: return@mapNotNull null
+            CronDeliveryTarget(
+                platform = firstNonBlank(item, "platform").orEmpty(),
+                id = firstNonBlank(item, "id").orEmpty(),
+                name = firstNonBlank(item, "name") ?: value,
+                type = firstNonBlank(item, "type"),
+                value = value,
+            )
+        }
+    }
+
+    /** Enabled Hermes skills that may be attached to a scheduled job. */
+    fun cronSkills(profile: String): List<String> {
+        val categories = call(
+            path = "/api/hermes/skills?profile=${enc(profile)}",
+            profile = profile,
+        ).optJSONArray("categories") ?: JSONArray()
+        val names = linkedSetOf<String>()
+        for (categoryIndex in 0 until categories.length()) {
+            val skills = categories.optJSONObject(categoryIndex)?.optJSONArray("skills") ?: continue
+            for (skillIndex in 0 until skills.length()) {
+                val item = skills.optJSONObject(skillIndex) ?: continue
+                if (item.has("enabled") && !item.optBoolean("enabled", true)) continue
+                firstNonBlank(item, "name")?.let(names::add)
+            }
+        }
+        return names.sorted()
+    }
+
+    fun cronRuns(profile: String, jobId: String): List<CronRun> {
+        val result = call(
+            path = "/api/cron-history?jobId=${enc(jobId)}",
+            profile = profile,
+        )
+        val array = result.optJSONArray("runs") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = firstNonBlank(item, "jobId") ?: return@mapNotNull null
+            val fileName = firstNonBlank(item, "fileName") ?: return@mapNotNull null
+            CronRun(
+                jobId = id,
+                fileName = fileName,
+                runTime = firstNonBlank(item, "runTime").orEmpty(),
+                size = item.optLong("size", 0L),
+                hasOutput = item.optBoolean("hasOutput", true),
+                synthetic = item.optBoolean("synthetic", false),
+                runCount = item.optInt("runCount").takeIf { item.has("runCount") && !item.isNull("runCount") },
+                status = firstNonBlank(item, "status"),
+                error = firstNonBlank(item, "error"),
+            )
+        }
+    }
+
+    fun cronRun(profile: String, run: CronRun): CronRunDetail {
+        val result = call(
+            path = "/api/cron-history/${enc(run.jobId)}/${enc(run.fileName)}",
+            profile = profile,
+        )
+        return CronRunDetail(
+            jobId = firstNonBlank(result, "jobId") ?: run.jobId,
+            fileName = firstNonBlank(result, "fileName") ?: run.fileName,
+            runTime = firstNonBlank(result, "runTime") ?: run.runTime,
+            content = result.optString("content"),
+        )
+    }
+
+    /** GET /api/hermes/group-chat/rooms */
+    fun rooms(): List<Room> {
+        val array = call("/api/hermes/group-chat/rooms").optJSONArray("rooms") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = firstNonBlank(item, "id", "roomId", "room_id") ?: return@mapNotNull null
+            Room(
+                id = id,
+                name = firstNonBlank(item, "name", "title") ?: id.take(8),
+                agentCount = optionalCount(item, "agentCount", "agents"),
+                memberCount = optionalCount(item, "memberCount", "members"),
+                updatedAt = firstNonBlank(item, "updatedAt", "updated_at", "lastMessageAt"),
+            )
+        }
+    }
+
+    /** GET /api/hermes/group-chat/rooms/{id} — room detail plus recent messages. */
+    fun room(roomId: String, limit: Int = 80): RoomDetail {
+        val result = call("/api/hermes/group-chat/rooms/${enc(roomId)}?limit=$limit&offset=0")
+        val roomObject = result.optJSONObject("room")
+        val name = roomObject?.let { firstNonBlank(it, "name", "title") } ?: roomId
+        val agents = result.optJSONArray("agents") ?: JSONArray()
+        val agentNames = (0 until agents.length()).mapNotNull { index ->
+            agents.optJSONObject(index)?.let { firstNonBlank(it, "name", "profile", "agentId") }
+        }
+        val array = result.optJSONArray("messages") ?: JSONArray()
+        val messages = (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val content = item.optString("content")
+            if (content.isBlank()) return@mapNotNull null
+            RoomMessage(
+                id = item.optString("id"),
+                sender = firstNonBlank(item, "senderName", "sender_name", "senderId") ?: "?",
+                content = content,
+                isAgent = item.optString("role") == "assistant",
+                timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
+            )
+        }
+        return RoomDetail(id = roomId, name = name, agents = agentNames, messages = messages)
+    }
+
+    // ── native agent tools ───────────────────────────────────────────────
+
+    fun kanbanBoards(): List<KanbanBoard> {
+        val array = call("/api/hermes/kanban/boards").optJSONArray("boards") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            KanbanBoard(
+                slug = item.optString("slug"),
+                name = item.optString("name").ifBlank { item.optString("slug") },
+                description = item.optString("description").takeIf(String::isNotBlank),
+                color = item.optString("color").takeIf(String::isNotBlank),
+                total = item.optInt("total", item.optJSONObject("counts")?.let { counts ->
+                    counts.keys().asSequence().sumOf { counts.optInt(it) }
+                } ?: 0),
+                isCurrent = item.optBoolean("is_current", item.optBoolean("isCurrent")),
+            ).takeIf { it.slug.isNotBlank() }
+        }
+    }
+
+    fun kanbanTasks(board: String): List<KanbanTask> {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        val array = call("/api/hermes/kanban$suffix").optJSONArray("tasks") ?: JSONArray()
+        return parseKanbanTasks(array)
+    }
+
+    fun kanbanAssignees(board: String): List<String> {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        val array = call("/api/hermes/kanban/assignees$suffix").optJSONArray("assignees") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            when (val value = array.opt(index)) {
+                is JSONObject -> value.optString("name").takeIf(String::isNotBlank)
+                is String -> value.takeIf(String::isNotBlank)
+                else -> null
+            }
+        }
+    }
+
+    fun kanbanTask(board: String, id: String): KanbanTaskDetail {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        val result = call("/api/hermes/kanban/${enc(id)}$suffix")
+        val task = parseKanbanTask(result.optJSONObject("task") ?: result)
+            ?: throw HermesException("Task response was empty")
+        val comments = result.optJSONArray("comments") ?: JSONArray()
+        val runs = result.optJSONArray("runs") ?: JSONArray()
+        return KanbanTaskDetail(
+            task = task,
+            latestSummary = result.optString("latest_summary").takeIf(String::isNotBlank),
+            comments = (0 until comments.length()).mapNotNull { index ->
+                comments.optJSONObject(index)?.let {
+                    KanbanComment(
+                        id = it.optString("id"),
+                        author = it.optString("author").ifBlank { "Hermes" },
+                        body = it.optString("body"),
+                        createdAt = it.optLong("created_at"),
+                    )
+                }
+            },
+            runs = (0 until runs.length()).mapNotNull { index ->
+                runs.optJSONObject(index)?.let {
+                    KanbanRun(
+                        id = it.optString("id"),
+                        status = it.optString("status"),
+                        summary = it.optString("summary").takeIf(String::isNotBlank),
+                        error = it.optString("error").takeIf(String::isNotBlank),
+                        startedAt = it.optLong("started_at"),
+                    )
+                }
+            },
+        )
+    }
+
+    fun createKanbanTask(
+        board: String,
+        title: String,
+        body: String,
+        assignee: String,
+        priority: Int,
+        skills: List<String>,
+        triage: Boolean,
+    ): KanbanTask {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        val payload = JSONObject()
+            .put("title", title)
+            .put("priority", priority)
+            .put("triage", triage)
+            .put("skills", JSONArray(skills))
+            .apply {
+                if (body.isNotBlank()) put("body", body)
+                if (assignee.isNotBlank()) put("assignee", assignee)
+            }
+        val result = call("/api/hermes/kanban$suffix", "POST", payload)
+        return parseKanbanTask(result.optJSONObject("task") ?: result)
+            ?: throw HermesException("Task creation returned no task")
+    }
+
+    fun moveKanbanTask(board: String, id: String, status: String) {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        call(
+            "/api/hermes/kanban/tasks/bulk$suffix",
+            "POST",
+            JSONObject().put("ids", JSONArray(listOf(id))).put("status", status),
+        )
+    }
+
+    fun assignKanbanTask(board: String, id: String, assignee: String) {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        call(
+            "/api/hermes/kanban/${enc(id)}/assign$suffix",
+            "POST",
+            JSONObject().put("profile", assignee),
+        )
+    }
+
+    fun addKanbanComment(board: String, id: String, body: String, author: String?) {
+        val suffix = if (board.isBlank()) "" else "?board=${enc(board)}"
+        call(
+            "/api/hermes/kanban/${enc(id)}/comments$suffix",
+            "POST",
+            JSONObject().put("body", body).apply { if (!author.isNullOrBlank()) put("author", author) },
+        )
+    }
+
+    fun skills(profile: String, target: String): List<SkillCategory> {
+        val result = call(
+            "/api/hermes/skills?profile=${enc(profile)}&target=${enc(target)}",
+            profile = profile,
+        )
+        val categories = result.optJSONArray("categories") ?: JSONArray()
+        return (0 until categories.length()).mapNotNull { index ->
+            val category = categories.optJSONObject(index) ?: return@mapNotNull null
+            val items = category.optJSONArray("skills") ?: JSONArray()
+            SkillCategory(
+                name = category.optString("name"),
+                description = category.optString("description"),
+                skills = (0 until items.length()).mapNotNull { skillIndex ->
+                    items.optJSONObject(skillIndex)?.let(::parseSkill)
+                },
+            )
+        }
+    }
+
+    fun skillContent(profile: String, category: String, name: String): String =
+        call(
+            "/api/hermes/skills/${enc(category)}/${enc(name)}",
+            profile = profile,
+        ).optString("content")
+
+    fun saveSkill(profile: String, category: String, name: String, content: String) {
+        call(
+            "/api/hermes/skills/${enc(category)}/${enc(name)}",
+            "PUT",
+            JSONObject().put("content", content),
+            profile,
+        )
+    }
+
+    fun setSkillEnabled(profile: String, name: String, enabled: Boolean) {
+        call(
+            "/api/hermes/skills/toggle",
+            "PUT",
+            JSONObject().put("name", name).put("enabled", enabled),
+            profile,
+        )
+    }
+
+    fun setSkillPinned(profile: String, name: String, pinned: Boolean) {
+        call(
+            "/api/hermes/skills/pin",
+            "PUT",
+            JSONObject().put("name", name).put("pinned", pinned),
+            profile,
+        )
+    }
+
+    fun deleteSkill(profile: String, category: String, name: String) {
+        call("/api/hermes/skills/${enc(category)}/${enc(name)}", "DELETE", profile = profile)
+    }
+
+    fun importSkill(profile: String, category: String, bytes: ByteArray, filename: String): String {
+        val result = multipart(
+            path = "/api/hermes/skills/import",
+            field = "files",
+            bytes = bytes,
+            filename = filename,
+            mime = "application/zip",
+            fields = mapOf("category" to category),
+            profile = profile,
+        )
+        return result.optString("name").ifBlank { filename.substringBeforeLast('.') }
+    }
+
+    fun plugins(): Pair<List<HermesPlugin>, List<String>> {
+        val result = call("/api/hermes/plugins")
+        val array = result.optJSONArray("plugins") ?: JSONArray()
+        val plugins = (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val required = item.optJSONArray("requiresEnv") ?: JSONArray()
+            HermesPlugin(
+                key = item.optString("key"),
+                name = item.optString("name").ifBlank { item.optString("key") },
+                kind = item.optString("kind"),
+                source = item.optString("source"),
+                configured = item.optString("configStatus") == "configured",
+                enabled = item.optString("effectiveStatus") == "enabled",
+                version = item.optString("version").takeIf(String::isNotBlank),
+                description = item.optString("description").takeIf(String::isNotBlank),
+                author = item.optString("author").takeIf(String::isNotBlank),
+                tools = strings(item.optJSONArray("providesTools")),
+                hooks = strings(item.optJSONArray("providesHooks")),
+                requiredEnv = (0 until required.length()).mapNotNull { envIndex ->
+                    when (val env = required.opt(envIndex)) {
+                        is String -> env
+                        is JSONObject -> firstNonBlank(env, "name", "key")
+                        else -> null
+                    }
+                },
+            ).takeIf { it.key.isNotBlank() }
+        }
+        return plugins to strings(result.optJSONArray("warnings"))
+    }
+
+    fun setPluginEnabled(key: String, enabled: Boolean) {
+        call(
+            "/api/hermes/plugins/${enc(key)}/${if (enabled) "enable" else "disable"}",
+            "POST",
+        )
+    }
+
+    fun mcpServers(): List<McpServer> {
+        val array = call("/api/hermes/mcp/servers").optJSONArray("servers") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val details = item.optJSONArray("tool_details") ?: JSONArray()
+            val config = item.optJSONObject("raw_config") ?: JSONObject()
+            McpServer(
+                name = item.optString("name"),
+                transport = item.optString("transport").ifBlank { config.optString("transport", "stdio") },
+                connected = item.optBoolean("connected"),
+                toolCount = item.optInt("tools"),
+                registeredToolCount = item.optInt("tools_registered"),
+                tools = (0 until details.length()).mapNotNull { toolIndex ->
+                    details.optJSONObject(toolIndex)?.let {
+                        McpTool(it.optString("name"), it.optString("description").takeIf(String::isNotBlank))
+                    }
+                },
+                error = item.optString("error").takeIf(String::isNotBlank),
+                rawConfig = config.toString(2),
+            ).takeIf { it.name.isNotBlank() }
+        }
+    }
+
+    fun saveMcpServer(originalName: String?, name: String, rawConfig: String) {
+        val config = runCatching { JSONObject(rawConfig) }
+            .getOrElse { throw HermesException("Server configuration is not valid JSON") }
+        if (originalName == null) {
+            call("/api/hermes/mcp/servers", "POST", JSONObject().put("name", name).put("config", config))
+        } else {
+            call(
+                "/api/hermes/mcp/servers/${enc(originalName)}",
+                "PATCH",
+                JSONObject().put("config", config),
+            )
+        }
+    }
+
+    fun deleteMcpServer(name: String) {
+        call("/api/hermes/mcp/servers/${enc(name)}", "DELETE")
+    }
+
+    fun testMcpServer(name: String) {
+        call("/api/hermes/mcp/servers/${enc(name)}/test", "POST")
+    }
+
+    fun reloadMcpServer(name: String? = null) {
+        call("/api/hermes/mcp/reload${name?.let { "?server=${enc(it)}" }.orEmpty()}", "POST")
+    }
+
+    fun petdex(): List<PetdexPet> {
+        val array = call("/api/hermes/petdex/manifest").optJSONArray("pets") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            PetdexPet(
+                slug = item.optString("slug"),
+                displayName = item.optString("displayName").ifBlank { item.optString("slug") },
+                kind = item.optString("kind"),
+                submittedBy = item.optString("submittedBy").takeIf(String::isNotBlank),
+                previewUrl = item.optString("previewUrl").takeIf(String::isNotBlank),
+            ).takeIf { it.slug.isNotBlank() }
+        }
+    }
+
+    fun activePet(): ActivePet? {
+        val item = call("/api/hermes/pets/active").optJSONObject("pet") ?: return null
+        return ActivePet(
+            enabled = item.optBoolean("enabled", true),
+            slug = item.optString("slug"),
+            displayName = item.optString("displayName").ifBlank { item.optString("slug") },
+            kind = item.optString("kind"),
+            scale = item.optDouble("scale", 1.0),
+            spritesheetDataUrl = item.optString("spritesheetDataUrl").takeIf(String::isNotBlank),
+        )
+    }
+
+    fun adoptPet(slug: String): ActivePet {
+        val item = call("/api/hermes/pets/adopt", "POST", JSONObject().put("slug", slug))
+            .optJSONObject("pet") ?: throw HermesException("Adoption returned no pet")
+        return ActivePet(
+            enabled = item.optBoolean("enabled", true),
+            slug = item.optString("slug"),
+            displayName = item.optString("displayName").ifBlank { item.optString("slug") },
+            kind = item.optString("kind"),
+            scale = item.optDouble("scale", 1.0),
+            spritesheetDataUrl = item.optString("spritesheetDataUrl").takeIf(String::isNotBlank),
+        )
+    }
+
+    fun updateActivePet(enabled: Boolean? = null, scale: Double? = null): ActivePet? {
+        val payload = JSONObject().apply {
+            enabled?.let { put("enabled", it) }
+            scale?.let { put("scale", it) }
+        }
+        val item = call("/api/hermes/pets/active", "PATCH", payload).optJSONObject("pet") ?: return null
+        return ActivePet(
+            enabled = item.optBoolean("enabled", true),
+            slug = item.optString("slug"),
+            displayName = item.optString("displayName").ifBlank { item.optString("slug") },
+            kind = item.optString("kind"),
+            scale = item.optDouble("scale", 1.0),
+            spritesheetDataUrl = item.optString("spritesheetDataUrl").takeIf(String::isNotBlank),
+        )
+    }
+
+    private fun parseKanbanTasks(array: JSONArray): List<KanbanTask> =
+        (0 until array.length()).mapNotNull { parseKanbanTask(array.optJSONObject(it)) }
+
+    private fun parseKanbanTask(item: JSONObject?): KanbanTask? {
+        item ?: return null
+        return KanbanTask(
+            id = item.optString("id"),
+            title = item.optString("title"),
+            body = firstNonBlank(item, "body"),
+            assignee = firstNonBlank(item, "assignee"),
+            status = item.optString("status").ifBlank { "triage" },
+            priority = item.optInt("priority"),
+            createdAt = item.optLong("created_at"),
+            result = firstNonBlank(item, "result"),
+            skills = strings(item.optJSONArray("skills")),
+        ).takeIf { it.id.isNotBlank() && it.title.isNotBlank() }
+    }
+
+    private fun parseSkill(item: JSONObject): SkillInfo = SkillInfo(
+        name = item.optString("name"),
+        description = item.optString("description"),
+        enabled = item.optBoolean("enabled", true),
+        source = item.optString("source").ifBlank { "local" },
+        pinned = item.optBoolean("pinned"),
+        useCount = item.optInt("useCount", item.optInt("use_count")),
+    )
+
+    private fun multipart(
+        path: String,
+        field: String,
+        bytes: ByteArray,
+        filename: String,
+        mime: String,
+        fields: Map<String, String> = emptyMap(),
+        profile: String? = null,
+    ): JSONObject {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM).apply {
+            fields.forEach { (name, value) -> addFormDataPart(name, value) }
+            addFormDataPart(field, filename, bytes.toRequestBody(mime.toMediaType()))
+        }.build()
+        val builder = Request.Builder().url(url(path)).post(body)
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        if (!profile.isNullOrBlank()) builder.header("X-Hermes-Profile", profile)
+        builder.header("Accept", "application/json")
+
+        client.newCall(builder.build()).execute().use { response ->
+            val text = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val detail = errorDetail(text)
+                throw HermesException(
+                    if (detail.isNullOrBlank()) "HTTP ${response.code}" else "HTTP ${response.code}: $detail",
+                    statusCode = response.code,
+                )
+            }
+            return runCatching { JSONObject(text) }.getOrElse { JSONObject() }
+        }
+    }
+
+    /** POST /upload — stores the file under the profile upload dir and returns its path. */
+    fun upload(profile: String, bytes: ByteArray, filename: String, mime: String): Upload {
+        val result = multipart("/api/studio/uploads?profile=${enc(profile)}", "files", bytes, filename, mime)
+        val files = result.optJSONArray("files") ?: JSONArray()
+        val first = files.optJSONObject(0) ?: throw HermesException("Upload returned no file")
+        return Upload(
+            name = first.optString("name").ifBlank { filename },
+            path = first.optString("path"),
+            mime = mime,
+        )
+    }
+
+    /**
+     * POST /api/hermes/stt/transcribe — turns a recording into text with the
+     * profile's configured provider, the same call the web composer makes.
+     */
+    fun transcribe(profile: String, bytes: ByteArray, filename: String, mime: String): String {
+        val provider = activeSttProvider(profile)
+        val result = multipart(
+            path = "/api/hermes/stt/transcribe?profile=${enc(profile)}",
+            field = "audio",
+            bytes = bytes,
+            filename = filename,
+            mime = mime,
+            fields = provider?.let { mapOf("provider" to it) }.orEmpty(),
+        )
+        return firstNonBlank(result, "text", "transcript", "output")
+            ?: throw HermesException("The provider returned no text")
+    }
+
+    /** Turns an assistant reply into audio using the profile's Studio TTS settings. */
+    fun synthesize(profile: String, text: String): SynthesizedAudio {
+        // Do not force a codec: Studio negotiates the format supported by the
+        // active provider (for example WAV for Groq Orpheus), while the client
+        // identifies the returned bytes before choosing the local extension.
+        val body = JSONObject().put("text", text).put("options", JSONObject())
+        val builder = request("/api/hermes/tts/synthesize", "POST", body, profile).newBuilder()
+            .header("Accept", "audio/*")
+        client.newCall(builder.build()).execute().use { response ->
+            val bytes = response.body?.bytes() ?: byteArrayOf()
+            if (!response.isSuccessful) throw HermesException("HTTP ${response.code}", response.code)
+            if (bytes.isEmpty()) throw HermesException("The voice provider returned no audio")
+            // Some Studio/provider failures arrive as a JSON body with HTTP 200.
+            // Passing that body to MediaPlayer used to throw during prepare().
+            val contentType = response.header("Content-Type").orEmpty().lowercase()
+            if (contentType.contains("json") || bytes.firstOrNull()?.toInt()?.toChar() == '{') {
+                val detail = runCatching { errorDetail(bytes.toString(Charsets.UTF_8)) }.getOrNull()
+                throw HermesException(detail?.takeIf { it.isNotBlank() } ?: "The voice provider returned invalid audio")
+            }
+            val declaredMime = contentType.substringBefore(';')
+            val detectedMime = when {
+                bytes.size >= 12 && bytes.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "RIFF" -> "audio/wav"
+                bytes.size >= 4 && bytes.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "OggS" -> "audio/ogg"
+                bytes.size >= 4 && bytes.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "fLaC" -> "audio/flac"
+                bytes.size >= 8 && bytes.copyOfRange(4, 8).toString(Charsets.US_ASCII) == "ftyp" -> "audio/mp4"
+                bytes.size >= 3 && bytes.copyOfRange(0, 3).toString(Charsets.US_ASCII) == "ID3" -> "audio/mpeg"
+                bytes.size >= 2 && (bytes[0].toInt() and 0xff) == 0xff && (bytes[1].toInt() and 0xf0) == 0xf0 -> "audio/aac"
+                else -> declaredMime.takeIf { it.startsWith("audio/") } ?: "audio/mpeg"
+            }
+            return SynthesizedAudio(bytes, detectedMime)
+        }
+    }
+
+    /**
+     * Current Studio versions require the selected provider in the multipart
+     * request. A 404 means an older server, whose transcribe route inferred it.
+     */
+    private fun activeSttProvider(profile: String): String? {
+        val status = try {
+            call("/api/hermes/stt/profile-status?profile=${enc(profile)}")
+        } catch (failure: HermesException) {
+            if (failure.statusCode == 404) {
+                try {
+                    call("/api/hermes/stt/settings?profile=${enc(profile)}")
+                } catch (settingsFailure: HermesException) {
+                    if (settingsFailure.statusCode == 404) return null
+                    throw settingsFailure
+                }
+            } else {
+                throw failure
+            }
+        }
+        val provider = firstNonBlank(status, "activeProvider")
+        // profile-status reports `configured`; the settings route used by the
+        // official mobile app only exposes the selected active provider.
+        if (status.optBoolean("configured", true) && provider != null && provider != "browser") return provider
+        val reason = firstNonBlank(status, "reason") ?: "no server-backed STT provider is configured"
+        throw HermesException("STT unavailable: $reason", statusCode = 409)
+    }
+
+    /**
+     * POST /api/chat-run/runs — run one turn and wait for the final answer.
+     *
+     * This is the REST wrapper the server puts in front of its Socket.IO chat
+     * channel, so a mobile client gets a complete reply without speaking the
+     * streaming protocol.
+     */
+    fun sendMessage(
+        profile: String,
+        input: String,
+        sessionId: String?,
+        attachments: List<Upload> = emptyList(),
+        reasoningEffort: String? = null,
+        model: String? = null,
+        provider: String? = null,
+        runtime: AgentRuntimeSelection = AgentRuntimeSelection(),
+    ): ChatReply {
+        // Studio sends either a plain string or an array of content blocks; the
+        // block form is what carries images and files.
+        val payload: Any = if (attachments.isEmpty()) {
+            input
+        } else {
+            JSONArray().apply {
+                if (input.isNotBlank()) {
+                    put(JSONObject().put("type", "text").put("text", input))
+                }
+                attachments.forEach { file ->
+                    put(
+                        JSONObject()
+                            .put("type", if (file.mime.startsWith("image/")) "image" else "file")
+                            .put("name", file.name)
+                            .put("path", file.path)
+                            .put("media_type", file.mime),
+                    )
+                }
+            }
+        }
+
+        val body = JSONObject()
+            .put("input", payload)
+            .put("profile", profile)
+            .put("timeout_ms", 240_000)
+        if (!sessionId.isNullOrBlank()) body.put("session_id", sessionId)
+        if (!reasoningEffort.isNullOrBlank()) body.put("reasoning_effort", reasoningEffort)
+        if (!model.isNullOrBlank()) body.put("model", model)
+        if (!provider.isNullOrBlank()) body.put("provider", provider)
+        if (!runtime.isHermes) {
+            body.put("source", if (runtime.globalAgent) "global_agent" else "coding_agent")
+            if (runtime.globalAgent) body.put("session_source", "global_agent")
+            body.put("coding_agent_id", runtime.codingAgentId)
+            body.put("mode", "global")
+        }
+
+        val result = call("/api/chat-run/runs", "POST", body)
+        val failure = result.optString("error").takeIf { it.isNotBlank() }
+        val output = firstNonBlank(result, "output", "text", "message").orEmpty()
+        return ChatReply(
+            output = output,
+            reasoning = firstNonBlank(result, "reasoning"),
+            sessionId = firstNonBlank(result, "session_id", "sessionId") ?: sessionId,
+            error = failure ?: if (output.isBlank()) "The run finished without any output" else null,
+        )
+    }
+
+    /**
+     * Fetches a static file the server publishes next to the web UI, such as
+     * /logo.png. Returns null instead of throwing: branding is decoration, and a
+     * server that does not serve it must not break a launch.
+     */
+    fun asset(path: String): ByteArray? = runCatching {
+        val builder = Request.Builder().url(url(path)).get()
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        client.newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) return null
+            response.body?.bytes()
+        }
+    }.getOrNull()
+
+    /**
+     * Builds the authenticated endpoint used by Studio's own Markdown file
+     * cards. DownloadManager cannot share this client's bearer interceptor, so
+     * the route also receives the token in the query exactly as the web client
+     * does for native browser downloads.
+     */
+    fun downloadUrl(filePath: String, fileName: String, profile: String?): String {
+        val path = unwrapStudioDownloadPath(filePath)
+        val params = buildList {
+            add("path=${enc(path)}")
+            add("name=${enc(inferDownloadFileName(path, fileName))}")
+            profile?.trim()?.takeIf { it.isNotBlank() }?.let { add("profile=${enc(it)}") }
+            token.takeIf { it.isNotBlank() }?.let { add("token=${enc(it)}") }
+        }
+        return url("/api/hermes/download?${params.joinToString("&")}")
+    }
+
+    private fun cronJobAction(profile: String, jobId: String, action: String): CronJob {
+        val result = call(
+            path = "/api/hermes/jobs/${enc(jobId)}/$action",
+            method = "POST",
+            body = JSONObject(),
+            profile = profile,
+        )
+        return parseJobResponse(result)
+    }
+
+    private fun parseJobResponse(result: JSONObject): CronJob {
+        val item = result.optJSONObject("job") ?: throw HermesException("The server returned no job")
+        return parseCronJob(item) ?: throw HermesException("The job has no id")
+    }
+
+    private fun parseCronJob(item: JSONObject): CronJob? {
+        val id = firstNonBlank(item, "job_id", "id") ?: return null
+        val scheduleValue = item.opt("schedule")
+        val scheduleInput = when (scheduleValue) {
+            is String -> scheduleValue
+            is JSONObject -> when (scheduleValue.optString("kind")) {
+                "cron" -> firstNonBlank(scheduleValue, "expr", "display")
+                "once" -> firstNonBlank(scheduleValue, "run_at", "display")
+                "interval" -> firstNonBlank(scheduleValue, "display")
+                    ?: scheduleValue.optInt("minutes", 0).takeIf { it > 0 }?.let { "every ${it}m" }
+                else -> firstNonBlank(scheduleValue, "expr", "run_at", "display")
+            }
+            else -> null
+        }.orEmpty()
+        val scheduleDisplay = firstNonBlank(item, "schedule_display")
+            ?: (scheduleValue as? JSONObject)?.let { firstNonBlank(it, "display", "expr", "run_at") }
+            ?: scheduleInput
+
+        val repeat = item.optJSONObject("repeat")
+        val skills = item.optJSONArray("skills")?.let { array ->
+            (0 until array.length()).mapNotNull { index ->
+                array.optString(index).takeIf { it.isNotBlank() }
+            }
+        } ?: firstNonBlank(item, "skill")?.let(::listOf).orEmpty()
+
+        return CronJob(
+            id = id,
+            name = firstNonBlank(item, "name") ?: id,
+            prompt = firstNonBlank(item, "prompt").orEmpty(),
+            promptPreview = firstNonBlank(item, "prompt_preview"),
+            skills = skills,
+            model = firstNonBlank(item, "model"),
+            provider = firstNonBlank(item, "provider"),
+            scheduleInput = scheduleInput.ifBlank { scheduleDisplay },
+            scheduleDisplay = scheduleDisplay,
+            repeatTimes = repeat?.optInt("times")?.takeIf { repeat.has("times") && !repeat.isNull("times") },
+            repeatCompleted = repeat?.optInt("completed", 0) ?: 0,
+            repeatLabel = (item.opt("repeat") as? String)?.takeIf { it.isNotBlank() },
+            enabled = item.optBoolean("enabled", true),
+            state = firstNonBlank(item, "state") ?: if (item.optBoolean("enabled", true)) "scheduled" else "paused",
+            createdAt = firstNonBlank(item, "created_at"),
+            nextRunAt = firstNonBlank(item, "next_run_at"),
+            lastRunAt = firstNonBlank(item, "last_run_at"),
+            lastStatus = firstNonBlank(item, "last_status"),
+            lastError = firstNonBlank(item, "last_error"),
+            deliver = firstNonBlank(item, "deliver") ?: "local",
+            lastDeliveryError = firstNonBlank(item, "last_delivery_error"),
+        )
+    }
+
+    private fun enc(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")
+
+    private fun strings(array: JSONArray?): List<String> = array?.let { values ->
+        (0 until values.length()).mapNotNull { index ->
+            values.optString(index).takeIf { it.isNotBlank() }
+        }
+    }.orEmpty()
+
+    private fun parseManagedUsers(array: JSONArray?): List<ManagedUser> = array?.let { users ->
+        (0 until users.length()).mapNotNull { index ->
+            val item = users.optJSONObject(index) ?: return@mapNotNull null
+            ManagedUser(
+                id = item.optInt("id", -1),
+                username = item.optString("username"),
+                role = item.optString("role").ifBlank { "admin" },
+                status = item.optString("status").ifBlank { "active" },
+                profiles = strings(item.optJSONArray("profiles")),
+                defaultProfile = firstNonBlank(item, "default_profile"),
+                lastLoginAt = item.optLong("last_login_at", 0).takeIf { it > 0 },
+            ).takeIf { it.id >= 0 && it.username.isNotBlank() }
+        }
+    }.orEmpty()
+
+    private fun errorDetail(text: String): String? = runCatching {
+        when (val error = JSONObject(text).opt("error")) {
+            is String -> error
+            is JSONObject -> firstNonBlank(error, "message", "detail") ?: error.toString()
+            null, JSONObject.NULL -> null
+            else -> error.toString()
+        }
+    }.getOrNull()
+
+    private fun optionalCount(source: JSONObject, key: String, arrayKey: String): Int? {
+        if (source.has(key) && !source.isNull(key)) return source.optInt(key)
+        return source.optJSONArray(arrayKey)?.length()
+    }
+
+    private fun firstNonBlank(source: JSONObject, vararg keys: String): String? {
+        for (key in keys) {
+            val value = source.optString(key)
+            if (value.isNotBlank() && value != "null") return value
+        }
+        return null
+    }
+}
+
+class HermesException(message: String, val statusCode: Int? = null) : Exception(message)
+
+data class CronJob(
+    val id: String,
+    val name: String,
+    val prompt: String,
+    val promptPreview: String?,
+    val skills: List<String>,
+    val model: String?,
+    val provider: String?,
+    /** The value Studio puts back into its edit field, not just the friendly label. */
+    val scheduleInput: String,
+    val scheduleDisplay: String,
+    val repeatTimes: Int?,
+    val repeatCompleted: Int,
+    val repeatLabel: String?,
+    val enabled: Boolean,
+    val state: String,
+    val createdAt: String?,
+    val nextRunAt: String?,
+    val lastRunAt: String?,
+    val lastStatus: String?,
+    val lastError: String?,
+    val deliver: String,
+    val lastDeliveryError: String?,
+)
+
+data class CronJobDraft(
+    val name: String,
+    val schedule: String,
+    val prompt: String,
+    val deliver: String = "local",
+    val skills: List<String> = emptyList(),
+    val repeatTimes: Int? = null,
+    val model: String? = null,
+    val provider: String? = null,
+) {
+    internal fun toJson(includeNullRepeat: Boolean): JSONObject = JSONObject()
+        .put("name", name)
+        .put("schedule", schedule)
+        .put("prompt", prompt)
+        .put("deliver", deliver)
+        .put("skills", JSONArray().apply { skills.forEach(::put) })
+        .apply {
+            if (repeatTimes != null) put("repeat", repeatTimes)
+            else if (includeNullRepeat) put("repeat", JSONObject.NULL)
+            if (!model.isNullOrBlank()) put("model", model)
+            if (!provider.isNullOrBlank()) put("provider", provider)
+        }
+}
+
+data class CronDeliveryTarget(
+    val platform: String,
+    val id: String,
+    val name: String,
+    val type: String?,
+    val value: String,
+)
+
+data class CronRun(
+    val jobId: String,
+    val fileName: String,
+    val runTime: String,
+    val size: Long,
+    val hasOutput: Boolean,
+    val synthetic: Boolean,
+    val runCount: Int?,
+    val status: String?,
+    val error: String?,
+)
+
+data class CronRunDetail(
+    val jobId: String,
+    val fileName: String,
+    val runTime: String,
+    val content: String,
+)
+
+data class Profile(
+    val name: String,
+    val model: String?,
+    val active: Boolean,
+    val gatewayStatus: String?,
+    val avatar: AvatarSpec? = null,
+)
+
+data class SessionSummary(
+    val id: String,
+    val title: String,
+    val model: String?,
+    val provider: String? = null,
+    val updatedAt: String?,
+    val profile: String? = null,
+    val source: String = "cli",
+    val agentId: String? = null,
+    val agentMode: String? = null,
+    val archived: Boolean = false,
+    val categoryId: Int? = null,
+    val workspace: String? = null,
+    /** True when this session has an agent run in progress (HStudio shows a rainbow bar). */
+    val running: Boolean = false,
+    /** Last activity hint shown as a live status line (HStudio's `live-reasoning-detail`). */
+    val activity: String? = null,
+)
+
+data class ModelOption(
+    val id: String,
+    val provider: String,
+)
+
+data class Upload(
+    val name: String,
+    val path: String,
+    val mime: String,
+)
+
+data class SynthesizedAudio(val bytes: ByteArray, val mime: String) {
+    val extension: String get() = when (mime.lowercase()) {
+        "audio/wav", "audio/x-wav" -> ".wav"
+        "audio/ogg", "audio/opus" -> ".ogg"
+        "audio/mp4", "audio/m4a", "audio/x-m4a" -> ".m4a"
+        "audio/aac" -> ".aac"
+        "audio/flac", "audio/x-flac" -> ".flac"
+        "audio/webm" -> ".webm"
+        else -> ".mp3"
+    }
+}
+
+data class Message(
+    val id: String,
+    val role: String,
+    val content: String,
+    val timestamp: String?,
+) {
+    val fromUser: Boolean get() = role == "user"
+}
+
+data class ConversationHistory(
+    val messages: List<Message>,
+    val contextTokens: Long?,
+)
+
+data class UsageStats(
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val cacheReadTokens: Long,
+    val cacheWriteTokens: Long,
+    val reasoningTokens: Long,
+    val sessions: Int,
+    val cost: Double,
+    val models: List<UsageBreakdown>,
+    val agents: List<UsageBreakdown>,
+    val daily: List<DailyUsage>,
+)
+
+data class UsageBreakdown(
+    val name: String,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val cacheReadTokens: Long,
+    val sessions: Int,
+    val cost: Double,
+) { val totalTokens: Long get() = inputTokens + outputTokens }
+
+data class DailyUsage(
+    val date: String,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val cacheReadTokens: Long,
+    val sessions: Int,
+    val cost: Double,
+) { val totalTokens: Long get() = inputTokens + outputTokens }
+
+data class RuntimePerformance(
+    val cpuPercent: Double?,
+    val memoryPercent: Double?,
+    val usedMemoryBytes: Long?,
+    val totalMemoryBytes: Long?,
+    val studioMemoryBytes: Long?,
+    val workerCount: Int,
+    val runningWorkers: Int,
+    val sessionCount: Int,
+)
+
+private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else
+    (0 until length()).mapNotNull { index -> optJSONObject(index) }
+
+private fun JSONObject.firstLong(vararg keys: String): Long? = keys.firstNotNullOfOrNull { key ->
+    if (!has(key) || isNull(key)) return@firstNotNullOfOrNull null
+    when (val value = opt(key)) {
+        is Number -> value.toLong()
+        is String -> value.toLongOrNull()
+        else -> null
+    }
+}
+
+data class Room(
+    val id: String,
+    val name: String,
+    val agentCount: Int?,
+    val memberCount: Int?,
+    val updatedAt: String?,
+)
+
+data class RoomMessage(
+    val id: String,
+    val sender: String,
+    val content: String,
+    val isAgent: Boolean,
+    val timestamp: String?,
+)
+
+data class RoomDetail(
+    val id: String,
+    val name: String,
+    val agents: List<String>,
+    val messages: List<RoomMessage>,
+)
+
+data class AgentSettings(
+    val maxTurns: Int?,
+    val gatewayTimeout: Int?,
+    val restartDrainTimeout: Int?,
+    val toolEnforcement: String,
+)
+
+data class AutoStartPolicy(
+    val enabled: Boolean,
+    /** null means every discovered profile. */
+    val include: List<String>?,
+    val exclude: List<String>,
+    val management: String = "per_profile",
+)
+
+data class CurrentUser(
+    val id: Int,
+    val username: String,
+    val role: String,
+    val status: String,
+    val lastLoginAt: Long?,
+    val avatar: String?,
+)
+
+data class LockedIp(
+    val ip: String,
+    val type: String,
+    val failures: Int,
+    val lockedUntil: Long,
+)
+
+data class ManagedUser(
+    val id: Int,
+    val username: String,
+    val role: String,
+    val status: String,
+    val profiles: List<String>,
+    val defaultProfile: String?,
+    val lastLoginAt: Long?,
+)
+
+data class ManagedUsers(val users: List<ManagedUser>, val profiles: List<String>)
+
+data class ManagedUserDraft(
+    val username: String,
+    val password: String,
+    val role: String,
+    val status: String,
+    val profiles: List<String>,
+) {
+    internal fun toJson(includeEmptyPassword: Boolean): JSONObject = JSONObject()
+        .put("username", username)
+        .put("role", role)
+        .put("status", status)
+        .put("profiles", JSONArray().apply { profiles.forEach(::put) })
+        .put("defaultProfile", profiles.firstOrNull() ?: JSONObject.NULL)
+        .apply { if (password.isNotBlank() || includeEmptyPassword) put("password", password) }
+}
+
+data class StudioSettings(
+    val display: DisplaySettings,
+    val proxy: ProxySettings,
+    val memory: MemorySettings,
+    val compression: CompressionSettings,
+    val session: SessionSettings,
+    val privacy: PrivacySettings,
+)
+
+data class DisplaySettings(
+    val streaming: Boolean,
+    val compact: Boolean,
+    val showReasoning: Boolean,
+    val showCost: Boolean,
+    val inlineDiffs: Boolean,
+    val bellOnComplete: Boolean,
+    val notifyOnComplete: Boolean,
+    val chatInputHeight: Int?,
+)
+
+data class ProxySettings(val https: String, val http: String, val all: String, val noProxy: String)
+
+data class MemorySettings(
+    val enabled: Boolean,
+    val userProfileEnabled: Boolean,
+    val memoryCharLimit: Int,
+    val userCharLimit: Int,
+    val writeApproval: Boolean,
+)
+
+data class CompressionSettings(
+    val enabled: Boolean,
+    val threshold: Double,
+    val targetRatio: Double,
+    val protectLast: Int,
+    val protectFirst: Int,
+)
+
+data class SessionSettings(
+    val approvalsMode: String,
+    val skillsWriteApproval: Boolean,
+    val resetMode: String,
+    val idleMinutes: Int,
+    val atHour: Int,
+)
+
+data class PrivacySettings(val redactPii: Boolean)
+
+data class ModelProvider(
+    val id: String,
+    val label: String,
+    val builtin: Boolean,
+    val configured: Boolean,
+    val baseUrl: String,
+    val modelCount: Int,
+)
+
+data class ChannelStatus(
+    val platform: String,
+    val enabled: Boolean,
+    val configured: Boolean,
+    val values: Map<String, String>,
+)
+
+data class WeixinQrCode(val id: String, val url: String)
+
+data class WeixinQrPoll(
+    val status: String,
+    val accountId: String?,
+    val token: String?,
+    val baseUrl: String?,
+)
+
+data class ServerConfig(
+    val defaultModel: String?,
+    val gatewayAutoStart: Boolean,
+    val channels: List<ChannelStatus>,
+)
+
+data class ChatReply(
+    val output: String,
+    val reasoning: String?,
+    val sessionId: String?,
+    val error: String?,
+)

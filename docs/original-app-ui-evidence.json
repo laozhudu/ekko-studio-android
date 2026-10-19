@@ -1,0 +1,2666 @@
+{
+  "schema": "hstudio-original-app-ui-evidence/1",
+  "generated_by": "docs 生成脚本（只读解析解包资源）",
+  "baseline": {
+    "apk": "/root/Hermes任务文件/HStudioDirect/latest/HStudio-v1.0.3.apk",
+    "decoded_root": "/root/Hermes任务文件/HStudioDirect/latest/decoded-v103/",
+    "www_root": "/root/Hermes任务文件/HStudioDirect/latest/decoded-v103/assets/apps/__UNI__1F41684/www",
+    "manifest": {
+      "versionName": "1.0.3",
+      "versionCode": 120
+    },
+    "files": {
+      "app-service.js": {
+        "path": "app-service.js",
+        "bytes": 3328818,
+        "sha256": "14ada30c623108ac955dd91029c7e247e69d53038f448c9e9defe582d6ecff04"
+      },
+      "pages/index/index.css": {
+        "path": "pages/index/index.css",
+        "bytes": 522488,
+        "sha256": "de897a52a551e613639ff5fdcb6ae3919ceda3188ba68952dcaa804b8ca136ba"
+      },
+      "pages/devices/index.css": {
+        "path": "pages/devices/index.css",
+        "bytes": 24577,
+        "sha256": "b798d046eb95dafc0a2aef3b33125281b57423ead0257019c6d73e13387febb2"
+      },
+      "app.css": {
+        "path": "app.css",
+        "bytes": 52944,
+        "sha256": "d5ce5e550dd17391001c6b41d798638d64adb63f640ac601cd76ad1f8fabc75e"
+      }
+    },
+    "credential_policy": "本索引不含任何凭据、令牌或连接字符串；示例值一律 [REDACTED]"
+  },
+  "routes": {
+    "all": [
+      "pages/about/index",
+      "pages/bootstrap/index",
+      "pages/devices/index",
+      "pages/index/index",
+      "pages/location-picker/index",
+      "pages/login/index"
+    ],
+    "launch": "pages/devices/index",
+    "spa": "pages/index/index",
+    "navigateTo": [
+      "/pages/about/index",
+      "/pages/index/index",
+      "/pages/location-picker/index"
+    ],
+    "switchTab_count": 0
+  },
+  "counts": {
+    "index_css_rules": 3947,
+    "index_css_scopes": 88,
+    "devices_css_rules": 194,
+    "js_component_spans": 91,
+    "domains_total": 24,
+    "domains_located": 18,
+    "domains_not_located": 6
+  },
+  "units": {
+    "rpx_in_devices_css": 0,
+    "rpx_in_index_css": 0,
+    "px_in_devices_css": 332,
+    "px_in_index_css": 7185,
+    "note": "全量样式表 rpx 命中 0；uni-app App 端 1 CSS px ≈ 1 dp，但存在 viewport 缩放，不做盲目 1:1 换算"
+  },
+  "scope_association": {
+    "convention": "backward",
+    "rule": "span(scope of marks[i]) = (marks[i-1].offset, marks[i].offset)",
+    "why": "编译产物把 [['__scopeId','data-v-X']] 追加在其自身组件代码尾部，标记收尾而非开头",
+    "verified_by_class_containment": [
+      {
+        "scope": "data-v-07bc1664",
+        "class": "workspace-file-row",
+        "span": [
+          1778078,
+          1798801
+        ]
+      },
+      {
+        "scope": "data-v-61a2f361",
+        "class": "device-card-action",
+        "span": [
+          32100,
+          164003
+        ]
+      },
+      {
+        "scope": "data-v-c0c550c3",
+        "class": "message-bubble",
+        "span": [
+          1683233,
+          1716532
+        ]
+      },
+      {
+        "scope": "data-v-e60e128b",
+        "class": "agent-badge",
+        "span": [
+          2229496,
+          2260614
+        ]
+      }
+    ],
+    "limitation": "span 内可含无 __scopeId 的子组件与共享工具函数，边界为近似切分"
+  },
+  "corrections": [
+    {
+      "topic": "scope→span 关联方向",
+      "wrong": "按标记起始关联（正向），全部 js_evidence 偏移整体错位一个组件",
+      "right": "按标记收尾关联（反向），已用四个 scope 的类名包含关系实证",
+      "status": "已修正（本索引为修正后版本）"
+    }
+  ],
+  "domains": [
+    {
+      "id": "devices",
+      "title": "设备 / 本地连接",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/devices/index",
+      "style": "pages/devices/index.css",
+      "scopes": [
+        "61a2f361",
+        "348e588d",
+        "ac60d9fd",
+        "91441b28"
+      ],
+      "js_scopes": [
+        "61a2f361"
+      ],
+      "css_anchors": [
+        {
+          "offset": 6526,
+          "selector": ".devices-header-content[data-v-61a2f361],.devices-content[data-v-61a2f361]",
+          "decl": "box-sizing:border-box;width:100%;max-width:680px;margin:0 auto",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 6526
+        },
+        {
+          "offset": 6567,
+          "selector": ".devices-content[data-v-61a2f361]",
+          "decl": "box-sizing:border-box;width:100%;max-width:680px;margin:0 auto",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 6567
+        },
+        {
+          "offset": 12608,
+          "selector": ".section-title[data-v-61a2f361]",
+          "decl": "font-size:22px;font-weight:650;line-height:29px;letter-spacing:-.25px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 12608
+        },
+        {
+          "offset": 13020,
+          "selector": ".device-grid[data-v-61a2f361]",
+          "decl": "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 13020
+        },
+        {
+          "offset": 13118,
+          "selector": ".device-card[data-v-61a2f361],.add-device-card[data-v-61a2f361]",
+          "decl": "box-sizing:border-box;min-height:170px;padding:17px;background:var(--ink-bg-card);border-radius:17px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 13118
+        },
+        {
+          "offset": 13148,
+          "selector": ".add-device-card[data-v-61a2f361]",
+          "decl": "box-sizing:border-box;min-height:170px;padding:17px;background:var(--ink-bg-card);border-radius:17px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 13148
+        },
+        {
+          "offset": 13788,
+          "selector": ".device-symbol[data-v-61a2f361]",
+          "decl": "position:relative;width:31px;height:31px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 13788
+        },
+        {
+          "offset": 13861,
+          "selector": ".device-screen[data-v-61a2f361]",
+          "decl": "position:relative;box-sizing:border-box;width:31px;height:22px;border:1.5px solid var(--ink-text-primary);border-radius:5px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 13861
+        },
+        {
+          "offset": 14166,
+          "selector": ".device-stand[data-v-61a2f361]",
+          "decl": "position:absolute;bottom:2px;left:10px;width:11px;height:6px;border-bottom:1.5px solid var(--ink-text-primary)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 14166
+        },
+        {
+          "offset": 14451,
+          "selector": ".device-status[data-v-61a2f361]",
+          "decl": "display:flex;align-items:center;padding:4px 7px;gap:5px;color:var(--ink-text-muted);background:var(--ink-bg-secondary);border-radius:10px;font-size:10px;line-height:12px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 14451
+        },
+        {
+          "offset": 15033,
+          "selector": ".device-name[data-v-61a2f361]",
+          "decl": "display:-webkit-box;box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:1;font-size:14px;font-weight:620;line-height:20px;text-overflow:ellipsis;word-break:break-all",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 15033
+        },
+        {
+          "offset": 15454,
+          "selector": ".device-version-row[data-v-61a2f361]",
+          "decl": "display:flex;margin-top:11px;flex-wrap:wrap;gap:6px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 15454
+        }
+      ],
+      "media_queries": [
+        {
+          "offset": 22863,
+          "query": "(orientation: landscape) and (min-width: 900px) and (min-height: 600px)"
+        },
+        {
+          "offset": 23146,
+          "query": "(orientation: landscape) and (max-height: 599px)"
+        },
+        {
+          "offset": 24413,
+          "query": "(max-width: 520px)"
+        }
+      ],
+      "android": [
+        "android/app/src/main/java/xyz/rflg/hstudiodirect/DevicesScreen.kt"
+      ],
+      "cloud_exclusions": [
+        "/api/app/auth/*",
+        "/api/app/auth/entitlement",
+        "/api/website/app/qr/*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-61a2f361",
+          "component_name_candidate": "index",
+          "char_span": [
+            120113,
+            164036
+          ],
+          "utf8_byte_span": [
+            120486,
+            167043
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "当前账号",
+            "重置健康数据授权",
+            "清除授权",
+            "本机授权已清除",
+            "订阅权益",
+            "内测权益",
+            "公测权益",
+            "打开摄像头",
+            "从图片识别",
+            "扫码失败，请重试",
+            "当前环境不支持图片识别",
+            "图片中未识别到二维码",
+            "退出登录",
+            "确定要退出当前账号吗？",
+            "退出",
+            "删除账号"
+          ],
+          "api_paths": [
+            "/api/app/connections",
+            "/api/app/connections/${encodeURIComponent",
+            "/api/app/connections/claim",
+            "/api/auth/app-login",
+            "/api/website/app/qr/approve",
+            "/api/website/app/qr/inspect"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "chat",
+      "title": "聊天",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "c0c550c3",
+        "8aca294f",
+        "744a5cd2"
+      ],
+      "js_scopes": [
+        "c0c550c3",
+        "8aca294f",
+        "744a5cd2"
+      ],
+      "css_anchors": [
+        {
+          "offset": 108447,
+          "selector": ".msg-body[data-v-c0c550c3]",
+          "decl": "display:block;box-sizing:border-box;max-width:100%;min-width:0",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 108447
+        },
+        {
+          "offset": 108650,
+          "selector": ".message-author[data-v-c0c550c3]",
+          "decl": "display:flex;min-height:22px;margin:0 0 4px 2px;align-items:center;gap:4px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 108650
+        },
+        {
+          "offset": 108758,
+          "selector": ".msg-avatar[data-v-c0c550c3]",
+          "decl": "width:22px;height:22px;flex-shrink:0;background:var(--ink-bg-card-hover);border-radius:50%",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 108758
+        },
+        {
+          "offset": 109671,
+          "selector": ".message-bubble[data-v-c0c550c3]",
+          "decl": "box-sizing:border-box;max-width:100%;min-width:0;padding:10px 14px;overflow-wrap:anywhere;word-break:break-word;background:var(--ink-bg-message);border-radius:10px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 109671
+        },
+        {
+          "offset": 187397,
+          "selector": ".message.user .msg-body[data-v-8aca294f]",
+          "decl": "max-width:75%",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 187397
+        },
+        {
+          "offset": 302250,
+          "selector": ".agent-badge[data-v-e60e128b]",
+          "decl": "display:inline-flex;min-height:18px;padding:1px 6px;align-items:center;box-sizing:border-box;color:var(--ink-text-secondary);background:var(--ink-bg-secondary);border-radius:999px;font-size:8px;font-weight:600;line-height:14px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 302250
+        }
+      ],
+      "media_queries": [
+        {
+          "offset": 187189,
+          "query": "(max-width: 640px) — .agent-badge 手机覆盖"
+        }
+      ],
+      "android": [
+        "MainActivity.kt:ConversationScreen",
+        "MainActivity.kt:ConversationTopBar",
+        "MainActivity.kt:MessageBubble",
+        "MainActivity.kt:InkAgentBadge",
+        "ChatMarkdown.kt",
+        "ChatSocket.kt"
+      ],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-c0c550c3",
+          "component_name_candidate": "AppMessageList",
+          "char_span": [
+            1684958,
+            1716565
+          ],
+          "utf8_byte_span": [
+            2284209,
+            2315991
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "正在读取会话",
+            "正在思考",
+            "工具",
+            "错误",
+            "已中断",
+            "思考过程",
+            "参数",
+            "结果",
+            "字",
+            "发送消息，开始协作",
+            "我"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-8aca294f",
+          "component_name_candidate": "AppSingleChatView",
+          "char_span": [
+            1829752,
+            1947877
+          ],
+          "utf8_byte_span": [
+            2431592,
+            2552078
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "未配置 Skill",
+            "上下文 --",
+            "读取会话失败，请稍后重试",
+            "当前会话未设置工作区",
+            "请先选择会话",
+            "工作区已切换",
+            "工作区切换失败",
+            "读取 Skills 失败",
+            "读取 Skill Bundles 失败",
+            "创建 Bundle 失败",
+            "无法打开系统浏览器",
+            "文件 diff",
+            "已保存",
+            "文件",
+            "文件太大，无法下载",
+            "文件太大，无法在 App 中预览"
+          ],
+          "api_paths": [
+            "/api/hermes/bundles",
+            "/api/hermes/model-context/${encodeURIComponent",
+            "/api/studio/sessions/${encodeURIComponent",
+            "/api/studio/sessions/context-length"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-744a5cd2",
+          "component_name_candidate": "AppChatComposer",
+          "char_span": [
+            1331915,
+            1344143
+          ],
+          "utf8_byte_span": [
+            1918438,
+            1930741
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "输入消息...",
+            "调整输入框高度",
+            "正在上传",
+            "发送健康数据",
+            "照片",
+            "拍摄",
+            "文件",
+            "位置"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "sessions",
+      "title": "历史会话",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "b5cd62b3",
+        "2736050c",
+        "50ff9297"
+      ],
+      "js_scopes": [
+        "b5cd62b3",
+        "2736050c",
+        "50ff9297"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "MainActivity.kt",
+        "AppViewModel.kt"
+      ],
+      "cloud_exclusions": [
+        "/api/studio/group-chat-link/v1/*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-b5cd62b3",
+          "component_name_candidate": "ConversationDrawer",
+          "char_span": [
+            1254366,
+            1309032
+          ],
+          "utf8_byte_span": [
+            1837886,
+            1894081
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "当前设备",
+            "置顶",
+            "搜索结果",
+            "群聊",
+            "工作流",
+            "历史记录",
+            "最近",
+            "新建群聊",
+            "新建工作流",
+            "新建对话",
+            "没有找到匹配内容",
+            "暂无群聊",
+            "暂无工作流",
+            "暂无历史记录",
+            "暂无单聊记录",
+            "全部配置"
+          ],
+          "api_paths": [
+            "/api/studio/group-chat-link/v1/connections/${encodeURIComponent",
+            "/api/studio/group-chat/rooms",
+            "/api/studio/sessions",
+            "/api/studio/sessions/${encodeURIComponent",
+            "/api/studio/sessions/hermes",
+            "/api/studio/sessions/hermes/groups",
+            "/api/studio/workflows"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-2736050c",
+          "component_name_candidate": "AppSessionSearchDialog",
+          "char_span": [
+            1235806,
+            1240624
+          ],
+          "utf8_byte_span": [
+            1819037,
+            1824064
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "正在搜索",
+            "正在读取最近会话",
+            "没有找到匹配内容",
+            "暂无最近会话",
+            "搜索失败，请检查设备连接",
+            "全局 Agent",
+            "会话",
+            "搜索会话",
+            "搜索标题与历史消息内容",
+            "搜索会话...",
+            "搜索结果",
+            "最近会话",
+            "未命名会话",
+            "没有可显示的匹配片段",
+            "最近使用的会话",
+            "选择会话后直接打开"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-50ff9297",
+          "component_name_candidate": "AppNewChatDrawer",
+          "char_span": [
+            1217290,
+            1235779
+          ],
+          "utf8_byte_span": [
+            1800193,
+            1819010
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "未分类",
+            "读取新建会话配置失败",
+            "读取模型失败",
+            "分类已创建",
+            "创建分类失败",
+            "请求超时，请稍后重试",
+            "设备连接已断开",
+            "新建对话",
+            "配置一个新的 Studio 会话",
+            "正在读取配置",
+            "重试",
+            "运行模式",
+            "全局",
+            "当前配置",
+            "配置",
+            "分类"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "group_chat",
+      "title": "群聊",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "e0c3cb1f",
+        "760e0344"
+      ],
+      "js_scopes": [
+        "e0c3cb1f",
+        "760e0344"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "Channels.kt"
+      ],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-e0c3cb1f",
+          "component_name_candidate": "AppGroupChatView",
+          "char_span": [
+            1971300,
+            2116204
+          ],
+          "utf8_byte_span": [
+            2576370,
+            2725689
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "远程群聊尚未连接",
+            "远程群聊连接失败，请检查地址和网络",
+            "远程群聊",
+            "该群聊已失效或无权访问，已退出群聊",
+            "确定",
+            "没有访问此文件的权限",
+            "读取文件失败",
+            "已保存",
+            "保存失败",
+            "群聊",
+            "全局",
+            "当前配置",
+            "默认",
+            "无",
+            "极低",
+            "低"
+          ],
+          "api_paths": [
+            "/api/auth/me",
+            "/api/studio/group-chat-link/v1/connect",
+            "/api/studio/group-chat-link/v1/connections/${encodeURIComponent",
+            "/api/studio/group-chat/agent-presets",
+            "/api/studio/group-chat/agent-presets${t}",
+            "/api/studio/group-chat/agent-presets/${encodeURIComponent",
+            "/api/studio/group-chat/rooms",
+            "/api/studio/group-chat/rooms/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-760e0344",
+          "component_name_candidate": "AppGroupMemberList",
+          "char_span": [
+            1947904,
+            1953819
+          ],
+          "utf8_byte_span": [
+            2552105,
+            2558075
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "房主",
+            "我",
+            "正在输入...",
+            "离线",
+            "在线",
+            "正在回复",
+            "空闲",
+            "成员",
+            "关闭",
+            "添加 Agent"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": "",
+      "cloud_review": "Local /api/studio/group-chat routes are not evidence of cloud dependency. Retain local group chat; classify cloud-only discovery/social separately."
+    },
+    {
+      "id": "files_workspace",
+      "title": "Files / 工作区",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "07bc1664"
+      ],
+      "js_scopes": [
+        "07bc1664"
+      ],
+      "css_anchors": [
+        {
+          "offset": 156496,
+          "selector": ".workspace-layer[data-v-07bc1664]",
+          "decl": "position:fixed;z-index:720;top:0;right:0;bottom:0;left:0",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 156496
+        },
+        {
+          "offset": 157422,
+          "selector": ".workspace-header[data-v-07bc1664]",
+          "decl": "display:flex;align-items:center;box-sizing:border-box;min-height:54px;padding:7px 12px;gap:8px;background:var(--ink-bg-primary);border-bottom:1px solid var(--ink-border-light)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 157422
+        },
+        {
+          "offset": 159168,
+          "selector": ".workspace-create-menu[data-v-07bc1664]",
+          "decl": "position:absolute;top:calc(var(--app-safe-area-top) + 51px);right:12px;display:flex;box-sizing:border-box;width:156px;padding:5px;flex-direction:column;color:var(--ink-text-primary);background:var(--ink-bg-card);border:1px solid var(--ink-border-light);border-radius:11px;box-shadow:0 12px 34px rgba(0,0,0,.2)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 159168
+        },
+        {
+          "offset": 160213,
+          "selector": ".workspace-create-card[data-v-07bc1664]",
+          "decl": "display:flex;box-sizing:border-box;width:100%;max-width:360px;padding:18px;flex-direction:column;gap:15px;background:var(--ink-bg-card);border:1px solid var(--ink-border-light);border-radius:15px;box-shadow:0 16px 50px rgba(0,0,0,.22)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 160213
+        },
+        {
+          "offset": 162475,
+          "selector": ".workspace-location-bar[data-v-07bc1664]",
+          "decl": "display:flex;align-items:center;box-sizing:border-box;min-height:38px;padding:5px 13px;flex-shrink:0;gap:7px;background:var(--ink-bg-secondary);border-bottom:1px solid var(--ink-border-light)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 162475
+        },
+        {
+          "offset": 163404,
+          "selector": ".workspace-file-row[data-v-07bc1664]",
+          "decl": "display:flex;align-items:center;box-sizing:border-box;width:100%;min-height:48px;padding-top:5px;padding-right:7px;padding-bottom:5px;gap:7px;border-radius:5px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 163404
+        },
+        {
+          "offset": 165798,
+          "selector": ".workspace-state[data-v-07bc1664]",
+          "decl": "display:flex;align-items:center;justify-content:center;min-height:140px;padding:24px;flex:1;flex-direction:column;gap:9px;color:var(--ink-text-muted);font-size:12px;text-align:center",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 165798
+        },
+        {
+          "offset": 166476,
+          "selector": ".document-toolbar[data-v-07bc1664]",
+          "decl": "display:flex;align-items:center;box-sizing:border-box;min-height:44px;padding:5px 12px;gap:8px;background:var(--ink-bg-card);border-bottom:1px solid var(--ink-border)",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 166476
+        },
+        {
+          "offset": 168142,
+          "selector": ".document-preview[data-v-07bc1664]",
+          "decl": "box-sizing:border-box;min-height:100%;color:var(--ink-code-text);background:var(--ink-bg-code);font-family:Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:18px",
+          "offset_unit": "unicode_codepoint",
+          "utf8_byte_offset": 168142
+        }
+      ],
+      "media_queries": [],
+      "android": [
+        "android/app/src/main/java/xyz/rflg/hstudiodirect/StudioWorkspaceScreens.kt"
+      ],
+      "cloud_exclusions": [],
+      "gaps": [
+        "Android 侧 StudioWorkspaceScreens.kt 仅 90 行，原版组件 20723 B / 约 90 条规则"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-07bc1664",
+          "component_name_candidate": "AppWorkspaceBrowser",
+          "char_span": [
+            1778169,
+            1798834
+          ],
+          "utf8_byte_span": [
+            2379284,
+            2400549
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "工作区",
+            "新建目录",
+            "新建文件",
+            "目录名，例如 new-folder",
+            "文件名，例如 new-file.ts",
+            "工作区根目录",
+            "当前工作区不可用",
+            "读取工作区失败",
+            "读取目录失败",
+            "读取文档失败",
+            "已保存",
+            "保存失败",
+            "名称不能包含路径分隔符",
+            "已创建",
+            "创建失败",
+            "放弃修改？"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "files_preview",
+      "title": "文件预览",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "ba39d9e1",
+        "879b120a"
+      ],
+      "js_scopes": [
+        "ba39d9e1",
+        "879b120a"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-ba39d9e1",
+          "component_name_candidate": "AppFilePreviewDrawer",
+          "char_span": [
+            1768814,
+            1775961
+          ],
+          "utf8_byte_span": [
+            2369665,
+            2377064
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "文件预览",
+            "视频加载失败，请下载后播放",
+            "放弃修改？",
+            "当前文档还有未保存的内容。",
+            "放弃",
+            "关闭文件？",
+            "关闭",
+            "关闭文件预览",
+            "编辑",
+            "取消",
+            "保存中",
+            "保存",
+            "正在读取文件",
+            "二进制文件无法显示 diff",
+            "此文件的 diff 暂不可用"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-879b120a",
+          "component_name_candidate": "AppWorkspaceDiffCard",
+          "char_span": [
+            1680245,
+            1683266
+          ],
+          "utf8_byte_span": [
+            2279454,
+            2282517
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "本轮文件变更",
+            "个文件",
+            "变更内容较大，部分 diff 已截断"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "terminal",
+      "title": "终端",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "counterexamples": [
+        "!0===e.terminal&&(Xa(),...)",
+        "!0!==e.terminal&&!1!==e.ok",
+        "\"fork\"===String(e.command||\"\").toLowerCase()&&(!0===e.terminal||!1===e.ok)"
+      ],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "browser",
+      "title": "浏览器",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "counterexamples": [
+        "github_browser_open_failed",
+        "无法打开系统浏览器"
+      ],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "workflow",
+      "title": "工作流",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "45f94f2e",
+        "19d17ade",
+        "8eec0edf",
+        "4b83134d"
+      ],
+      "js_scopes": [
+        "45f94f2e",
+        "19d17ade",
+        "8eec0edf",
+        "4b83134d"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "gaps": [
+        "12 种条件运算符与汇合方式在 Android 侧未见等价数据模型"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-45f94f2e",
+          "component_name_candidate": "AppWorkflowView",
+          "char_span": [
+            2603334,
+            2659276
+          ],
+          "utf8_byte_span": [
+            3230495,
+            3288441
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "工作流读取失败",
+            "运行记录读取失败",
+            "已保存",
+            "已创建",
+            "工作流保存失败",
+            "工作流已删除",
+            "工作流删除失败",
+            "条件值格式不正确",
+            "不限时",
+            "请选择可用的 DSH 模式",
+            "工作流已开始",
+            "工作流启动失败",
+            "请先创建节点",
+            "已请求停止",
+            "停止失败",
+            "删除运行记录"
+          ],
+          "api_paths": [
+            "/api/studio/workflows",
+            "/api/studio/workflows/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-19d17ade",
+          "component_name_candidate": "AppWorkflowCanvasNode",
+          "char_span": [
+            2581868,
+            2597258
+          ],
+          "utf8_byte_span": [
+            3208824,
+            3224414
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "选择模型",
+            "全局",
+            "当前配置",
+            "默认",
+            "无",
+            "最小",
+            "低",
+            "中",
+            "高",
+            "超高",
+            "最大",
+            "待运行",
+            "节点名称",
+            "选择 Agent",
+            "运行模式",
+            "汇合方式"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-8eec0edf",
+          "component_name_candidate": "AppWorkflowFormDrawer",
+          "char_span": [
+            2522544,
+            2528068
+          ],
+          "utf8_byte_span": [
+            3147229,
+            3152988
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "删除工作流",
+            "工作流和运行记录都会被删除，是否继续？",
+            "删除",
+            "编辑工作流",
+            "新建工作流",
+            "调整名称与工作区",
+            "创建一个新的 Studio 工作流",
+            "正在读取配置",
+            "名称",
+            "输入工作流名称",
+            "工作流创建后不能切换 Profile",
+            "工作区",
+            "选择 Studio 设备上的目录",
+            "取消",
+            "保存中",
+            "保存"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-4b83134d",
+          "component_name_candidate": "AppWorkflowEdgeDrawer",
+          "char_span": [
+            2528095,
+            2542175
+          ],
+          "utf8_byte_span": [
+            3153015,
+            3168473
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "上游正常返回",
+            "上游执行失败",
+            "任一结果",
+            "不检查回复内容",
+            "完整成功回复文本（output，推荐）",
+            "完整成功回复文本（output）",
+            "单个 JSON 字段值（outputJson.*）",
+            "完整失败错误文本（error，推荐）",
+            "完整失败错误文本（error）",
+            "高级数据路径",
+            "等于",
+            "不等于",
+            "包含",
+            "不包含",
+            "存在",
+            "不存在"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "schedule",
+      "title": "定时",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "d3614ca5",
+        "87ee7e53",
+        "218409ea",
+        "1c43be07"
+      ],
+      "js_scopes": [
+        "d3614ca5",
+        "87ee7e53",
+        "218409ea",
+        "1c43be07"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "CronJobs.kt"
+      ],
+      "cloud_exclusions": [
+        "/api/hermes/jobs/delivery-targets"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-d3614ca5",
+          "component_name_candidate": "AppJobFormDrawer",
+          "char_span": [
+            2372785,
+            2385040
+          ],
+          "utf8_byte_span": [
+            2991646,
+            3004342
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "每分钟",
+            "每 5 分钟",
+            "每 30 分钟",
+            "每小时",
+            "每天",
+            "每周",
+            "每月",
+            "自定义",
+            "本地",
+            "来源",
+            "默认模型",
+            "使用当前 Profile 的默认服务商",
+            "任务已更新",
+            "任务已创建",
+            "任务保存失败",
+            "请输入提示词"
+          ],
+          "api_paths": [
+            "/api/hermes/jobs",
+            "/api/hermes/jobs/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-87ee7e53",
+          "component_name_candidate": "AppJobsView",
+          "char_span": [
+            2388791,
+            2397638
+          ],
+          "utf8_byte_span": [
+            3008161,
+            3017355
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "任务列表加载失败",
+            "任务已恢复",
+            "任务已暂停",
+            "任务状态更新失败",
+            "任务已触发",
+            "任务触发失败",
+            "删除任务",
+            "删除",
+            "任务已删除",
+            "任务删除失败",
+            "运行中",
+            "已暂停",
+            "已调度",
+            "已禁用",
+            "本地",
+            "来源"
+          ],
+          "api_paths": [
+            "/api/hermes/jobs",
+            "/api/hermes/jobs/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-218409ea",
+          "component_name_candidate": "AppJobHistoryDialog",
+          "char_span": [
+            2385067,
+            2388764
+          ],
+          "utf8_byte_span": [
+            3004369,
+            3008134
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "运行详情读取失败",
+            "运行历史",
+            "次运行",
+            "正在读取运行历史",
+            "暂无内容",
+            "暂无运行历史。"
+          ],
+          "api_paths": [
+            "/api/cron-history${t}",
+            "/api/cron-history/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-1c43be07",
+          "component_name_candidate": "AppWorkflowScheduleDrawer",
+          "char_span": [
+            2542202,
+            2555796
+          ],
+          "utf8_byte_span": [
+            3168500,
+            3182688
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "每分钟",
+            "每 5 分钟",
+            "每 30 分钟",
+            "每小时",
+            "每天",
+            "每周",
+            "每月",
+            "自定义",
+            "定时计划读取失败",
+            "超时需在 0.1 到 1440 分钟之间",
+            "定时计划已保存",
+            "定时计划保存失败",
+            "删除定时计划",
+            "删除",
+            "定时计划已删除",
+            "定时计划删除失败"
+          ],
+          "api_paths": [
+            "/api/studio/workflows/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "kanban",
+      "title": "Kanban 看板",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "KanbanScreens.kt"
+      ],
+      "cloud_exclusions": [],
+      "counterexamples": [
+        "kanban_decomposer:\"看板拆解\"（98a96c0d 辅助模型角色枚举）",
+        "i18n 偏移 249574/376985/442801/523001/633195/742699/851226/955080"
+      ],
+      "gaps": [
+        "Android 侧 KanbanScreens.kt 648 行在原版无对应界面，属超出原版的新增"
+      ],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "agents",
+      "title": "Agent / Runtime",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "e60e128b"
+      ],
+      "js_scopes": [
+        "e60e128b"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "AgentToolScreens.kt",
+        "AgentTools.kt"
+      ],
+      "cloud_exclusions": [
+        "/api/ekko/*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-e60e128b",
+          "component_name_candidate": "AppAgentManagerView",
+          "char_span": [
+            2230147,
+            2260647
+          ],
+          "utf8_byte_span": [
+            2844388,
+            2875831
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "更新设置失败",
+            "版本未知",
+            "读取 Agent 状态失败",
+            "刷新编程 Agent 失败",
+            "刷新 Hermes 状态失败",
+            "检查更新失败",
+            "发现新版本",
+            "已是最新版本",
+            "删除",
+            "已完成",
+            "失败",
+            "等待中",
+            "正在解析版本",
+            "正在下载",
+            "正在校验",
+            "正在解压"
+          ],
+          "api_paths": [
+            "/api/coding-agents/${encodeURIComponent",
+            "/api/coding-agents/${e}/update-policy",
+            "/api/coding-agents/update-policies",
+            "/api/hermes/runtime-versions/active-runtime",
+            "/api/hermes/runtime-versions/restart-webui",
+            "/api/hermes/runtime-versions/runtime/${encodeURIComponent",
+            "/api/hermes/runtime-versions/runtime/download"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "skills",
+      "title": "Skills",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "3c019f49",
+        "f9d684ea",
+        "6bb0fc77"
+      ],
+      "js_scopes": [
+        "3c019f49",
+        "f9d684ea",
+        "6bb0fc77"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [
+        "/api/ekko/skills*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-3c019f49",
+          "component_name_candidate": "AppSkillsView",
+          "char_span": [
+            2355743,
+            2367283
+          ],
+          "utf8_byte_span": [
+            2974216,
+            2985990
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "内置",
+            "本地安装",
+            "外部目录",
+            "用户已修改",
+            "技能列表加载失败",
+            "技能状态更新失败",
+            "删除技能",
+            "删除",
+            "技能已删除",
+            "技能删除失败",
+            "技能",
+            "搜索技能...",
+            "个技能",
+            "正在读取技能",
+            "重新加载",
+            "已归档"
+          ],
+          "api_paths": [
+            "/api/ekko/skills/${encodeURIComponent",
+            "/api/hermes/skills/${encodeURIComponent",
+            "/api/hermes/skills/toggle"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-f9d684ea",
+          "component_name_candidate": "AppSkillDetail",
+          "char_span": [
+            2348025,
+            2355716
+          ],
+          "utf8_byte_span": [
+            2966274,
+            2974189
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "放弃未保存修改？",
+            "当前技能内容尚未保存。",
+            "放弃",
+            "技能已保存",
+            "技能保存失败",
+            "已置顶技能",
+            "已取消置顶",
+            "置顶状态更新失败",
+            "技能内容加载失败",
+            "已归档",
+            "编辑",
+            "保存中",
+            "保存",
+            "取消",
+            "浏览",
+            "使用"
+          ],
+          "api_paths": [
+            "/api/ekko/skills/${encodeURIComponent",
+            "/api/hermes/skills/${encodeURIComponent",
+            "/api/hermes/skills/pin"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-6bb0fc77",
+          "component_name_candidate": "AppSkillsUsageView",
+          "char_span": [
+            2424629,
+            2435353
+          ],
+          "utf8_byte_span": [
+            3046025,
+            3056955
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "技能用量加载失败",
+            "其他技能",
+            "技能用量",
+            "天",
+            "刷新中",
+            "刷新",
+            "正在读取技能用量",
+            "重新加载",
+            "重试",
+            "每日趋势",
+            "最近",
+            "次操作",
+            "当前周期暂无技能使用数据",
+            "总操作",
+            "加载",
+            "编辑"
+          ],
+          "api_paths": [
+            "/api/hermes/skills/usage/stats"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "plugins",
+      "title": "Plugins",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "counterexamples": [
+        "highlight.js 语法注册表"
+      ],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "mcp",
+      "title": "MCP",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "b62dab03",
+        "961fba34",
+        "2f3f27cd"
+      ],
+      "js_scopes": [
+        "b62dab03",
+        "961fba34",
+        "2f3f27cd"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [
+        "/api/ekko/mcp/*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-b62dab03",
+          "component_name_candidate": "AppMcpView",
+          "char_span": [
+            2334185,
+            2346242
+          ],
+          "utf8_byte_span": [
+            2951974,
+            2964491
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "全部 MCP 已重载",
+            "连接测试失败",
+            "删除 MCP 服务器",
+            "删除",
+            "服务器删除失败",
+            "已禁用",
+            "已连接",
+            "未连接",
+            "重新加载",
+            "总计",
+            "工具",
+            "搜索服务器或工具...",
+            "刷新",
+            "全部重载",
+            "添加服务器",
+            "正在读取 MCP 服务器"
+          ],
+          "api_paths": [
+            "/api/coding-agents/${encodeURIComponent",
+            "/api/ekko/mcp/servers/${encodeURIComponent",
+            "/api/hermes/mcp/servers/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-961fba34",
+          "component_name_candidate": "AppMcpToolsDrawer",
+          "char_span": [
+            2326314,
+            2334158
+          ],
+          "utf8_byte_span": [
+            2943773,
+            2951947
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "请选择 MCP 服务器",
+            "获取工具列表失败",
+            "工具可见性保存失败",
+            "工具可见性已保存",
+            "放弃未保存修改？",
+            "当前工具可见性尚未保存。",
+            "放弃",
+            "工具可见性管理",
+            "工具列表",
+            "获取中",
+            "获取工具",
+            "全部",
+            "仅包含",
+            "排除",
+            "工具名称",
+            "全选"
+          ],
+          "api_paths": [
+            "/api/ekko/mcp/servers/${encodeURIComponent",
+            "/api/hermes/mcp/tools"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-2f3f27cd",
+          "component_name_candidate": "AppMcpFormDrawer",
+          "char_span": [
+            2321465,
+            2326287
+          ],
+          "utf8_byte_span": [
+            2938654,
+            2943746
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "服务器",
+            "配置中没有 MCP 服务器",
+            "服务器更新失败",
+            "添加失败",
+            "放弃未保存修改？",
+            "当前 MCP 配置尚未保存。",
+            "放弃",
+            "编辑 MCP 服务器",
+            "添加 MCP 服务器",
+            "可一次添加一个或多个服务器",
+            "名称",
+            "取消",
+            "保存中",
+            "保存",
+            "添加"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "profiles",
+      "title": "Profiles",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "181a58e6",
+        "00cf131c",
+        "d15684f0"
+      ],
+      "js_scopes": [
+        "181a58e6",
+        "00cf131c",
+        "d15684f0"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "StudioSettings.kt"
+      ],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-181a58e6",
+          "component_name_candidate": "AppProfilesView",
+          "char_span": [
+            2443410,
+            2453043
+          ],
+          "utf8_byte_span": [
+            3065450,
+            3075415
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "删除 Profile",
+            "删除",
+            "未配置默认模型",
+            "配置",
+            "当前：",
+            "刷新中",
+            "刷新",
+            "创建 Profile",
+            "正在读取 Profiles",
+            "重新加载",
+            "重试",
+            "当前使用",
+            "默认",
+            "模型",
+            "收起详情",
+            "展开详情"
+          ],
+          "api_paths": [
+            "/api/hermes/profiles/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-00cf131c",
+          "component_name_candidate": "AppProfileFormDrawer",
+          "char_span": [
+            2435380,
+            2439854
+          ],
+          "utf8_byte_span": [
+            3056982,
+            3061772
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "仅支持小写字母、数字、下划线和连字符",
+            "请输入 Profile 名称",
+            "放弃未保存修改？",
+            "当前 Profile 配置尚未保存。",
+            "放弃",
+            "重命名 Profile",
+            "创建 Profile",
+            "创建独立运行环境配置",
+            "新名称",
+            "名称",
+            "例如 coding_agent",
+            "从当前 Profile 克隆",
+            "复制当前配置；独占平台凭据会被安全清理并停用",
+            "取消",
+            "处理中",
+            "确认重命名"
+          ],
+          "api_paths": [
+            "/api/hermes/profiles",
+            "/api/hermes/profiles/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-d15684f0",
+          "component_name_candidate": "AppProfileConfigDrawer",
+          "char_span": [
+            2439881,
+            2443383
+          ],
+          "utf8_byte_span": [
+            3061799,
+            3065423
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "放弃未保存修改？",
+            "放弃",
+            "编辑配置",
+            "正在读取 config.yaml",
+            "重新加载",
+            "取消",
+            "保存中",
+            "保存"
+          ],
+          "api_paths": [
+            "/api/studio/files/read",
+            "/api/studio/files/write"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "models",
+      "title": "Models",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "fb39f5d3",
+        "303c0407",
+        "f9857c3f",
+        "98a96c0d",
+        "9e1d5a9f",
+        "8d1c9efc",
+        "72375a2b"
+      ],
+      "js_scopes": [
+        "fb39f5d3",
+        "303c0407",
+        "f9857c3f",
+        "98a96c0d",
+        "9e1d5a9f",
+        "8d1c9efc",
+        "72375a2b"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [
+        "/api/v3/auc/bigmodel",
+        "/api/v3/tts/unidirectional"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-fb39f5d3",
+          "component_name_candidate": "AppModelsView",
+          "char_span": [
+            2213232,
+            2229529
+          ],
+          "utf8_byte_span": [
+            2826885,
+            2843770
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "常规模型",
+            "辅助模型",
+            "组合模型",
+            "语音识别",
+            "语音合成",
+            "模型配置加载失败",
+            "模型缓存已刷新",
+            "模型缓存刷新失败",
+            "默认模型已更新",
+            "默认模型更新失败",
+            "确认刷新模型目录",
+            "继续刷新",
+            "模型目录已刷新",
+            "模型目录刷新失败",
+            "模型目录已恢复",
+            "模型目录恢复失败"
+          ],
+          "api_paths": [
+            "/api/hermes/config/providers/${encodeURIComponent",
+            "/api/hermes/provider-models/cache/refresh"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-303c0407",
+          "component_name_candidate": "AppModelProviderDrawer",
+          "char_span": [
+            2136622,
+            2152316
+          ],
+          "utf8_byte_span": [
+            2746645,
+            2763011
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "编辑模型 Provider",
+            "添加模型 Provider",
+            "模型列表获取失败",
+            "请先填写请求地址",
+            "额外请求参数必须是 JSON 对象",
+            "请求超时",
+            "停滞超时",
+            "限流延迟",
+            "连接测试失败",
+            "连接成功",
+            "上下文长度",
+            "请填写默认模型",
+            "请填写请求地址",
+            "请填写名称",
+            "请选择 Provider",
+            "放弃未保存修改？"
+          ],
+          "api_paths": [
+            "/api/hermes/config/providers",
+            "/api/hermes/config/providers/${encodeURIComponent",
+            "/api/hermes/provider-models"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-f9857c3f",
+          "component_name_candidate": "AppProviderAuthDrawer",
+          "char_span": [
+            2128039,
+            2135990
+          ],
+          "utf8_byte_span": [
+            2737654,
+            2746013
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "授权已被拒绝",
+            "授权失败，请重试",
+            "无法打开授权页面，请复制链接后重试",
+            "复制失败",
+            "凭据只保存在当前 Studio Profile",
+            "选择 MiniMax 区域",
+            "请选择与你的 MiniMax Coding Plan 账号一致的区域",
+            "中国",
+            "开始授权",
+            "正在提交授权码",
+            "正在创建授权会话",
+            "在浏览器完成授权后粘贴授权码",
+            "请在浏览器完成授权",
+            "此页面会自动检查授权结果",
+            "授权码已复制",
+            "重新打开授权页面"
+          ],
+          "api_paths": [
+            "/api/hermes/auth/${n}/poll/${encodeURIComponent",
+            "/api/hermes/auth/${n}/start",
+            "/api/hermes/auth/anthropic/submit/${encodeURIComponent",
+            "/api/hermes/auth/copilot/check-token",
+            "/api/hermes/auth/copilot/enable"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-98a96c0d",
+          "component_name_candidate": "AppAuxiliaryModelsPanel",
+          "char_span": [
+            2158354,
+            2172923
+          ],
+          "utf8_byte_span": [
+            2769233,
+            2784793
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "自动选择",
+            "继承主模型",
+            "不指定",
+            "备用模型加载失败",
+            "模型路由加载失败",
+            "上下文压缩",
+            "图片理解",
+            "网页提取",
+            "技能中心",
+            "审批判断",
+            "标题生成",
+            "任务分诊",
+            "看板拆解",
+            "配置描述",
+            "记忆整理",
+            "会话搜索"
+          ],
+          "api_paths": [
+            "/api/hermes/config/fallback-providers"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-9e1d5a9f",
+          "component_name_candidate": "AppMoaModelsPanel",
+          "char_span": [
+            2172950,
+            2186211
+          ],
+          "utf8_byte_span": [
+            2784820,
+            2798749
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "不指定",
+            "组合模型加载失败",
+            "未设置",
+            "已存在同名组合模型",
+            "请选择聚合模型",
+            "至少添加一个参考模型",
+            "名称只能包含字母、数字、点、下划线和短横线",
+            "请填写组合模型名称",
+            "组合模型已保存",
+            "组合模型保存失败",
+            "放弃未保存修改？",
+            "当前组合模型配置尚未保存。",
+            "放弃",
+            "组合模型（MoA）",
+            "由多个参考模型生成候选答案，再由聚合模型汇总",
+            "刷新"
+          ],
+          "api_paths": [
+            "/api/hermes/config/moa"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-8d1c9efc",
+          "component_name_candidate": "AppVoiceModelsPanel",
+          "char_span": [
+            2186841,
+            2213205
+          ],
+          "utf8_byte_span": [
+            2799379,
+            2826858
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "本地语音识别",
+            "浏览器语音识别",
+            "豆包语音识别",
+            "自定义 STT",
+            "豆包语音合成",
+            "自定义 TTS",
+            "晓晓（中文·女）",
+            "晓萱（中文·女）",
+            "云希（中文·男）",
+            "云健（中文·男）",
+            "云扬（中文·男）",
+            "冰糖",
+            "茉莉",
+            "苏打",
+            "白桦",
+            "小何 2.0"
+          ],
+          "api_paths": [
+            "/api/studio/${e}/settings/${encodeURIComponent",
+            "/api/studio/${e}/settings/active",
+            "/api/studio/stt/local-model/download",
+            "/api/v3/auc/bigmodel",
+            "/api/v3/tts/unidirectional",
+            "/api/voice/providers/probe"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-72375a2b",
+          "component_name_candidate": "AppModelSelector",
+          "char_span": [
+            1722532,
+            1728959
+          ],
+          "utf8_byte_span": [
+            2321958,
+            2328452
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "模型",
+            "切换模型",
+            "搜索模型",
+            "普通模型",
+            "组合模型",
+            "正在读取模型",
+            "预览",
+            "没有可用模型"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "memory",
+      "title": "Memory",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "3f8c1721",
+        "f89e2bdf"
+      ],
+      "js_scopes": [
+        "3f8c1721",
+        "f89e2bdf"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [
+        "/api/ekko/memory*"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-3f8c1721",
+          "component_name_candidate": "AppEkkoMemoryView",
+          "char_span": [
+            2260680,
+            2268415
+          ],
+          "utf8_byte_span": [
+            2875864,
+            2883844
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "有效",
+            "已取代",
+            "已过期",
+            "已删除",
+            "全部",
+            "放弃未保存修改？",
+            "当前 Ekko 记忆尚未保存。",
+            "放弃",
+            "记忆已保存",
+            "记忆保存失败",
+            "删除记忆",
+            "删除",
+            "记忆已删除",
+            "记忆删除失败",
+            "搜索记忆...",
+            "重试"
+          ],
+          "api_paths": [
+            "/api/ekko/memory",
+            "/api/ekko/memory/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-f89e2bdf",
+          "component_name_candidate": "AppMemoryView",
+          "char_span": [
+            2406448,
+            2411990
+          ],
+          "utf8_byte_span": [
+            3027113,
+            3032878
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "我的笔记",
+            "暂无笔记。",
+            "输入笔记内容...",
+            "用户画像",
+            "暂无画像。",
+            "输入用户画像...",
+            "灵魂",
+            "暂无灵魂配置。",
+            "输入灵魂配置...",
+            "记忆加载失败",
+            "放弃未保存修改？",
+            "当前记忆内容尚未保存。",
+            "放弃",
+            "记忆已保存",
+            "记忆保存失败",
+            "记忆"
+          ],
+          "api_paths": [
+            "/api/hermes/memory"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "hub",
+      "title": "Hub",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "counterexamples": [
+        "\"hub\"===t.skill.source?\"Hub 安装\"",
+        "{value:\"hub\",label:\"Hub 安装\",kind:\"hub\"}"
+      ],
+      "corrections": [
+        "早期摘要记为『146 次全部落在 GitHub 内』，逐条复核后不成立，已修正"
+      ],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "logs",
+      "title": "日志",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "237c0272",
+        "175a997a"
+      ],
+      "js_scopes": [
+        "237c0272",
+        "175a997a"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "StudioSettings.kt"
+      ],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-237c0272",
+          "component_name_candidate": "AppLogsView",
+          "char_span": [
+            2456618,
+            2464064
+          ],
+          "utf8_byte_span": [
+            3079046,
+            3086670
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "全部级别",
+            "日志文件加载失败",
+            "日志读取失败",
+            "日志",
+            "日志文件",
+            "暂无日志文件",
+            "级别",
+            "行数",
+            "搜索消息、Logger 或原始日志",
+            "刷新中",
+            "刷新",
+            "正在读取日志文件",
+            "重新加载",
+            "重试",
+            "正在读取日志",
+            "没有符合条件的日志"
+          ],
+          "api_paths": [
+            "/api/studio/logs",
+            "/api/studio/logs/${encodeURIComponent"
+          ],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-175a997a",
+          "component_name_candidate": "AppLogDetailDrawer",
+          "char_span": [
+            2453070,
+            2456585
+          ],
+          "utf8_byte_span": [
+            3075442,
+            3079013
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "已复制",
+            "复制失败",
+            "日志详情",
+            "复制",
+            "级别",
+            "时间",
+            "消息",
+            "原始日志"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "usage",
+      "title": "用量",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "1f1f16f0"
+      ],
+      "js_scopes": [
+        "1f1f16f0"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-1f1f16f0",
+          "component_name_candidate": "AppUsageView",
+          "char_span": [
+            2464097,
+            2478598
+          ],
+          "utf8_byte_span": [
+            3086703,
+            3101473
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "用量统计加载失败",
+            "用量",
+            "刷新中",
+            "刷新",
+            "正在读取用量统计",
+            "重新加载",
+            "重试",
+            "总 Token",
+            "输入 /",
+            "输出",
+            "会话总数",
+            "平均每天",
+            "个",
+            "预估费用",
+            "次 API 调用",
+            "缓存命中率"
+          ],
+          "api_paths": [
+            "/api/studio/usage/stats"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "performance",
+      "title": "性能监控",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "130adebd"
+      ],
+      "js_scopes": [
+        "130adebd"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "js_evidence": [
+        {
+          "scope": "data-v-130adebd",
+          "component_name_candidate": "AppPerformanceView",
+          "char_span": [
+            2478631,
+            2489437
+          ],
+          "utf8_byte_span": [
+            3101506,
+            3112558
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "性能数据加载失败",
+            "性能监控",
+            "自动刷新已开启",
+            "自动刷新已关闭",
+            "刷新中",
+            "刷新",
+            "正在读取运行状态",
+            "重新加载",
+            "重试",
+            "系统 CPU",
+            "系统内存",
+            "活跃会话",
+            "个正在运行",
+            "总内存",
+            "进程",
+            "运行中"
+          ],
+          "api_paths": [
+            "/api/studio/performance/runtime"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    },
+    {
+      "id": "journey",
+      "title": "Journey",
+      "status": "not_located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": null,
+      "style": null,
+      "scopes": [],
+      "js_scopes": [],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [],
+      "cloud_exclusions": [],
+      "js_evidence": [],
+      "note_from_unreviewed_draft": "",
+      "interpretation": "not located by current search; not proof of absence or permission to remove functionality"
+    },
+    {
+      "id": "theme",
+      "title": "主题 / 语言 / 显示 / 隐私 / 代理",
+      "status": "located",
+      "credibility": "static anchors verified; runtime/navigation unverified",
+      "route": "pages/index/index",
+      "style": "pages/index/index.css",
+      "scopes": [
+        "3d4864a4",
+        "f09227f2",
+        "b6963587",
+        "d28cb492",
+        "e29ff977"
+      ],
+      "js_scopes": [
+        "3d4864a4",
+        "f09227f2",
+        "b6963587",
+        "d28cb492"
+      ],
+      "css_anchors": [],
+      "media_queries": [],
+      "android": [
+        "Theme.kt"
+      ],
+      "cloud_exclusions": [],
+      "gaps": [
+        "app.css 的 ink 令牌为 var(--app-custom-*, 默认值) 形式，Theme.kt 未建模该覆盖层"
+      ],
+      "js_evidence": [
+        {
+          "scope": "data-v-3d4864a4",
+          "component_name_candidate": "AppThemeSettingsView",
+          "char_span": [
+            2504813,
+            2511257
+          ],
+          "utf8_byte_span": [
+            3128780,
+            3135598
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "选择强调色",
+            "选择文字颜色",
+            "手机背景已保存",
+            "保存背景失败",
+            "选择背景失败",
+            "恢复默认主题？",
+            "将清除手机本地保存的字体、颜色和背景图。",
+            "恢复默认",
+            "已恢复默认主题",
+            "手机主题",
+            "仅保存在当前手机，不会覆盖服务端主题",
+            "字体大小",
+            "文字颜色",
+            "已选择自定义颜色",
+            "跟随默认主题",
+            "取色"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-f09227f2",
+          "component_name_candidate": "AppThemeColorPicker",
+          "char_span": [
+            2498721,
+            2503216
+          ],
+          "utf8_byte_span": [
+            3122626,
+            3127183
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "拖动滑块或直接选择常用颜色",
+            "色相",
+            "鲜艳度",
+            "明暗",
+            "跟随默认主题",
+            "应用颜色"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-b6963587",
+          "component_name_candidate": "ThemeSwitch",
+          "char_span": [
+            1138700,
+            1139729
+          ],
+          "utf8_byte_span": [
+            1719395,
+            1720470
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "切换到浅色主题",
+            "切换到深色主题",
+            "切换到跟随设备主题"
+          ],
+          "api_paths": [],
+          "runtime_reachability": "not verified"
+        },
+        {
+          "scope": "data-v-d28cb492",
+          "component_name_candidate": "AppGlobalSettingsView",
+          "char_span": [
+            2489898,
+            2498694
+          ],
+          "utf8_byte_span": [
+            3113019,
+            3122599
+          ],
+          "boundary_method": "nearest preceding __name after previous scope marker to closing scope marker; verify nesting and call graph before using",
+          "labels": [
+            "显示",
+            "代理",
+            "上下文压缩",
+            "隐私",
+            "流式响应",
+            "实时显示 AI 回复",
+            "紧凑模式",
+            "减少 Studio 消息间距",
+            "显示推理过程",
+            "在 Studio 中展示模型思考过程",
+            "显示费用",
+            "在回复中显示 Token 使用量",
+            "内联差异",
+            "代码变更以内联方式显示",
+            "完成提示音",
+            "审批提示音"
+          ],
+          "api_paths": [
+            "/api/hermes/config"
+          ],
+          "runtime_reachability": "not verified"
+        }
+      ],
+      "note_from_unreviewed_draft": ""
+    }
+  ],
+  "unlocated_scan": {
+    "终端": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "Terminal": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "terminal": {
+      "app_service_js": 4,
+      "css": 0
+    },
+    "插件": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "Plugin": {
+      "app_service_js": 7,
+      "css": 0
+    },
+    "plugin": {
+      "app_service_js": 2,
+      "css": 0
+    },
+    "Journey": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "旅程": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "看板": {
+      "app_service_js": 12,
+      "css": 0
+    },
+    "Kanban": {
+      "app_service_js": 8,
+      "css": 0
+    },
+    "kanban": {
+      "app_service_js": 1,
+      "css": 0
+    },
+    "Hub": {
+      "app_service_js": 146,
+      "css": 0
+    },
+    "浏览器": {
+      "app_service_js": 74,
+      "css": 0
+    },
+    "browser": {
+      "app_service_js": 22,
+      "css": 1
+    },
+    "剪贴板": {
+      "app_service_js": 0,
+      "css": 0
+    },
+    "蓝牙": {
+      "app_service_js": 0,
+      "css": 0
+    }
+  },
+  "version_conflicts": [
+    {
+      "topic": "ink 令牌族",
+      "v1_0_3": "app.css 完整存在，数值与 Theme.kt 一致",
+      "ref_v0_7_13": "零命中",
+      "resolution": "以 v1.0.3 为准"
+    },
+    {
+      "topic": "消息气泡令牌",
+      "v1_0_3": "--ink-bg-message",
+      "ref_v0_7_13": "--msg-user-bg / --msg-assistant-bg（同值）",
+      "resolution": "以 v1.0.3 为准"
+    },
+    {
+      "topic": ".chat-header / .header-session-title",
+      "v1_0_3": "不存在",
+      "ref_v0_7_13": "存在且在 ≤768px 隐藏",
+      "resolution": "不得据此修改 Kotlin 顶栏"
+    },
+    {
+      "topic": "断点常量",
+      "v1_0_3": "520 / 640 / 900x600 / 599",
+      "ref_v0_7_13": "$breakpoint-mobile: 768px",
+      "resolution": "两套断点不可混用"
+    }
+  ],
+  "component_conflicts": [
+    {
+      "topic": "multiple message CSS scopes",
+      "scopes": [
+        "c0c550c3",
+        "8aca294f"
+      ],
+      "resolution": "Do not infer invocation or merge CSS solely from scope presence. Prior draft width and input-reference attribution are unverified."
+    }
+  ],
+  "android_counterparts": {
+    "root": "android/app/src/main/java/xyz/rflg/hstudiodirect/",
+    "note": "KanbanScreens.kt(648 行) 在原版 v1.0.3 无对应界面，计算对齐率时应从分子分母同时剔除"
+  },
+  "undetermined": [
+    {
+      "id": "rendered_verification",
+      "reason": "无 Android 构建环境（无 SDK / gradlew / gradle），所有视觉结论为静态样式表证据，未做渲染或截图比对"
+    },
+    {
+      "id": "span_boundaries",
+      "reason": "组件边界由 __scopeId 标记近似切分，跨组件字符串可能粘连；已抽检语义但未逐字节断言"
+    },
+    {
+      "id": "group_notice_ec310f5b",
+      "reason": "scope 名与内容不符：span 内 API 为 /api/hermes/config/* 等配置端点，非群聊通知"
+    },
+    {
+      "id": "lang_e29ff977",
+      "reason": "该 scope 为 918838 B 的 i18n 词条表，不是界面组件"
+    },
+    {
+      "id": "scheduled_jobs_coverage",
+      "reason": "Hermes Jobs 与工作流定时计划两套体系在 Android 侧的覆盖情况未逐一核对"
+    }
+  ],
+  "verification": {
+    "css_anchors_checked": 27,
+    "domain_count": 24,
+    "domain_ids_unique": true,
+    "located_count": 18,
+    "not_located_count": 6,
+    "method_warning": "Scope closing markers corrected. Component attribution and UI reachability require call-graph verification; no execution/visual verification implied."
+  }
+}
