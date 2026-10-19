@@ -28,11 +28,11 @@ import java.io.File
  */
 class DevicesParityTest {
 
-    private val screen = File("src/main/java/xyz/rflg/hstudiodirect/DevicesScreen.kt").readText()
-    private val instances = File("src/main/java/xyz/rflg/hstudiodirect/Instances.kt").readText()
-    private val viewModel = File("src/main/java/xyz/rflg/hstudiodirect/AppViewModel.kt").readText()
-    private val store = File("src/main/java/xyz/rflg/hstudiodirect/Store.kt").readText()
-    private val navigation = File("src/main/java/xyz/rflg/hstudiodirect/MainActivity.kt").readText()
+    private val screen = File("src/main/java/com/laozhudu/ekkostudio/DevicesScreen.kt").readText()
+    private val instances = File("src/main/java/com/laozhudu/ekkostudio/Instances.kt").readText()
+    private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
+    private val store = File("src/main/java/com/laozhudu/ekkostudio/Store.kt").readText()
+    private val navigation = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
 
     /**
      * The stylesheet with uni-app's `[data-v-<hash>]` scope markers stripped, so

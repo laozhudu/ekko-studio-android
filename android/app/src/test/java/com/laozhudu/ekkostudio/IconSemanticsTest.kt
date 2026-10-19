@@ -12,8 +12,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 /** Protects the mobile icon language from falling back to generic placeholders. */
 class IconSemanticsTest {
 
-    private val activity = File("src/main/java/xyz/rflg/hstudiodirect/MainActivity.kt").readText()
-    private val studioSettings = File("src/main/java/xyz/rflg/hstudiodirect/StudioSettings.kt").readText()
+    private val activity = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
+    private val studioSettings = File("src/main/java/com/laozhudu/ekkostudio/StudioSettings.kt").readText()
     private val drawableDir = File("src/main/res/drawable")
 
     @Test

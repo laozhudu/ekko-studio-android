@@ -14,7 +14,7 @@ import java.io.File
  */
 class RtlTest {
 
-    private val sources = File("src/main/java/xyz/rflg/hstudiodirect")
+    private val sources = File("src/main/java/com/laozhudu/ekkostudio")
         .walkTopDown()
         .filter { it.extension == "kt" }
         .toList()

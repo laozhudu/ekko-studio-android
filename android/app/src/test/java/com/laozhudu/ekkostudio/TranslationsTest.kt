@@ -83,7 +83,7 @@ class TranslationsTest {
         val onDisk = translationDirs().map(::tagOf).toSet()
 
         val offered = Regex("""tag = "([a-zA-Z-]+)"""")
-            .findAll(File("src/main/java/xyz/rflg/hstudiodirect/Locales.kt").readText())
+            .findAll(File("src/main/java/com/laozhudu/ekkostudio/Locales.kt").readText())
             .map { it.groupValues[1] }
             .toSet()
         assertEquals("APP_LANGUAGES in Locales.kt is out of step with res/values-*", onDisk, offered - setOf("en"))

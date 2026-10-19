@@ -24,7 +24,7 @@ import java.io.File
  */
 class OfficialInkTokenTest {
 
-    private val theme = File("src/main/java/xyz/rflg/hstudiodirect/Theme.kt").readText()
+    private val theme = File("src/main/java/com/laozhudu/ekkostudio/Theme.kt").readText()
 
     private fun tokens(name: String): JSONObject {
         val f = File("../../docs/reference/apk-1.0.3/theme-tokens-$name.json")

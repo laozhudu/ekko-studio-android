@@ -8,9 +8,9 @@ import java.io.File
 /** Keeps the mobile information architecture from drifting back into Settings-in-Settings. */
 class NavigationStructureTest {
 
-    private val viewModel = File("src/main/java/xyz/rflg/hstudiodirect/AppViewModel.kt").readText()
-    private val activity = File("src/main/java/xyz/rflg/hstudiodirect/MainActivity.kt").readText()
-    private val kanban = File("src/main/java/xyz/rflg/hstudiodirect/KanbanScreens.kt").readText()
+    private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
+    private val activity = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
+    private val kanban = File("src/main/java/com/laozhudu/ekkostudio/KanbanScreens.kt").readText()
 
     @Test
     fun agentIsAFirstClassRootTab() {
@@ -56,7 +56,7 @@ class NavigationStructureTest {
             "openConnections()",
         ).forEach { destination -> assertTrue("Agent hub lost $destination", hub.contains(destination)) }
         assertFalse("Pets must not appear in the Agent hub", hub.contains("openPets()"))
-        val skills = File("src/main/java/xyz/rflg/hstudiodirect/AgentToolScreens.kt").readText()
+        val skills = File("src/main/java/com/laozhudu/ekkostudio/AgentToolScreens.kt").readText()
         assertTrue("Skills must expose pending approvals", skills.contains("pendingWrites"))
         assertTrue("Skills approvals must offer approve and reject", skills.contains("resolvePendingSkillWrite"))
         listOf("SettingsGroup.Profile", "SettingsGroup.Agent").forEach { setting ->
