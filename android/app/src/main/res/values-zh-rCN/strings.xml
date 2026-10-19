@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Simplified Chinese translation, community build. Key set verified against res/values/strings.xml. -->
 <resources>
-    <string name="app_name">HStudio 直连</string>
-    <string name="launcher_name">H Studio</string>
+    <string name="app_name">Ekko Studio</string>
+    <string name="launcher_name">Ekko</string>
     <string name="action_back">返回</string>
     <string name="action_refresh">刷新</string>
     <string name="message_actions">消息操作</string>

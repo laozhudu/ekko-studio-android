@@ -5,8 +5,8 @@
   See docs/adding-a-language.md.
 -->
 <resources>
-    <string name="app_name">HStudio Direct</string>
-    <string name="launcher_name">H Studio</string>
+    <string name="app_name">Ekko Studio</string>
+    <string name="launcher_name">Ekko</string>
 
     <!-- Shared actions and labels -->
     <string name="action_back">Back</string>

@@ -4,8 +4,8 @@
   TranslationsTest يرفض أي مفتاح ناقص أو زائد.
 -->
 <resources>
-    <string name="app_name">HStudio Direct</string>
-    <string name="launcher_name">H Studio</string>
+    <string name="app_name">Ekko Studio</string>
+    <string name="launcher_name">Ekko</string>
 
     <!-- إجراءات وتسميات مشتركة -->
     <string name="action_back">رجوع</string>

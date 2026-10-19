@@ -18,11 +18,11 @@ val defaultStudioUrl = System.getenv("DEFAULT_STUDIO_URL")?.trim().orEmpty()
 val buildCommit = System.getenv("GITHUB_SHA")?.takeIf { it.matches(Regex("[0-9a-fA-F]{40}")) } ?: "local"
 
 android {
-    namespace = "xyz.rflg.hstudiodirect"
+    namespace = "com.laozhudu.ekkostudio"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "xyz.rflg.hstudiodirect"
+        applicationId = "com.laozhudu.ekkostudio"
         minSdk = 26
         targetSdk = 35
         versionCode = 47
