@@ -14,10 +14,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -562,16 +560,9 @@ private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
     // recompositions never re-run the tokenizer over a long block.
     val highlighted = remember(block.text, inkDark) { highlightCode(block.text, inkDark) }
     val clipboard = LocalClipboardManager.current
-    // HStudio .markdown-native-code-block (scope 856f8e4d): margin 8px 0,
-    // --ink-bg-code fill, 1px --ink-border, radius 6px. Header is a separate
-    // .markdown-native-code-header row, NOT a bare label: min-height 36px,
-    // padding 4px 6px 4px 12px, --ink-pressed bg, 1px bottom border. The copy
-    // button is .markdown-native-code-copy: min-width 56, min-height 44,
-    // 7px radius, --ink-text-secondary — a 44dp touch target, not a 24px chip.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
             .clip(RoundedCornerShape(6.dp))
             .border(1.dp, inkBorder(inkDark), RoundedCornerShape(6.dp))
             .background(inkCodeBg(inkDark)),
@@ -580,11 +571,9 @@ private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 36.dp)
                     .background(inkPressed(inkDark))
                     .padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     block.language.uppercase(),
@@ -598,16 +587,11 @@ private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // .markdown-native-code-copy: min-width 56, min-height 44,
-                // padding 0 8px, 7px radius, --ink-text-secondary.
                 Box(
                     modifier = Modifier
-                        .widthIn(min = 56.dp)
-                        .heightIn(min = 44.dp)
                         .clip(RoundedCornerShape(7.dp))
                         .clickable { clipboard.setText(AnnotatedString(block.text)) }
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.Center,
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                 ) {
                     Text(
                         stringResource(R.string.message_copy),
@@ -619,16 +603,14 @@ private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(inkBorder(inkDark)))
         }
         val scroll = rememberScrollState()
-        // HStudio .hljs-code-block code.hljs: 12px padding, JetBrains Mono,
-        // 12.5px / line-height 1.5, white-space pre-wrap, overflow-wrap anywhere.
         Box(modifier = Modifier.fillMaxWidth().horizontalScroll(scroll)) {
             Text(
                 text = highlighted,
                 modifier = Modifier.padding(12.dp),
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.5.sp,
-                    lineHeight = 18.75.sp, // 12.5 × 1.5
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
                 ),
                 softWrap = false,
                 color = inkCodeText(inkDark),

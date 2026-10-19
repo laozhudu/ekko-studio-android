@@ -104,16 +104,12 @@
     <string name="conversation_thinking">يفكر…</string>
     <string name="conversation_tool">ينفّذ %1$s…</string>
     <string name="thinking_title">يفكّر</string>
-    <string name="thinking_in_progress">يفكّر…</string>
-    <string name="thinking_duration">لوحظ %1$s</string>
     <string name="thinking_chars">%1$d حرفًا</string>
     <string name="thinking_expand">عرض تفاصيل التفكير</string>
     <string name="thinking_collapse">إخفاء تفاصيل التفكير</string>
     <string name="tool_status_done">اكتمل</string>
     <string name="tool_status_running">قيد التشغيل</string>
     <string name="tool_status_failed">فشل</string>
-    <string name="tool_run_count">%1$d أدوات</string>
-    <string name="tool_run_error">خطأ</string>
     <string name="conversation_stop">إيقاف</string>
     <string name="reasoning_show">التفكير</string>
     <string name="download_action">تحميل الملف</string>
@@ -879,9 +875,6 @@
     <string name="devices_account_entitlements_unavailable">حالة الحقوق غير متوفرة</string>
     <string name="devices_account_about">حول Ekko Studio</string>
     <string name="devices_account_logout">تسجيل الخروج</string>
-    <string name="about_rate_app">قيّم التطبيقات</string>
-    <string name="about_app_updates">تحديثات التطبيقات</string>
-    <string name="about_store_hint">ستفتح التحد/autothyan والتقييمات في متجر التطبيقات</string>
     <string name="devices_unreachable">%1$s لم يستجب. تأكد من تشغيل Studio على هذه الشبكة.</string>
     <string name="devices_error_connection">أدخل اتصال الجهاز، مثال http://192.168.1.5:8080</string>
 </resources>

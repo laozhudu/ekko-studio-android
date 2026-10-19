@@ -105,16 +105,12 @@
     <string name="conversation_thinking">Thinking…</string>
     <string name="conversation_tool">Running %1$s…</string>
     <string name="thinking_title">Thinking</string>
-    <string name="thinking_in_progress">Thinking…</string>
-    <string name="thinking_duration">Observed %1$s</string>
     <string name="thinking_chars">%1$d chars</string>
     <string name="thinking_expand">Show thinking details</string>
     <string name="thinking_collapse">Hide thinking details</string>
     <string name="tool_status_done">Completed</string>
     <string name="tool_status_running">Running</string>
     <string name="tool_status_failed">Failed</string>
-    <string name="tool_run_count">%1$d tools</string>
-    <string name="tool_run_error">Error</string>
     <string name="conversation_stop">Stop</string>
     <string name="reasoning_show">Reasoning</string>
     <string name="download_action">Download file</string>
@@ -880,9 +876,6 @@
     <string name="devices_account_entitlements_unavailable">Entitlement status unavailable</string>
     <string name="devices_account_about">About Ekko Studio</string>
     <string name="devices_account_logout">Sign out</string>
-    <string name="about_rate_app">Rate the app</string>
-    <string name="about_app_updates">App updates</string>
-    <string name="about_store_hint">Updates and ratings open in your app store</string>
     <string name="devices_unreachable">%1$s did not respond. Check that Studio is running on this network.</string>
     <string name="devices_error_connection">Enter the device connection, e.g. http://192.168.1.5:8080</string>
 </resources>

@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -15,17 +14,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -80,7 +74,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -88,7 +81,6 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Cable
@@ -151,10 +143,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -191,25 +179,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
@@ -324,7 +305,6 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
         Screen.Devices,
-        Screen.About,
         -> BackHandler { viewModel.back() }
         Screen.Groups, Screen.AgentHub -> BackHandler { viewModel.showTab(Tab.Chats) }
         else -> Unit
@@ -377,7 +357,6 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.Room -> RoomScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
-        Screen.About -> AboutScreen(state, viewModel)
     }
 }
 
@@ -956,14 +935,9 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                 if (!state.busy && visibleSessions.isEmpty()) {
                     item { EmptyNote(stringResource(R.string.chats_empty)) }
                 } else if (visibleSessions.isNotEmpty()) {
-                    // HStudio .session-list: padding 0 6px 12px; each .session-item
-                    // is a standalone 6px-radius row with margin-bottom:2px — not a
-                    // grouped card with dividers. spacing 2dp mirrors that margin.
-                    // (Folding the rows into one item keeps the 2dp rhythm, which the
-                    // LazyColumn's 12dp global arrangement would otherwise override.)
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            visibleSessions.forEach { session ->
+                        StudioGroupedCard {
+                            visibleSessions.forEachIndexed { index, session ->
                                 SessionRow(
                                     session = session,
                                     avatar = state.avatarOf(session.profile),
@@ -971,6 +945,7 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                                     onClick = { viewModel.openSession(session) },
                                     onLongClick = { manage = session },
                                 )
+                                if (index != visibleSessions.lastIndex) StudioCardDivider(startIndent = 76)
                             }
                         }
                     }
@@ -1092,98 +1067,74 @@ private fun SessionRow(
     onLongClick: () -> Unit,
 ) {
     val running = session.running
-    // HStudio .session-item (compiled pages-index.css, scope b5cd62b3):
-    //   display:flex; align-items:center; box-sizing:border-box; width:100%;
-    //   margin-bottom:2px; padding:8px 10px; color:var(--ink-text-secondary);
-    //   border-radius:6px;
-    //   .session-item--active { color:var(--ink-text-primary);
-    //     background:var(--ink-bg-secondary) }
-    //   .session-item--active .session-title { font-weight:550 }
-    //   .session-item--pressed { background:var(--ink-pressed) }
-    // SessionListItem.vue nests a .session-item-content (flex:1) holding a
-    // title-row (title-main[pin+unread-dot+title] | time) and an agent-row
-    // (18px agent-logo + profile + category-tag). The desktop row carries an
-    // avatar/profile; this mobile adaptation keeps a 34dp profile avatar as the
-    // leading mark (the official 18px agent-logo needs a per-agent SVG asset we
-    // do not bundle) and drops the trailing chevron the official row does not
-    // have. Title is 13sp/18sp nowrap ellipsis (active → weight 550).
+    // HStudio .session-item--active (App app-service CSS): background
+    // --ink-bg-secondary + .session-title font-weight 550. The active flag is
+    // computed at the call site from UiState.openSession (SessionSummary has
+    // no selection field). --ink-selected-bg is for dots/rings, not row fills.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
-    val titleColor = if (isActive) inkTextPrimary(inkDark) else inkTextSecondary(inkDark)
-    val rowColor = if (isActive) inkTextPrimary(inkDark) else inkTextSecondary(inkDark)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
             .background(if (isActive) inkSecondaryBg(inkDark) else Color.Unspecified)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 13.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ProfileAvatar(
                 name = session.profile.orEmpty().ifBlank { "default" },
                 spec = avatar,
-                size = 34.dp,
+                size = 42.dp,
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // .session-item-title-row: flex, space-between, gap 10.
-                // title-main (pin + unread-dot + title) on the left, time right.
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (running) {
-                        // .session-item-unread-dot: 6px dot, --ink-accent fill,
-                        // 3px --ink-selected-bg ring. Reused here as the running
-                        // marker the way the official row marks an active run.
-                        Box(
-                            modifier = Modifier
-                                .padding(end = 5.dp)
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(inkAccent(inkDark)),
-                        )
-                    }
                     Text(
                         text = session.title,
                         modifier = Modifier.weight(1f),
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            fontWeight = if (isActive) FontWeight(550) else FontWeight.Normal,
-                        ),
-                        color = titleColor,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isActive) inkTextPrimary(inkDark) else Color.Unspecified,
+                        fontWeight = if (isActive) FontWeight.W500 else FontWeight.SemiBold,
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
+                    if (running) {
+                        Text("●", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        Spacer(Modifier.width(4.dp))
+                    }
                     Text(
                         text = formatStamp(session.updatedAt),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
-                        color = inkTextMuted(inkDark),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                // .session-item-agent-row + .session-item-profile-name:
-                // 11sp/16sp --ink-text-muted secondary line (agent · profile · model).
                 Text(
-                    text = listOfNotNull(session.agentId ?: session.source.takeIf { it != "cli" }, session.profile, session.model)
-                        .joinToString(" · "),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
-                    color = rowColor.copy(alpha = if (isActive) 1f else 0.85f),
+                    text = listOfNotNull(session.agentId ?: session.source.takeIf { it != "cli" }, session.profile, session.model).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (running && !session.activity.isNullOrBlank()) {
                     Text(
                         session.activity,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
-                        color = inkAccent(inkDark),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(18.dp),
+            )
         }
         if (running) {
             SessionRunningBar()
@@ -1191,22 +1142,7 @@ private fun SessionRow(
     }
 }
 
-/**
- * HStudio session-running indicator (compiled pages-index.css, scope b5cd62b3):
- *   .session-running-track  position:relative; width:100%; height:2px;
- *      margin-top:2px; overflow:hidden; background:var(--ink-selected-bg);
- *      border-radius:999px
- *   .session-running-light  width:50%; height:100%;
- *      background:linear-gradient(90deg,transparent,#ff5f6d 12%,#ffb86c 28%,
- *        #f9f871 42%,#54e6a8 58%,#58a6ff 74%,#bd75ff 88%,transparent);
- *      border-radius:inherit; box-shadow:0 0 5px rgba(88,166,255,.34),
- *      0 0 8px rgba(189,117,255,.2);
- *      animation:session-running-flow-b5cd62b3 1.8s linear infinite;
- *      transform:translate3d(-110%,0,0); will-change:transform
- * The light is a 50%-width band that sweeps from -110% to +110% of its own width
- * over 1.8s. graphicsLayer translationX is expressed in the band's own px, so a
- * 0→1 progress maps to -1.1→+1.1 of the band width, matching the CSS transform.
- */
+/** HStudio session-running-light: 2px rainbow gradient bar flowing left→right. */
 @Composable
 private fun SessionRunningBar() {
     val transition = rememberInfiniteTransition(label = "running")
@@ -1219,27 +1155,25 @@ private fun SessionRunningBar() {
         ),
         label = "offset",
     )
-    val inkDark = MaterialTheme.colorScheme.isInkDark()
     val rainbow = listOf(
         Color.Transparent, Color(0xFFFF5F6D), Color(0xFFFFB86C),
         Color(0xFFF9F871), Color(0xFF54E6A8), Color(0xFF58A6FF),
         Color(0xFFBD75FF), Color.Transparent,
     )
-    // .session-running-track
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 2.dp)
             .height(2.dp)
             .clip(RoundedCornerShape(999.dp))
-            .background(inkSelectedBg(inkDark)),
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
     ) {
-        // .session-running-light: 50% width, sweeps -110%→+110% of its own width.
+        val barWidth = 0.5f
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.5f)
+                .fillMaxWidth(barWidth)
                 .height(2.dp)
-                .graphicsLayer { translationX = size.width * (progress * 2.2f - 1.1f) }
+                .offset(x = (progress * 200 - 50).dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(Brush.linearGradient(rainbow)),
         )
@@ -1575,34 +1509,15 @@ private fun RoomScreen(state: UiState, viewModel: AppViewModel) {
 @Composable
 private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
     var draft by rememberSaveable { mutableStateOf("") }
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    // Drawer content: sessions list, search, new chat
-    val drawerContent = { 
-        ModalDrawerSheet {
-            Column(Modifier.fillMaxHeight()) {
-                TextButton(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    onClick = { viewModel.startNewConversation(); drawerState.close() }
-                ) { Text(stringResource(R.string.action_new_chat)) }
-                ProfileFilterRow(state, viewModel)
-                StudioSearchField(value = state.sessionSearch, onValueChange = { viewModel.searchSessions(it) })
-                val sessions = remember(state.sessions) { state.sessions.toTypedArray() }
-                LazyColumn(Modifier.fillMaxSize()) {
-                    sessions.forEach { session ->
-                        SessionRow(
-                            session = session,
-                            avatar = state.avatarOf(session.profile),
-                            isActive = state.openSession?.id == session.id,
-                            onClick = { viewModel.openSession(session); drawerState.close() },
-                            onLongClick = { /* manage = session */ },
-                        )
-                        StudioCardDivider(78.dp)
-                    }
-                }
-            }
-        }
-    }
-    LaunchedEffect(drawerState) { /* sync back handler */ }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    var actionLine by remember { mutableStateOf<ChatLine?>(null) }
+    var replyingTo by remember { mutableStateOf<ChatLine?>(null) }
+    val conversationKey = state.openSession?.id ?: "new"
+    var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var clarification by rememberSaveable(state.pendingRunAction?.id) { mutableStateOf("") }
 
     state.pendingRunAction?.let { action ->
         AlertDialog(
@@ -1740,30 +1655,23 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 modifier = Modifier.weight(1f).fillMaxWidth().pullRefresh(pullRefreshState),
             ) {
                 if (state.lines.isEmpty() && !state.loadingHistory) {
-                    // HStudio .empty-state: flex column centered, gap 12px, --ink-text-muted.
-                    // .empty-logo: 48×48 agent logo at opacity .25; <p> 14px text.
-                    // The agent logo is the session's agent avatar; here we reuse the
-                    // profile avatar at 48dp and .25 alpha as the empty-conversation mark.
                     Column(
                         modifier = Modifier.align(Alignment.Center).padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        // .empty-logo: 48×48 at opacity .25.
-                        Box(modifier = Modifier.alpha(0.25f)) {
-                            ProfileAvatar(
-                                name = profile.ifBlank { "default" },
-                                spec = avatar,
-                                size = 48.dp,
-                            )
-                        }
+                        Text(
+                            "💬",
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
                         Text(
                             stringResource(
                                 R.string.conversation_empty,
                                 profile.ifBlank { stringResource(R.string.conversation_your_agent) },
                             ),
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = inkTextMuted(MaterialTheme.colorScheme.isInkDark()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -1935,8 +1843,8 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
                 }
             },
             navigationIcon = {
-                IconButton(onClick = { drawerState.open() }) {
-                    Icon(Icons.Filled.Menu, stringResource(R.string.message_actions))
+                IconButton(onClick = { viewModel.back() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                 }
             },
             actions = {
@@ -2000,55 +1908,24 @@ private fun MessageBubble(
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         // HStudio: AI messages show msg-avatar (22dp circle) before the bubble
-        // — now placed in the message-author row above the bubble (official
-        // .message-author .msg-avatar), not beside it.
+        if (!isUser && !profile.isNullOrBlank()) {
+            ProfileAvatar(profile, avatar, size = 22.dp)
+            Spacer(Modifier.width(6.dp))
+        }
 
-        // HStudio msg-body (scope c0c550c3, main message list). The block has
-        // a base `.msg-body{max-width:100%}` then per-role overrides that win:
-        //   .message.user .msg-body     { max-width: 75% }
-        //   .message.assistant .msg-body{ max-width: 80% }
-        // (an earlier `.message.user/.assistant .msg-body{max-width:100%}` is
-        // shadowed by the 75%/80% rules further down the cascade). The previous
-        // Compose used fillMaxWidth(1f), making every bubble span the whole row —
-        // the 75%/80% caps are the message-list rules, not a composer rule.
+        // HStudio msg-body (scope c0c550c3, main message list):
+        // .msg-body{max-width:100%;min-width:0} with .message.user/.assistant
+        // overrides max-width:100%/width:100% — bubbles shrink-to-fit inside a
+        // full-width column; the 75%/80% caps belong to the composer's
+        // reference-preview scope 8aca294f, not the message list.
         Column(
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.75f else 0.8f),
+            modifier = Modifier.fillMaxWidth(1f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
-            // HStudio .message-author (scope c0c550c3): min-height 22px,
-            // margin 0 0 4px 2px, gap 6px, 12px/22px --ink-text-secondary.
-            //   user → .user-message-author: align-self flex-end (name + 22dp avatar)
-            //   assistant → msg-avatar (22dp) + author-name
-            // The previous build rendered the assistant name as an .agent-badge
-            // pill and floated the avatar beside the bubble; the official row puts
-            // both above the bubble, name as plain 12sp text.
-            val authorName = line.sender?.takeIf { it.isNotBlank() }
-            if (authorName != null) {
-                Row(
-                    modifier = Modifier.padding(start = 2.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-                ) {
-                    if (!isUser && !profile.isNullOrBlank()) {
-                        ProfileAvatar(profile, avatar, size = 22.dp)
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    Text(
-                        authorName,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                        ),
-                        color = inkTextSecondary(inkDark),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (isUser && !profile.isNullOrBlank()) {
-                        Spacer(Modifier.width(6.dp))
-                        ProfileAvatar(profile, avatar, size = 22.dp)
-                    }
-                }
+            // HStudio message-author: display:flex, min-height:22px, margin:0 0 4px 2px, gap:4px.
+            // The agent name renders as an .agent-badge pill, not bare text.
+            line.sender?.takeIf { !isUser }?.let { sender ->
+                InkAgentBadge(sender, modifier = Modifier.padding(start = 2.dp, bottom = 4.dp))
             }
 
             // HStudio .message-bubble: padding:10px 14px, border-radius:10px.
@@ -2152,93 +2029,95 @@ private fun ChatFileCard(file: ChatFileLink, onDownload: () -> Unit) {
 private fun ThinkingTimeline(line: ChatLine) {
     var expandedOverride by rememberSaveable(line.startedAtMillis) { mutableStateOf<Boolean?>(null) }
     val hasDetails = line.tools.isNotEmpty() || !line.reasoning.isNullOrBlank()
-    // HStudio .thinking-block (scope c0c550c3): streaming → expanded=true by
-    // default; once streaming ends, expand follows the user's last toggle.
     val expanded = expandedOverride ?: line.streaming
     val nowMillis = timelineNow(line)
     val elapsed = line.startedAtMillis?.let { formatElapsed(nowMillis - it) }
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     // Reasoning char count (from content only, excluding tool entries)
     val reasoningLen = line.reasoning?.length ?: 0
-    // .thinking-label: "正在思考…" while streaming, "思考过程" once done —
-    // t('chat.thinkingInProgress') vs t('chat.thinkingLabel') in MessageItem.vue.
-    val label = stringResource(
-        if (line.streaming) R.string.thinking_in_progress else R.string.thinking_title,
-    )
 
-    // .thinking-block: margin-bottom 8px, padding 4px 0, dashed bottom border.
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp, bottom = 8.dp)
-            .drawBehind {
-                val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
-                drawIntoCanvas { c ->
-                    val paint = Paint().apply {
-                        color = inkBorderLight(inkDark)
-                        this.pathEffect = dash
-                        strokeWidth = 1.dp.toPx()
-                    }
-                    val y = size.height - 0.5f
-                    c.drawLine(Offset(0f, y), Offset(size.width, y), paint)
-                }
-            },
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
         // ----------  clickable header row  ----------
-        // .thinking-header: flex, min-height 22px, gap 6px, muted, font-size 11px.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (hasDetails) Modifier.clickable { expandedOverride = !expanded } else Modifier)
-                .heightIn(min = 22.dp)
-                .padding(vertical = 4.dp),
+                .then(
+                    if (hasDetails) Modifier
+                        .clickable { expandedOverride = !expanded }
+                    else Modifier,
+                )
+                .padding(vertical = 3.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // .thinking-chevron: 10×10, rotate -90 (collapsed) → 0 (expanded).
-            val chevronDeg by animateFloatAsState(
-                targetValue = if (expanded) 0f else -90f,
-                animationSpec = tween(150),
-                label = "thinkingChevron",
-            )
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(
-                    if (expanded) R.string.thinking_collapse else R.string.thinking_expand,
-                ),
-                modifier = Modifier.size(10.dp).rotate(chevronDeg),
-                tint = inkTextMuted(inkDark).copy(alpha = 0.7f),
-            )
-            // .thinking-icon: 💭 emoji, flex-shrink 0, font-size 11px.
-            Text("💭", fontSize = 11.sp)
-            // .thinking-label: flex-shrink 0, font-weight 500.
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-                color = inkTextMuted(inkDark),
-            )
-            // .thinking-meta: muted, tabular-nums — "· {duration}" then "· {chars}".
-            if (elapsed != null) {
-                Text(
-                    "· ${stringResource(R.string.thinking_duration, elapsed)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        textDirection = TextDirection.Ltr,
-                    ),
+            // Leading status indicator
+            if (line.streaming) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
                     color = inkTextMuted(inkDark),
                 )
+            } else {
+                Icon(
+                    Icons.Filled.Psychology,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = inkTextSecondary(inkDark),
+                )
             }
-            if (reasoningLen > 0) {
-                Text(
-                    "· ${stringResource(R.string.thinking_chars, reasoningLen)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        textDirection = TextDirection.Ltr,
+            // "Thinking" label: bold when streaming, regular otherwise
+            Text(
+                stringResource(R.string.thinking_title),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = if (line.streaming) FontWeight.SemiBold else FontWeight.Normal,
+                ),
+                color = inkTextSecondary(inkDark),
+            )
+            // Time · chars metadata
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                elapsed?.let {
+                    Text("·", style = MaterialTheme.typography.labelSmall, color = inkTextMuted(inkDark))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            textDirection = TextDirection.Ltr,
+                        ),
+                        color = inkTextMuted(inkDark),
+                    )
+                }
+                if (reasoningLen > 0) {
+                    Text("·", style = MaterialTheme.typography.labelSmall, color = inkTextMuted(inkDark))
+                    Text(
+                        stringResource(R.string.thinking_chars, reasoningLen),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            textDirection = TextDirection.Ltr,
+                        ),
+                        color = inkTextMuted(inkDark),
+                    )
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            // Collapse/expand chevron
+            if (hasDetails) {
+                val chevronDeg by animateFloatAsState(
+                    targetValue = if (expanded) 0f else 180f,
+                    animationSpec = tween(150),
+                    label = "thinkingChevron",
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowUp,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.thinking_collapse else R.string.thinking_expand,
                     ),
-                    color = inkTextMuted(inkDark),
+                    modifier = Modifier.size(16.dp).rotate(chevronDeg),
+                    tint = inkTextMuted(inkDark),
                 )
             }
         }
@@ -2249,37 +2128,27 @@ private fun ThinkingTimeline(line: ChatLine) {
                 modifier = Modifier.padding(top = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (line.tools.isNotEmpty()) ToolRunCard(line.tools, nowMillis)
+                line.tools.forEach { tool -> ToolStepRow(tool, nowMillis) }
                 line.reasoning?.takeIf { it.isNotBlank() }?.let { reasoning ->
                     val reasoningScroll = rememberScrollState()
-                    // HStudio .thinking-body (scope c0c550c3): margin-top 6px,
-                    // padding 6px 10px, border-left 2px solid --ink-border-light,
-                    // font-size 13px, font-style italic, opacity .88, secondary text.
-                    // Rendered through MarkdownRenderer in the official App; we use
-                    // ChatMarkdownText so reasoning keeps the same styling as replies.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 300.dp)
-                            .verticalScroll(reasoningScroll)
-                            .drawBehind {
-                                drawRect(
-                                    color = inkBorderLight(inkDark),
-                                    topLeft = Offset.Zero,
-                                    size = Size(2.dp.toPx(), size.height),
-                                )
-                            }
-                            .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)
-                            .graphicsLayer { alpha = 0.88f },
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                        color = inkCodeBg(inkDark),
+                        shape = RoundedCornerShape(7.dp),
+                        border = BorderStroke(1.dp, inkBorder(inkDark)),
                     ) {
-                        CompositionLocalProvider(
-                            LocalContentColor provides inkTextSecondary(inkDark),
-                        ) {
-                            ChatMarkdownText(
-                                reasoning,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        Text(
+                            reasoning,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                lineHeight = 19.sp,
+                                fontStyle = FontStyle.Italic,
+                            ),
+                            color = inkTextSecondary(inkDark).copy(alpha = 0.9f),
+                            modifier = Modifier
+                                .verticalScroll(reasoningScroll)
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        )
                     }
                 }
             }
@@ -2288,224 +2157,108 @@ private fun ThinkingTimeline(line: ChatLine) {
 }
 
 /**
- * HStudio .tool-run-card (scope c0c550c3, the message-list tool grouping):
- *
- *   .tool-run-card        width:100%; max-width:520px; min-width:0; margin:-2px 0 12px 2px
- *   .tool-run-header      flex; min-height:30px; padding:4px 8px; gap:7px;
- *                          --ink-text-secondary; background:var(--ink-bg-card-hover);
- *                          border:1px solid var(--ink-border-light); border-radius:8px; font-size:11px
- *   .tool-run-header:active  background:var(--ink-pressed)
- *   .tool-run-chevron     10×10; opacity:.72; transform:rotate(-90deg); transition .16s
- *   .tool-run-chevron--expanded  transform:rotate(0)
- *   .tool-run-count       flex-shrink:0; font-weight:600
- *   .tool-run-names       min-width:0; flex:1; color:var(--ink-text-muted); ellipsis; nowrap
- *   .tool-run-expand      grid-template-rows 0fr→1fr; opacity 0→1; transform translateY(-4px)→0;
- *                          transition .22s cubic-bezier(.22,1,.36,1)
- *   .tool-run-items       margin:4px 0 0 11px; padding:3px 4px 3px 12px;
- *                          border-left:1px solid var(--ink-border-light)
- *   .tool-name            Menlo,Monaco,Consolas; ellipsis; nowrap; flex:0 1 auto
- *   .tool-preview         height:16px; flex:1; line-height:16px; ellipsis; nowrap
- *   .tool-error-badge     padding:0 4px; radius:3px; font-size:9px; line-height:14px;
- *                          color:#ff4d4f; background:rgba(255,77,79,.12)
- *
- * The names row shows up to 3 distinct tool names joined by ' · ', then '+N'.
- * The leading status is a ✓ when all done, an error badge when any failed, or a
- * spinner while any is still running — mirroring ToolRunCard.vue's success/error
- * icon and the count from t('subagent.tools', { count }).
+ * HStudio .agent-badge: inline-flex pill, min-height 18px, padding 1px 6px,
+ * --ink-bg-secondary fill, --ink-text-secondary text, 8sp/600. Used for the
+ * message-author line above AI bubbles.
  */
 @Composable
-private fun ToolRunCard(tools: List<ChatToolStep>, nowMillis: Long) {
-    if (tools.isEmpty()) return
-    var expanded by rememberSaveable(tools.first().id) { mutableStateOf(false) }
+private fun InkAgentBadge(label: String, modifier: Modifier = Modifier) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
-    val toolFont = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 11.sp,
-        fontFamily = FontFamily.Monospace,
-        textDirection = TextDirection.Ltr,
-    )
-    val anyRunning = tools.any { it.status == ToolRunStatus.Running }
-    val anyError = tools.any { it.status == ToolRunStatus.Error }
-
-    // Up to 3 distinct tool names, then '+N' — ToolRunCard.vue toolNames.
-    val distinctNames = tools.map { it.name }.distinct()
-    val visibleNames = distinctNames.take(3).joinToString(" · ")
-    val namesLabel = when {
-        distinctNames.size > 3 -> "$visibleNames · +${distinctNames.size - 3}"
-        visibleNames.isNotBlank() -> visibleNames
-        else -> ""
-    }
-
-    // .tool-run-card: width 100%, max-width 520px.
-    Column(modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp)) {
-        // .tool-run-header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 30.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(inkCardHover(inkDark))
-                .border(1.dp, inkBorderLight(inkDark), RoundedCornerShape(8.dp))
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            // .tool-run-chevron: 10×10, rotate -90→0 when expanded.
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(
-                    if (expanded) R.string.thinking_collapse else R.string.thinking_expand,
-                ),
-                modifier = Modifier.size(10.dp).rotate(if (expanded) 0f else -90f),
-                tint = inkTextSecondary(inkDark).copy(alpha = 0.72f),
-            )
-            // tool icon (wrench) — 13px, secondary accent.
-            Icon(
-                Icons.Filled.Build,
-                contentDescription = null,
-                modifier = Modifier.size(13.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.82f),
-            )
-            // .tool-run-count
-            Text(
-                stringResource(R.string.tool_run_count, tools.size),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = inkTextSecondary(inkDark),
-            )
-            // .tool-run-names: ellipsis, nowrap, muted.
-            if (namesLabel.isNotBlank()) {
-                Text(
-                    namesLabel,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = inkTextMuted(inkDark),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            // trailing status: spinner while running, error badge on failure, ✓ otherwise.
-            when {
-                anyRunning -> CircularProgressIndicator(
-                    modifier = Modifier.size(13.dp),
-                    strokeWidth = 1.5.dp,
-                    color = inkTextMuted(inkDark),
-                )
-                anyError -> Surface(
-                    color = Color(0x1FFF4D4F),
-                    shape = RoundedCornerShape(3.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.tool_run_error),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
-                            lineHeight = 14.sp,
-                        ),
-                        color = Color(0xFFFF4D4F),
-                    )
-                }
-                else -> Icon(
-                    Icons.Filled.Check,
-                    contentDescription = stringResource(R.string.tool_status_done),
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
-                )
-            }
-        }
-
-        // .tool-run-expand → .tool-run-items
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(animationSpec = tween(220)) + fadeIn(tween(150)),
-            exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(tween(150)),
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(start = 11.dp, top = 4.dp)
-                    .padding(end = 4.dp, bottom = 3.dp, start = 12.dp)
-                    .border(
-                        width = 1.dp,
-                        color = inkBorderLight(inkDark),
-                        shape = RoundedCornerShape(0.dp),
-                    )
-                    .padding(vertical = 3.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                tools.forEach { tool -> ToolRunItem(tool, nowMillis) }
-            }
-        }
+    // HStudio .agent-badge: 18px min-height, 1px 6px padding, 8px/14px type.
+    // Its @media (max-width:640px) override drops to 16px / 0 5px / 7px over
+    // 13px, which is the rule a phone-width layout resolves to.
+    val compact = LocalConfiguration.current.screenWidthDp <= 640
+    Surface(
+        modifier = modifier.heightIn(min = if (compact) 16.dp else 18.dp),
+        color = inkSecondaryBg(inkDark),
+        contentColor = inkTextSecondary(inkDark),
+        shape = RoundedCornerShape(999.dp),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(
+                horizontal = if (compact) 5.dp else 6.dp,
+                vertical = if (compact) 0.dp else 1.dp,
+            ),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = if (compact) 7.sp else 8.sp,
+                lineHeight = if (compact) 13.sp else 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
 @Composable
-private fun ToolRunItem(tool: ChatToolStep, nowMillis: Long) {
+private fun ToolStepRow(tool: ChatToolStep, nowMillis: Long) {
     val seconds = tool.durationSeconds ?: if (tool.status == ToolRunStatus.Running) {
         (nowMillis - tool.startedAtMillis).coerceAtLeast(0) / 1000.0
     } else {
         null
     }
+    // HStudio .tool-call-item: 26dp compact bar, 7px radius, 11sp monospace,
+    // --ink-bg-card-hover fill + --ink-input-border hairline. Status rides on
+    // the leading dot/icon instead of a second text row.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val toolFont = MaterialTheme.typography.labelSmall.copy(
         fontSize = 11.sp,
         fontFamily = FontFamily.Monospace,
         textDirection = TextDirection.Ltr,
     )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    Surface(
+        modifier = Modifier.widthIn(max = 260.dp),
+        color = inkCardHover(inkDark),
+        shape = RoundedCornerShape(7.dp),
+        border = BorderStroke(1.dp, inkInputBorder(inkDark)),
     ) {
-        // leading status: spinner / ✓ / error dot
-        when (tool.status) {
-            ToolRunStatus.Running -> CircularProgressIndicator(
-                modifier = Modifier.size(11.dp),
-                strokeWidth = 1.5.dp,
-                color = inkTextMuted(inkDark),
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp).heightIn(min = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                when (tool.status) {
+                    ToolRunStatus.Done -> Icons.Filled.Check
+                    ToolRunStatus.Running -> Icons.Filled.PlayArrow
+                    ToolRunStatus.Error -> Icons.Filled.Close
+                },
+                contentDescription = stringResource(
+                    when (tool.status) {
+                        ToolRunStatus.Done -> R.string.tool_status_done
+                        ToolRunStatus.Running -> R.string.tool_status_running
+                        ToolRunStatus.Error -> R.string.tool_status_failed
+                    },
+                ),
+                modifier = Modifier.size(13.dp),
+                tint = when (tool.status) {
+                    ToolRunStatus.Done -> Color(0xFF4CA66A)
+                    ToolRunStatus.Running -> MaterialTheme.colorScheme.tertiary
+                    ToolRunStatus.Error -> MaterialTheme.colorScheme.error
+                },
             )
-            ToolRunStatus.Done -> Box(
-                modifier = Modifier
-                    .size(15.dp)
-                    .background(Color(0x2652C41A), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) { Text("✓", color = Color(0xFF52C41A), fontSize = 11.sp, lineHeight = 15.sp) }
-            ToolRunStatus.Error -> Box(
-                modifier = Modifier
-                    .size(15.dp)
-                    .background(Color(0x26FF4D4F), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) { Text("!", color = Color(0xFFFF4D4F), fontSize = 11.sp, lineHeight = 15.sp) }
-        }
-        // .tool-name (flex:0 1 auto) — shrinks before the preview.
-        Text(
-            tool.name,
-            style = toolFont,
-            color = inkTextSecondary(inkDark),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        // .tool-preview (flex:1) — takes the remaining width.
-        tool.detail?.takeIf { it.isNotBlank() }?.let { preview ->
             Text(
-                preview,
-                style = toolFont.copy(fontSize = 11.sp),
-                color = inkTextMuted(inkDark),
+                buildString {
+                    append(tool.name)
+                    tool.detail?.takeIf { it.isNotBlank() }?.let { append(' '); append(it) }
+                },
+                style = toolFont,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(2f, fill = true),
+                modifier = Modifier.weight(1f, fill = false),
             )
-        }
-        seconds?.let {
-            Text(
-                formatToolDuration(it),
-                style = toolFont.copy(fontSize = 9.sp),
-                color = inkTextMuted(inkDark),
-            )
+            if (tool.status == ToolRunStatus.Running) {
+                CircularProgressIndicator(modifier = Modifier.size(11.dp), strokeWidth = 1.5.dp)
+            }
+            seconds?.let {
+                Text(
+                    formatToolDuration(it),
+                    style = toolFont,
+                    color = inkTextMuted(inkDark),
+                )
+            }
         }
     }
 }
@@ -3076,10 +2829,6 @@ private fun ContextUsage(state: UiState) {
 /** `.input-context-status--warning { color: #d59a2d }` — the official literal. */
 private val CONTEXT_WARNING = Color(0xFFD59A2D)
 
-/** Voice-recording colors from `.voice-button--recording` and its soft background. */
-private val VOICE_RECORDING = Color(0xFFD74A4A)
-private val VOICE_RECORDING_SOFT = Color(0x1ED74A4A)
-
 private fun compactNumber(value: Long): String = when {
     value >= 1_000_000 -> "%.1fM".format(Locale.US, value / 1_000_000.0)
     value >= 1_000 -> "%.1fK".format(Locale.US, value / 1_000.0)
@@ -3142,33 +2891,20 @@ private fun ComposerActionButton(
     onRecord: () -> Unit,
 ) {
     val hasPayload = draft.isNotBlank() || state.attachments.isNotEmpty()
-    val active = hasPayload || state.sending
-    // HStudio 8aca294f swaps ONE 30px circle between .voice-button and
-    // .send-button. Inactive send is #fff on --ink-text-muted; active is
-    // --ink-on-accent on --ink-accent, with dark overriding the pair to
-    // #191a1a on #e0e0e0 (.theme-dark .send-button--active).
-    //
-    // The two voice states are separate official rules that this build was
-    // missing entirely, so a recording used to render in the send button's
-    // accent colours:
-    //   .voice-button--recording  { color:#d74a4a; background:rgba(215,74,74,.12) }
-    //   .voice-button--processing { color:var(--ink-accent); background:var(--ink-selected-bg) }
+    val active = hasPayload || state.recording || state.sending
+    // HStudio .composer-send-button (official App): 30px circle; inactive is
+    // #fff glyph on --ink-text-muted, active is --ink-on-accent glyph on
+    // --ink-accent, and dark mode overrides the active pair to
+    // color:#191a1a / background:#e0e0e0.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val background = when {
-        state.recording -> VOICE_RECORDING_SOFT
-        state.transcribing -> inkSelectedBg(inkDark)
         active -> if (inkDark) Color(0xFFE0E0E0) else inkAccent(inkDark)
         else -> inkTextMuted(inkDark)
     }
     val tint = when {
-        state.recording -> VOICE_RECORDING
-        state.transcribing -> inkAccent(inkDark)
         active -> if (inkDark) Color(0xFF191A1A) else inkOnAccent(inkDark)
         else -> Color.White
     }
-    // .send-svg-icon { width:17px; height:17px } — the send glyph is 17px, not
-    // the 20px used for the mic/stop glyphs.
-    val iconSize = if (hasPayload && !state.sending) 17.dp else 20.dp
 
     Box(
         modifier = Modifier
@@ -3185,7 +2921,7 @@ private fun ComposerActionButton(
                 Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.conversation_stop), tint = tint, modifier = Modifier.size(20.dp))
             }
             hasPayload -> IconButton(onClick = onSend) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.composer_send), tint = tint, modifier = Modifier.size(iconSize))
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.composer_send), tint = tint, modifier = Modifier.size(20.dp))
             }
             else -> IconButton(onClick = onRecord, enabled = !state.transcribing) {
                 Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.composer_record), tint = tint, modifier = Modifier.size(20.dp))
@@ -3200,23 +2936,17 @@ private fun ToolbarChip(
     label: String,
     onClick: () -> Unit,
 ) {
-    // HStudio .toolbar-button (official mobile chat, scope 8aca294f):
-    // min-width 35, *fixed* height 28, `padding: 0 4px 0 6px` — i.e. no vertical
-    // padding at all — gap 3, pill radius 499.5, --ink-text-secondary.
-    // The previous version used `heightIn(min = 28.dp)` plus 4dp top/bottom
-    // padding, which measures 36px tall instead of the official 28px, and it
-    // never asserted the 35px minimum width.
-    // Trade-off: 28dp is below the 48dp touch-target guideline. The official
-    // control is 28px, so matching it is deliberate; the whole row is still
-    // reachable because the chips sit in a scrolling row.
+    // HStudio .toolbar-button / .composer-toolbar-button (official App):
+    // no fill at all — just --ink-text-secondary glyph+label on transparent,
+    // min-width 35 × height 28, padding 0 4 0 6, gap 3, pill radius.
+    // Press feedback is --ink-pressed (handled by the clickable's ripple here).
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     Row(
         modifier = Modifier
-            .height(28.dp)
-            .widthIn(min = 35.dp)
+            .heightIn(min = 28.dp)
             .clip(RoundedCornerShape(499.dp))
             .clickable(onClick = onClick)
-            .padding(start = 6.dp, end = 4.dp),
+            .padding(start = 6.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
@@ -3244,66 +2974,46 @@ private fun ToolbarChip(
 }
 
 /**
- * HStudio .attachment-chip (official App, scope 8aca294f):
- *
- *   .attachment-chip          width:154px; height:48px; padding:5px 25px 5px 5px;
- *                              gap:7px; border-radius:9px; background:var(--ink-bg-card-hover);
- *                              position:relative; display:inline-flex; align-items:center;
- *   .attachment-chip--image   width:48px; padding:0; background:transparent
- *   .attachment-thumb         38×38 (or 48×48 for --image), flex-shrink:0, radius:6px (8px for --image)
- *   .attachment-file-icon     38×38, flex-shrink:0, radius:6px; centered; color:var(--ink-text-muted);
- *                              background:var(--ink-bg-code); font-size:11px; font-weight:700
- *   .attachment-copy          display:flex; min-width:0; flex:1; flex-direction:column; gap:2px
- *   .attachment-name          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
- *                              color:var(--ink-text-primary); font-size:11px; line-height:15px
- *   .attachment-size          color:var(--ink-text-muted); font-size:9px; line-height:13px
- *                              (intentionally absent — Upload has no byte-size field)
- *   .attachment-remove        position:absolute; top:3px; right:5px; width:17px; height:17px;
- *                              color:var(--ink-text-muted); font-size:16px; line-height:16px; text-align:center
- *   --image .attachment-remove  top:-5px; right:-5px; color:#fff; background:rgba(0,0,0,.66);
- *                                border-radius:999px; font-size:14px; line-height:16px
+ * HStudio .composer-attachment (official App): 154×48 horizontal card on
+ * --ink-bg-card-hover, radius 9px, padding 5/25/5/5, gap 7. A 38×38 icon tile
+ * on --ink-bg-code carries the uppercase extension in 11sp/700 muted; the
+ * name is 11sp/15 primary text. Images collapse to a 48×48 square and their
+ * remove badge (17px, white glyph on rgba(0,0,0,.66)) floats to −5/−5. Files
+ * keep the plain muted ✕ at top 3 / right 5. Size subline omitted: Upload has
+ * no byte-size field and inventing one is worse than leaving the row out.
  */
 @Composable
 private fun InkAttachmentChip(upload: Upload, onRemove: () -> Unit) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val name = upload.name
     val isImage = name.substringAfterLast('.', "").lowercase() in IMAGE_FILE_EXTENSIONS
-    // .attachment-chip: position relative (Box), inline-flex + align-items center (Row),
-    // box-sizing border-box (Surface w/ contentColor=transparent), padding 5 25 5 5.
-    // Image variant drops to 48px square, zero padding, transparent bg.
-    val chipW = if (isImage) 48.dp else 154.dp
-    val chipH = 48.dp
-    val chipPad = if (isImage) PaddingValues(0.dp) else PaddingValues(start = 5.dp, end = 25.dp, top = 5.dp, bottom = 5.dp)
-    val chipBg = if (isImage) Color.Transparent else inkCardHover(inkDark)
     Box {
-        Surface(
-            modifier = Modifier.width(chipW).height(chipH),
-            color = chipBg,
-            shape = RoundedCornerShape(9.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(chipPad),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
+        if (isImage) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(inkCodeBg(inkDark)),
+                contentAlignment = Alignment.Center,
             ) {
-                if (isImage) {
-                    // .attachment-chip--image .attachment-thumb: 48×48, radius 8px
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(inkCodeBg(inkDark)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Filled.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = inkTextMuted(inkDark),
-                        )
-                    }
-                } else {
-                    // .attachment-file-icon: 38×38, radius 6px, flex-shrink 0
+                Icon(
+                    Icons.Filled.Image,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = inkTextMuted(inkDark),
+                )
+            }
+        } else {
+            Surface(
+                modifier = Modifier.width(154.dp).height(48.dp),
+                color = inkCardHover(inkDark),
+                shape = RoundedCornerShape(9.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 5.dp, end = 25.dp, top = 5.dp, bottom = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -3322,30 +3032,21 @@ private fun InkAttachmentChip(upload: Upload, onRemove: () -> Unit) {
                             maxLines = 1,
                         )
                     }
-                    // .attachment-copy: flex column, gap 2px, min-width 0, flex 1
-                    Column(
+                    Text(
+                        name,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                        ),
+                        color = inkTextPrimary(inkDark),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        // .attachment-name: ellipsis, nowrap, 11px/15px, primary
-                        Text(
-                            name,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp,
-                            ),
-                            color = inkTextPrimary(inkDark),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        // .attachment-size: intentionally absent — Upload has no byte-size field
-                    }
+                    )
                 }
             }
         }
-        // .attachment-remove
         if (isImage) {
-            // --image variant: top -5, right -5, white on rgba(0,0,0,.66), pill, 14px glyph
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -3356,20 +3057,19 @@ private fun InkAttachmentChip(upload: Upload, onRemove: () -> Unit) {
                     .clickable(onClick = onRemove),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, stringResource(R.string.action_remove), modifier = Modifier.size(14.dp), tint = Color.White)
+                Icon(Icons.Filled.Close, stringResource(R.string.action_remove), modifier = Modifier.size(11.dp), tint = Color.White)
             }
         } else {
-            // file variant: top 3, right 5, no background, muted, 16px glyph
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 0.dp, y = 3.dp)
-                    .padding(end = 5.dp)
+                    .padding(top = 3.dp, end = 5.dp)
                     .size(17.dp)
+                    .clip(CircleShape)
                     .clickable(onClick = onRemove),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, stringResource(R.string.action_remove), modifier = Modifier.size(16.dp), tint = inkTextMuted(inkDark))
+                Icon(Icons.Filled.Close, stringResource(R.string.action_remove), modifier = Modifier.size(14.dp), tint = inkTextMuted(inkDark))
             }
         }
     }
@@ -4971,66 +4671,6 @@ private fun DeviceSettings(state: UiState, viewModel: AppViewModel) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
     )
-}
-
-@Composable
-private fun AboutScreen(state: UiState, viewModel: AppViewModel) {
-    val dark = MaterialTheme.colorScheme.isInkDark()
-    val card = inkCardBg(dark)
-    val border = inkBorder(dark)
-    val muted = inkTextMuted(dark)
-    val primary = inkTextPrimary(dark)
-    val accent = inkAccent(dark)
-    Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())
-            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(40.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            IconButton(onClick = { viewModel.back() }, modifier = Modifier.width(40.dp).height(40.dp)) {
-                Text("‹", color = primary, fontSize = 30.sp, lineHeight = 30.sp,
-                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            }
-            Text(stringResource(R.string.devices_account_about), fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold, color = primary)
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            AppMark(size = 80.dp, corner = 20.dp)
-            Text("Ekko Studio", fontSize = 24.sp, fontWeight = FontWeight(650), color = primary)
-            Text("v${BuildConfig.VERSION_NAME}", fontSize = 13.sp, color = muted)
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).align(Alignment.CenterHorizontally)
-                .clip(RoundedCornerShape(16.dp)).background(card)
-                .border(1.dp, border, RoundedCornerShape(16.dp)),
-        ) {
-            AboutActionRow(stringResource(R.string.about_rate_app), primary, muted)
-            AboutActionRow(stringResource(R.string.about_app_updates), primary, muted)
-        }
-        Text(stringResource(R.string.about_store_hint), fontSize = 13.sp, color = muted,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
-    }
-}
-
-@Composable
-private fun AboutActionRow(label: String, primary: Color, muted: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .clickable(onClick = { }).padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, fontSize = 15.sp, lineHeight = 24.sp, color = primary)
-        Text("›", fontSize = 22.sp, lineHeight = 22.sp, color = muted)
-    }
 }
 
 @Composable

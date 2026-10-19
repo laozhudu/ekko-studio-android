@@ -87,16 +87,12 @@
     <string name="conversation_thinking">思考中…</string>
     <string name="conversation_tool">正在运行 %1$s…</string>
     <string name="thinking_title">思考</string>
-    <string name="thinking_in_progress">思考中…</string>
-    <string name="thinking_duration">已观察 %1$s</string>
     <string name="thinking_chars">%1$d 字</string>
     <string name="thinking_expand">显示思考详情</string>
     <string name="thinking_collapse">隐藏思考详情</string>
     <string name="tool_status_done">已完成</string>
     <string name="tool_status_running">运行中</string>
     <string name="tool_status_failed">失败</string>
-    <string name="tool_run_count">%1$d 个工具</string>
-    <string name="tool_run_error">错误</string>
     <string name="conversation_stop">停止</string>
     <string name="reasoning_show">推理</string>
     <string name="download_action">下载文件</string>
@@ -884,9 +880,6 @@
     <string name="devices_account_entitlements_unavailable">权益状态暂不可用</string>
     <string name="devices_account_about">关于 Ekko Studio</string>
     <string name="devices_account_logout">退出登录</string>
-    <string name="about_rate_app">给应用评分</string>
-    <string name="about_app_updates">应用更新</string>
-    <string name="about_store_hint">更新和评分将在应用商店中打开</string>
     <string name="devices_unreachable">%1$s 没有响应，请确认 Studio 已在本网络运行。</string>
     <string name="devices_error_connection">请输入设备连接，例如 http://192.168.1.5:8080</string>
 </resources>
