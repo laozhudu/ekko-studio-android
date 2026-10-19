@@ -16,6 +16,17 @@ val hasSigningKey = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
 // 构建时注入的默认 Studio 地址（CI 变量传入，源码不留私有域名）
 val defaultStudioUrl = System.getenv("DEFAULT_STUDIO_URL")?.trim().orEmpty()
 val buildCommit = System.getenv("GITHUB_SHA")?.takeIf { it.matches(Regex("[0-9a-fA-F]{40}")) } ?: "local"
+// 发布 tag（如 v0.2.1）。用于版本号与更新检查，避免与上游版本混淆。
+val appVersionTag = System.getenv("APP_VERSION_TAG")?.trim().orEmpty()
+val appVersionName = appVersionTag.removePrefix("v").ifBlank { "0.2.1" }
+fun versionCodeOf(tag: String): Int {
+    val parts = tag.removePrefix("v").split(".").mapNotNull { it.toIntOrNull() }
+    val major = parts.getOrNull(0) ?: 0
+    val minor = parts.getOrNull(1) ?: 0
+    val patch = parts.getOrNull(2) ?: 0
+    return major * 10000 + minor * 100 + patch
+}
+val appVersionCode = versionCodeOf(appVersionTag).takeIf { it > 0 } ?: 201
 
 android {
     namespace = "com.laozhudu.ekkostudio"
@@ -25,10 +36,11 @@ android {
         applicationId = "com.laozhudu.ekkostudio"
         minSdk = 26
         targetSdk = 35
-        versionCode = 47
-        versionName = "1.9.7"
+        versionCode = appVersionCode
+        versionName = appVersionName
         buildConfigField("String", "BUILD_COMMIT", "\"$buildCommit\"")
         buildConfigField("String", "DEFAULT_STUDIO_URL", "\"$defaultStudioUrl\"")
+        buildConfigField("String", "APP_VERSION_TAG", "\"$appVersionTag\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -14,37 +14,46 @@ import org.json.JSONObject
 import java.io.File
 
 data class AvailableUpdate(
-    val commit: String,
+    val tag: String,
     val downloadUrl: String,
 )
 
 enum class InstallResult { OpenedInstaller, PermissionRequired }
 
-/** Updates the GitHub-distributed APK without involving a third-party service. */
+/**
+ * Updates the GitHub-distributed APK without involving a third-party service.
+ *
+ * The check targets this fork's own repository and compares release tags.
+ * It used to poll the upstream project's rolling tag, which never matched the
+ * installed build, so every launch reported a phantom update that would have
+ * downloaded a differently-signed APK.
+ */
 object AppUpdater {
     private const val RELEASE_API =
-        "https://api.github.com/repos/mrz2333/hermes-studio-mobile/releases/tags/hstudio-direct"
-    private const val APK_NAME = "hermes-studio-android.apk"
+        "https://api.github.com/repos/laozhudu/ekko-studio-android/releases/latest"
+    private const val APK_NAME = "ekko-studio-android.apk"
     private val client = OkHttpClient()
 
     suspend fun check(): AvailableUpdate? = withContext(Dispatchers.IO) {
-        if (BuildConfig.BUILD_COMMIT == "local") return@withContext null
+        val installedTag = BuildConfig.APP_VERSION_TAG
+        // Local/CI builds carry no tag; never nag those.
+        if (installedTag.isBlank()) return@withContext null
         val request = Request.Builder()
             .url(RELEASE_API)
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "Hermes-Studio-Mobile/${BuildConfig.VERSION_NAME}")
+            .header("User-Agent", "Ekko-Studio-Android/${BuildConfig.VERSION_NAME}")
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return@withContext null
-            parseRelease(response.body?.string().orEmpty(), BuildConfig.BUILD_COMMIT)
+            parseRelease(response.body?.string().orEmpty(), installedTag)
         }
     }
 
-    internal fun parseRelease(json: String, installedCommit: String): AvailableUpdate? {
+    internal fun parseRelease(json: String, installedTag: String): AvailableUpdate? {
         val root = runCatching { JSONObject(json) }.getOrNull() ?: return null
-        val commit = Regex("(?i)[0-9a-f]{40}")
-            .find(root.optString("body"))?.value?.lowercase()
-            ?: return null
+        val tag = root.optString("tag_name").trim()
+        if (tag.isEmpty()) return null
+        if (tag.equals(installedTag.trim(), ignoreCase = true)) return null
         val assets = root.optJSONArray("assets") ?: return null
         val url = (0 until assets.length())
             .mapNotNull { assets.optJSONObject(it) }
@@ -52,7 +61,7 @@ object AppUpdater {
             ?.optString("browser_download_url")
             ?.takeIf { it.startsWith("https://github.com/") }
             ?: return null
-        return if (commit == installedCommit.lowercase()) null else AvailableUpdate(commit, url)
+        return AvailableUpdate(tag, url)
     }
 
     suspend fun download(context: Context, update: AvailableUpdate): File = withContext(Dispatchers.IO) {
@@ -60,7 +69,7 @@ object AppUpdater {
         val destination = File(directory, APK_NAME)
         val request = Request.Builder()
             .url(update.downloadUrl)
-            .header("User-Agent", "Hermes-Studio-Mobile/${BuildConfig.VERSION_NAME}")
+            .header("User-Agent", "Ekko-Studio-Android/${BuildConfig.VERSION_NAME}")
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
