@@ -3029,7 +3029,10 @@ private fun Composer(
  */
 @Composable
 private fun RunStatusStrip(state: UiState) {
-    val working = state.sending || state.runStatus == "running"
+    // runStatus is written only while this conversation owns the run (the
+    // collector gates every UI write on that), so it is the honest signal here —
+    // `sending` is global and would claim another conversation is busy.
+    val working = state.runStatus == "running"
     if (!working && state.runNotices.isEmpty()) return
 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }

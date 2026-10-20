@@ -896,6 +896,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Hermes Agent update -------------------------------------------
 
+    /** Text of the in-flight run, kept outside the coroutine so re-entering the
+     *  conversation can render what has already streamed. */
+    private val runAnswer = StringBuilder()
+    private val runThinking = StringBuilder()
+    private var runStreamed = false
+    private var runStartedAtMillis = 0L
+
     private var opsTerminal: TerminalClient? = null
     private var opsTimeoutJob: Job? = null
 
@@ -1538,7 +1545,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Open an existing Studio conversation and load its history. */
     fun openSession(session: SessionSummary) {
-        cancelActiveRun(abort = false)
+        // Only one run is tracked at a time. If it belongs to the session being
+        // opened, re-attach the live view; if it belongs to another session, leave
+        // it running (cancelling the socket here is what killed both the stream
+        // and the status when the user hopped between conversations).
+        when {
+            activeRunSessionId == session.id -> attachLiveRun()
+            activeRunSessionId != null -> _state.update {
+                it.copy(runStatus = "", runNotices = emptyList(), runStartedAtMillis = 0)
+            }
+            else -> cancelActiveRun(abort = false)
+        }
         stopPlanWatch()
         historyJob?.cancel()
         val profile = session.profile?.ifBlank { null }
@@ -1588,6 +1605,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             loadingContext = false,
                             contextTokens = history.contextTokens ?: -1,
                             contextWindow = window,
+                            // Re-attaching a live run happens after this copy: the
+                            // history above would otherwise erase the partial answer.
                             lines = history.messages.map { message ->
                                 ChatLine(
                                     text = message.content,
@@ -1598,6 +1617,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             },
                         )
                     }
+                }
+                .also {
+                    // Runs after both success and failure, so a live run is visible
+                    // either way.
+                    if (activeRunSessionId == session.id) attachLiveRun()
                 }
                 .onFailure { failure ->
                     if (failure is kotlinx.coroutines.CancellationException) return@onFailure
@@ -1782,17 +1806,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         activeRunSessionId = sessionId
+        runAnswer.setLength(0)
+        runThinking.setLength(0)
+        runStreamed = false
+        runStartedAtMillis = System.currentTimeMillis()
         startPlanWatch()
         runJob = viewModelScope.launch {
-            var answer = StringBuilder()
-            var thinking = StringBuilder()
-            var streamed = false
             var finalReply = ""
-            val runStartedAt = System.currentTimeMillis()
+            val answer = runAnswer
+            val thinking = runThinking
+            val runStartedAt = runStartedAtMillis
+
+            // A run keeps going while the user reads another conversation. Its
+            // events must not paint over whatever is on screen, so every UI
+            // write is gated on this check; the buffers above still accumulate
+            // and are replayed when the user comes back.
+            fun onScreen(): Boolean =
+                _state.value.screen == Screen.Conversation && _state.value.openSession?.id == sessionId
 
             fun ensureStreamingReply(startedAtMillis: Long = runStartedAt) {
-                if (streamed) return
-                streamed = true
+                if (runStreamed) return
+                runStreamed = true
+                if (!onScreen()) return
                 _state.update {
                     it.copy(
                         lines = it.lines + ChatLine(
@@ -1822,12 +1857,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     .collect { event ->
                         when (event) {
                             is RunEvent.Started -> {
-                                _state.update {
+                                if (onScreen()) _state.update {
                                     it.copy(runStatus = "running", runStartedAtMillis = event.occurredAtMillis)
                                 }
                                 ensureStreamingReply(event.occurredAtMillis)
                             }
-                            is RunEvent.Status -> _state.update {
+                            is RunEvent.Status -> if (onScreen()) _state.update {
                                 it.copy(
                                     runStatus = event.status,
                                     runStartedAtMillis = if (event.status == "running") {
@@ -1837,7 +1872,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     },
                                 )
                             }
-                            is RunEvent.Notice -> {
+                            is RunEvent.Notice -> if (onScreen()) {
                                 // Keep the tail: a long retry storm must not grow the
                                 // state without bound, and only the last line matters.
                                 _state.update {
@@ -1845,22 +1880,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 }
                                 ensureStreamingReply()
                             }
-                            is RunEvent.Plans -> _state.update { it.copy(taskPlans = event.plans) }
+                            is RunEvent.Plans -> if (onScreen()) {
+                                // The event carries the plan for this run's session;
+                                // off-screen it is re-read from history on return.
+                                _state.update { it.copy(taskPlans = event.plans) }
+                            }
                             is RunEvent.Text -> {
                                 answer.append(event.delta)
-                                ensureStreamingReply()
-                                updateLastReply(answer.toString(), thinking.toString(), streaming = true)
+                                if (onScreen()) {
+                                    ensureStreamingReply()
+                                    updateLastReply(answer.toString(), thinking.toString(), streaming = true)
+                                }
                             }
                             is RunEvent.Reasoning -> {
                                 thinking.append(event.delta)
-                                ensureStreamingReply()
-                                updateLastReply(answer.toString(), thinking.toString(), streaming = true)
+                                if (onScreen()) {
+                                    ensureStreamingReply()
+                                    updateLastReply(answer.toString(), thinking.toString(), streaming = true)
+                                }
                             }
-                            is RunEvent.Tool -> {
+                            is RunEvent.Tool -> if (onScreen()) {
                                 ensureStreamingReply()
                                 updateLastTool(event)
                             }
-                            is RunEvent.Usage -> _state.update {
+                            is RunEvent.Usage -> if (onScreen()) _state.update {
                                 it.copy(
                                     contextTokens = event.contextTokens,
                                     contextWindow = event.contextWindow ?: it.contextWindow,
@@ -1870,7 +1913,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 val output = event.output.ifBlank { answer.toString() }
                                 finalReply = output
                                 val reasoning = event.reasoning.ifBlank { thinking.toString() }
-                                if (streamed) {
+                                if (!onScreen()) {
+                                    // Nothing to paint: finishRun() reloads the
+                                    // transcript from the server once the user is
+                                    // back on this conversation.
+                                } else if (runStreamed) {
                                     updateLastReply(output, reasoning, streaming = false)
                                 } else {
                                     _state.update {
@@ -1883,19 +1930,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                         )
                                     }
                                 }
-                                streamed = true
+                                runStreamed = true
                             }
                             is RunEvent.RequiresAction -> {
-                                if (streamed) {
+                                if (!onScreen()) {
+                                    // Leave it queued; the run is blocked until the
+                                    // user reopens this conversation and answers.
+                                } else if (runStreamed) {
                                     updateLastReply(answer.toString(), thinking.toString(), streaming = false)
                                 }
-                                _state.update {
+                                if (onScreen()) _state.update {
                                     it.copy(
                                         pendingRunAction = PendingRunAction(event.kind, event.id, event.prompt, event.options, sessionId),
                                         activity = null,
                                     )
                                 }
-                                streamed = true
+                                runStreamed = true
                             }
                             is RunEvent.ActionResolved -> _state.update { state ->
                                 if (state.pendingRunAction?.id != event.id) state
@@ -1944,14 +1994,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 // A socket that never got going is not a failed
                                 // run: fall back to the REST wrapper instead of
                                 // telling the user the answer is lost.
-                                if (event.retryableTransport && !streamed) throw SocketUnavailable(event.error)
+                                if (event.retryableTransport && !runStreamed) throw SocketUnavailable(event.error)
                                 updateLastReply(
                                     answer.toString(),
                                     thinking.toString(),
                                     streaming = false,
                                     terminalToolStatus = ToolRunStatus.Error,
                                 )
-                                _state.update {
+                                if (onScreen()) _state.update {
                                     it.copy(lines = it.lines + ChatLine(event.error, fromUser = false, isError = true))
                                 }
                             }
@@ -2186,12 +2236,45 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Re-binds the on-screen conversation to the run that is already in flight.
+     *
+     * Idempotent: any previous live bubble is replaced, so it can be called both
+     * when entering the conversation and after the history reload finishes
+     * (history would otherwise wipe the partial answer).
+     */
+    private fun attachLiveRun() {
+        val sessionId = activeRunSessionId ?: return
+        _state.update { state ->
+            if (state.openSession?.id != sessionId) return@update state
+            val withoutLive = state.lines.filterNot { it.streaming && !it.fromUser }
+            state.copy(
+                sending = true,
+                runStatus = "running",
+                runStartedAtMillis = runStartedAtMillis,
+                lines = withoutLive + ChatLine(
+                    text = runAnswer.toString(),
+                    fromUser = false,
+                    streaming = true,
+                    startedAtMillis = runStartedAtMillis,
+                ),
+            )
+        }
+        runStreamed = true
+    }
+
     private fun finishRun(sessionId: String) {
         if (activeRunSessionId != sessionId) return
         activeRunSessionId = null
         runJob = null
         stopPlanWatch()
         _state.update { it.copy(sending = false, activity = null, runStatus = "", runStartedAtMillis = 0) }
+        // The run finished while another conversation was open: its messages only
+        // exist on the server, so pull them in when the user is on this screen.
+        // Otherwise the list stays stale until the next refresh, which is harmless.
+        if (_state.value.screen == Screen.Conversation && _state.value.openSession?.id == sessionId) {
+            refreshConversation()
+        }
     }
 
     private class SocketUnavailable(message: String) : Exception(message)
