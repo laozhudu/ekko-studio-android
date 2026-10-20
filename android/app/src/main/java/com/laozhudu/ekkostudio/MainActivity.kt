@@ -2830,6 +2830,20 @@ private fun Composer(
                     textStyle = fieldType.copy(color = inkTextPrimary(inkDark)),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 5,
+                    // Enter inserts a newline; it must never submit. ImeAction.None
+                    // keeps the return key as a newline key, and Send/Done/Go/Search
+                    // are swallowed so an IME that relabels the key "send" cannot
+                    // post the message. Submitting is the round button's job.
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.None,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {},
+                        onDone = {},
+                        onGo = {},
+                        onSearch = {},
+                    ),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
                         if (fieldFocused && !it.isFocused && draft.isBlank() && state.attachments.isEmpty()) {
                             composerExpanded = false
