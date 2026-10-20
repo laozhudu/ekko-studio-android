@@ -244,7 +244,10 @@ private fun App(viewModel: AppViewModel = viewModel()) {
     var downloadingUpdate by remember { mutableStateOf(false) }
     var updateError by remember { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(Unit) { availableUpdate = runCatching { AppUpdater.check() }.getOrNull() }
+    LaunchedEffect(Unit) {
+        val update = runCatching { AppUpdater.check() }.getOrNull()
+        if (update != null && viewModel.shouldPromptForUpdate(update.tag)) availableUpdate = update
+    }
 
     HermesTheme(appearance = state.appearance) {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -284,10 +287,19 @@ private fun App(viewModel: AppViewModel = viewModel()) {
                     ) { Text(stringResource(R.string.update_install)) }
                 },
                 dismissButton = {
-                    TextButton(
-                        enabled = !downloadingUpdate,
-                        onClick = { availableUpdate = null },
-                    ) { Text(stringResource(R.string.update_later)) }
+                    Row {
+                        TextButton(
+                            enabled = !downloadingUpdate,
+                            onClick = { availableUpdate = null },
+                        ) { Text(stringResource(R.string.update_later)) }
+                        TextButton(
+                            enabled = !downloadingUpdate,
+                            onClick = {
+                                viewModel.skipUpdateTag(update.tag)
+                                availableUpdate = null
+                            },
+                        ) { Text(stringResource(R.string.update_skip)) }
+                    }
                 },
             )
         }

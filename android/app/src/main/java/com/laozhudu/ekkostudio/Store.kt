@@ -105,6 +105,16 @@ class Store(context: Context) {
         get() = prefs.getString(KEY_SAVED_PASSWORD, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_SAVED_PASSWORD, value).apply()
 
+    /** Release tag the user asked not to be prompted about again. */
+    var skippedUpdateTag: String
+        get() = prefs.getString(KEY_SKIPPED_UPDATE, "").orEmpty()
+        set(value) = prefs.edit().putString(KEY_SKIPPED_UPDATE, value).apply()
+
+    /** Last session list as JSON, so Chats can render before the network answers. */
+    var sessionsSnapshot: String
+        get() = prefs.getString(KEY_SESSIONS_SNAPSHOT, "").orEmpty()
+        set(value) = prefs.edit().putString(KEY_SESSIONS_SNAPSHOT, value).apply()
+
     fun clearCredentials() {
         // A remembered account survives sign-out — that is the whole point of
         // the checkbox — but everything else goes.
@@ -138,5 +148,7 @@ class Store(context: Context) {
         const val KEY_REMEMBER = "remember_credentials"
         const val KEY_SAVED_USER = "saved_username"
         const val KEY_SAVED_PASSWORD = "saved_password"
+        const val KEY_SKIPPED_UPDATE = "skipped_update_tag"
+        const val KEY_SESSIONS_SNAPSHOT = "sessions_snapshot"
     }
 }

@@ -613,6 +613,35 @@ class HermesApi(
             )
         }
 
+    fun sessionsToJson(sessions: List<SessionSummary>): String {
+        val array = JSONArray()
+        sessions.forEach { s ->
+            array.put(
+                JSONObject().apply {
+                    put("id", s.id)
+                    put("title", s.title)
+                    put("model", s.model ?: "")
+                    put("provider", s.provider ?: "")
+                    put("updated_at", s.updatedAt ?: "")
+                    put("profile", s.profile ?: "")
+                    put("source", s.source)
+                    put("agent_id", s.agentId ?: "")
+                    put("agent_mode", s.agentMode ?: "")
+                    put("is_archived", s.archived)
+                    put("is_pinned", s.pinned)
+                    put("category_id", s.categoryId ?: 0)
+                    put("workspace", s.workspace ?: "")
+                    put("running", s.running)
+                    put("activity", s.activity ?: "")
+                },
+            )
+        }
+        return array.toString()
+    }
+
+    fun sessionsFromSnapshot(json: String): List<SessionSummary> =
+        runCatching { parseSessions(JSONArray(json)) }.getOrDefault(emptyList())
+
     fun workflows(profile: String?): List<StudioWorkflow> {
         val path = "/api/studio/workflows" + if (profile.isNullOrBlank()) "" else "?profile=${enc(profile)}"
         val array = call(path).optJSONArray("workflows") ?: JSONArray()

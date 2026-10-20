@@ -398,6 +398,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             SessionBootstrap(user, api.profiles(), api.sessions(null))
         },
         onSuccess = { (user, profiles, sessions) ->
+            store.sessionsSnapshot = api.sessionsToJson(sessions)
             _state.update {
                 it.copy(
                     screen = Screen.Chats,
@@ -422,12 +423,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } else {
                 // A timeout or an offline server does not invalidate a token.
-                // Keep the launch screen and let the user retry in place.
+                // Fall back to the last known list so Chats opens offline instead
+                // of parking the user on a blank launch screen.
+                val cached = api.sessionsFromSnapshot(store.sessionsSnapshot)
+                val message = str(R.string.error_session_restore, failure.readableMessage(localized))
                 _state.update {
-                    it.copy(
-                        screen = Screen.Loading,
-                        error = str(R.string.error_session_restore, failure.readableMessage(localized)),
-                    )
+                    if (cached.isNotEmpty()) {
+                        it.copy(screen = Screen.Chats, sessions = cached, error = message)
+                    } else {
+                        it.copy(screen = Screen.Loading, error = message)
+                    }
                 }
             }
         },
@@ -437,6 +442,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!store.isConfigured || _state.value.busy) return
         _state.update { it.copy(screen = Screen.Loading, error = null) }
         restoreSession()
+    }
+
+    /** True when the user has not asked to skip this release tag. */
+    fun shouldPromptForUpdate(tag: String): Boolean =
+        tag.isNotBlank() && tag != store.skippedUpdateTag
+
+    fun skipUpdateTag(tag: String) {
+        if (tag.isNotBlank()) store.skippedUpdateTag = tag
     }
 
     fun login(baseUrl: String, username: String, password: String, remember: Boolean = false, label: String = "") {
@@ -574,6 +587,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { api.sessions(profile, _state.value.sessionLimit) } }
                 .onSuccess { sessions ->
+                    store.sessionsSnapshot = api.sessionsToJson(sessions)
                     _state.update { it.copy(sessions = sessions, refreshingSessions = false) }
                 }
                 .onFailure { failure ->
