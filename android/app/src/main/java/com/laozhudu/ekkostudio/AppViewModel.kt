@@ -1583,9 +1583,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // it running (cancelling the socket here is what killed both the stream
         // and the status when the user hopped between conversations).
         when {
-            activeRunSessionId == session.id -> attachLiveRun()
+            activeRunSessionId == session.id -> {
+                attachLiveRun()
+                // The run owns this session: ensure runSessionId is visible in state
+                // so the header/status strip knows a run is in progress here.
+                _state.update { it.copy(runSessionId = session.id) }
+            }
             activeRunSessionId != null -> _state.update {
-                it.copy(runStatus = "", runNotices = emptyList(), runStartedAtMillis = 0)
+                it.copy(runStatus = "", runNotices = emptyList(), runStartedAtMillis = 0, runSessionId = null)
             }
             else -> cancelActiveRun(abort = false)
         }
@@ -1976,22 +1981,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 runStreamed = true
                             }
                             is RunEvent.RequiresAction -> {
-                                // Always recorded. The approval host lives at the app
-                                // root, so a run in another conversation still asks —
-                                // dropping it here is what made approvals invisible.
-                                if (!onScreen()) {
-                                    runStreamed = true
-                                } else if (runStreamed) {
-                                    updateLastReply(answer.toString(), thinking.toString(), streaming = false)
-                                }
-                                if (onScreen()) _state.update {
-                                    it.copy(
-                                        pendingRunAction = PendingRunAction(event.kind, event.id, event.prompt, event.options, sessionId),
-                                        activity = null,
-                                    )
-                                }
-                                runStreamed = true
-                            }
+                                            // Always record the action so the user can answer it later,
+                                            // even if they've navigated away. The UI will decide whether to
+                                            // show it inline (same session) or as a dialog (other screen).
+                                            _state.update {
+                                                it.copy(
+                                                    pendingRunAction = PendingRunAction(event.kind, event.id, event.prompt, event.options, sessionId),
+                                                    activity = null,
+                                                )
+                                            }
+                                            if (!onScreen()) {
+                                                runStreamed = true
+                                            } else if (runStreamed) {
+                                                updateLastReply(answer.toString(), thinking.toString(), streaming = false)
+                                            }
+                                            runStreamed = true
+                                        }
                             is RunEvent.ActionResolved -> _state.update { state ->
                                 if (state.pendingRunAction?.id != event.id) state
                                 else if (event.resolved) state.copy(pendingRunAction = null, activity = null)

@@ -295,6 +295,13 @@ private fun App(viewModel: AppViewModel = viewModel()) {
     HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
+                // Global run status strip — visible on every screen so the user
+                // always knows if a run is in progress, which conversation owns it,
+                // and what tool is currently executing (Telegram shows "typing…"
+                // in the header; we do the same but richer).
+                if (state.runStatus == "running") {
+                    GlobalRunStatusStrip(state)
+                }
                 AppContent(state, viewModel)
                 // Sits above every screen: an approval is never scoped to a screen.
                 RunActionHost(state, viewModel)
@@ -509,6 +516,67 @@ private fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier =
 }
 
 @Composable
+/**
+ * Global run status strip — visible on every screen so the user always knows
+ * if a run is in progress, which conversation owns it, and what tool is
+ * currently executing. Mirrors Telegram's "typing…" in the header but richer:
+ * shows elapsed time, current tool, and latest lifecycle notice.
+ */
+@Composable
+private fun GlobalRunStatusStrip(state: UiState) {
+    val working = state.runStatus == "running"
+    if (!working && state.runNotices.isEmpty()) return
+
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(working) {
+        while (working) {
+            now = System.currentTimeMillis()
+            delay(500)
+        }
+    }
+    val elapsed = if (state.runStartedAtMillis > 0) {
+        ((now - state.runStartedAtMillis).coerceAtLeast(0) / 1000.0)
+    } else 0.0
+    val notice = state.runNotices.lastOrNull()
+    val tool = state.lines.lastOrNull()?.tools?.lastOrNull { it.status == ToolRunStatus.Running }
+
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (working) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                buildString {
+                    if (working) {
+                        append(stringResource(R.string.run_status_working))
+                        if (elapsed >= 1) append(" ").append("%.0fs".format(Locale.US, elapsed))
+                        tool?.let { append(" · ").append(it.name) }
+                    } else {
+                        append(stringResource(R.string.run_status_done))
+                    }
+                    notice?.let { append(" — ").append(it) }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = if (working) MaterialTheme.colorScheme.primary else inkTextMuted(inkDark),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 private fun AppContent(state: UiState, viewModel: AppViewModel) {
 
     // The system back gesture belongs to the app while there is somewhere to go
@@ -1247,6 +1315,7 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                                     session = session,
                                     avatar = state.avatarOf(session.profile),
                                     isActive = state.openSession?.id == session.id,
+                                    isRunningHere = state.runSessionId == session.id && state.runStatus == "running",
                                     onClick = { viewModel.openSession(session) },
                                     onLongClick = { manage = session },
                                 )
@@ -1364,14 +1433,54 @@ private fun InstanceRow(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+/**
+ * Telegram-style pulsing indicator for "working" state.
+ */
+@Composable
+private fun AnimatedIndicator(
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "workingIndicator")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animationSpec = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseScale",
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animationSpec = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseAlpha",
+    )
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = alpha
+            }
+            .background(color, CircleShape),
+    )
+}
+
 private fun SessionRow(
     session: SessionSummary,
     avatar: AvatarSpec?,
     isActive: Boolean,
+    isRunningHere: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     val running = session.running
+    val locallyRunning = isRunningHere
     // HStudio .session-item--active (App app-service CSS): background
     // --ink-bg-secondary + .session-title font-weight 550. The active flag is
     // computed at the call site from UiState.openSession (SessionSummary has
@@ -1407,7 +1516,16 @@ private fun SessionRow(
                         fontWeight = if (isActive) FontWeight.W500 else FontWeight.SemiBold,
                     )
                     Spacer(Modifier.width(8.dp))
-                    if (running) {
+                    if (locallyRunning) {
+                        // Telegram-style animated dot for "working"
+                        AnimatedVisibility(visible = true) {
+                            AnimatedIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(6.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(4.dp))
+                    } else if (running) {
                         Text("●", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         Spacer(Modifier.width(4.dp))
                     }
@@ -1424,7 +1542,7 @@ private fun SessionRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (running && !session.activity.isNullOrBlank()) {
+                if (locallyRunning && !session.activity.isNullOrBlank()) {
                     Text(
                         session.activity,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
