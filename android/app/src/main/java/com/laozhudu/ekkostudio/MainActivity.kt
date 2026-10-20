@@ -229,7 +229,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import java.util.Locale
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Code
 
 class MainActivity : ComponentActivity() {
 
@@ -3058,7 +3058,7 @@ private fun ContextUsage(state: UiState) {
         Text(
             when {
                 state.loadingContext -> stringResource(R.string.context_loading)
-                // "50.3k / 1.0M · 剩余 949.7k" — used, limit, and what is left of it.
+                // Used, limit, and what is left of the limit — all three computed.
                 known -> stringResource(
                     R.string.context_usage_full,
                     compactNumber(state.contextTokens),
@@ -3415,7 +3415,7 @@ private fun OptionsSheet(
         // Slash commands arrive as tap targets: the runner only accepts a fixed
         // allow-list, and nobody should have to memorise it.
         SheetRow(
-            icon = Icons.Filled.HelpOutline,
+            icon = Icons.Filled.Code,
             label = stringResource(R.string.sheet_slash_commands),
             detail = stringResource(R.string.sheet_slash_commands_detail),
             onClick = onSlashCommands,
