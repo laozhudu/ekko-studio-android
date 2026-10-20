@@ -584,6 +584,7 @@ private fun GlobalRunStatusStrip(state: UiState) {
     }
 }
 
+@Composable
 private fun AppContent(state: UiState, viewModel: AppViewModel) {
 
     // The system back gesture belongs to the app while there is somewhere to go
