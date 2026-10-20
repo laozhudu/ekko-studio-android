@@ -76,6 +76,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -326,6 +328,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             viewModel.showTab(Tab.Chats)
         }
         Screen.WriteGate -> BackHandler { viewModel.showTab(Tab.Chats) }
+        Screen.ModelSettings, Screen.StudioUpdate -> BackHandler { viewModel.showTab(Tab.Chats) }
         else -> Unit
     }
 
@@ -394,6 +397,24 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             busyId = state.writeGateBusyId,
             onRefresh = viewModel::refreshWriteGate,
             onDecision = { record, approve -> viewModel.decideWriteGate(record, approve) },
+            onBack = { viewModel.showTab(Tab.Chats) },
+        )
+        Screen.ModelSettings -> ModelSettingsScreen(
+            catalog = state.modelCatalog,
+            loading = state.modelsLoading,
+            selectedModel = state.selectedModel,
+            contextLimit = state.contextLimit,
+            onChoose = { model, provider -> viewModel.chooseDefaultModel(model, provider) },
+            onContextLimitChange = viewModel::setContextLimitInput,
+            onSaveContext = viewModel::saveContextLimit,
+            onRefresh = viewModel::refreshModels,
+            onBack = { viewModel.showTab(Tab.Chats) },
+        )
+        Screen.StudioUpdate -> StudioUpdateScreen(
+            preview = state.studioPreview,
+            tags = state.studioTags,
+            loading = state.studioLoading,
+            onRefresh = viewModel::refreshStudioUpdate,
             onBack = { viewModel.showTab(Tab.Chats) },
         )
     }
@@ -3751,6 +3772,22 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                         title = stringResource(R.string.write_gate_title),
                         subtitle = stringResource(R.string.write_gate_hub_note),
                         onClick = { viewModel.openWriteGate() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.Memory,
+                        color = Color(0xFF4CA66A),
+                        title = stringResource(R.string.model_settings_title),
+                        subtitle = stringResource(R.string.model_hub_note),
+                        onClick = { viewModel.openModelSettings() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.SystemUpdate,
+                        color = Color(0xFF4CA66A),
+                        title = stringResource(R.string.studio_update_title),
+                        subtitle = stringResource(R.string.studio_update_hub_note),
+                        onClick = { viewModel.openStudioUpdate() },
                     )
                     StudioCardDivider()
                     Row(

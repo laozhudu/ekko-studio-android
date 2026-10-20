@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -190,6 +190,13 @@ data class UiState(
     val writeGateRecords: List<WriteGateRecord> = emptyList(),
     val writeGateLoading: Boolean = false,
     val writeGateBusyId: String? = null,
+    val modelCatalog: ModelCatalog? = null,
+    val modelsLoading: Boolean = false,
+    val selectedModel: String = "",
+    val contextLimit: String = "",
+    val studioPreview: StudioUpdatePreview? = null,
+    val studioTags: List<StudioUpdateTag> = emptyList(),
+    val studioLoading: Boolean = false,
     val cronLoading: Boolean = false,
     /** The job currently running a pause/resume/run/delete request. */
     val cronActionId: String? = null,
@@ -513,6 +520,117 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearTerminalOutput() {
         _terminalOutput.value = ""
+    }
+
+    // ---- Models --------------------------------------------------------
+
+    fun openModelSettings() {
+        _state.update { it.copy(screen = Screen.ModelSettings) }
+        refreshModels()
+    }
+
+    fun refreshModels() {
+        _state.update { it.copy(modelsLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.modelCatalog() } }
+                .onSuccess { catalog ->
+                    val provider = catalog.groups
+                        .firstOrNull { g -> g.models.any { it.id == catalog.default } }
+                        ?.provider
+                    val limit = if (provider != null && catalog.default.isNotBlank()) {
+                        runCatching { withContext(Dispatchers.IO) { api.modelContextLimit(provider, catalog.default) } }.getOrNull()
+                    } else {
+                        null
+                    }
+                    _state.update {
+                        it.copy(
+                            modelCatalog = catalog,
+                            modelsLoading = false,
+                            selectedModel = catalog.default,
+                            contextLimit = limit?.toString().orEmpty(),
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(modelsLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun chooseDefaultModel(model: ModelEntry, provider: String) {
+        _state.update { it.copy(modelsLoading = true, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.setDefaultModel(model.id, provider) } }
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            modelsLoading = false,
+                            selectedModel = model.id,
+                            notice = str(R.string.model_saved),
+                        )
+                    }
+                    refreshModels()
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(modelsLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun setContextLimitInput(value: String) {
+        _state.update { it.copy(contextLimit = value.filter(Char::isDigit)) }
+    }
+
+    fun saveContextLimit() {
+        val snapshot = _state.value
+        val model = snapshot.selectedModel
+        val limit = snapshot.contextLimit.toLongOrNull()
+        val provider = snapshot.modelCatalog?.groups
+            ?.firstOrNull { g -> g.models.any { it.id == model } }
+            ?.provider
+        if (model.isBlank() || limit == null || provider == null) return
+        _state.update { it.copy(modelsLoading = true, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.setModelContextLimit(provider, model, limit) }
+            }.onSuccess {
+                _state.update {
+                    it.copy(modelsLoading = false, notice = str(R.string.model_saved))
+                }
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(modelsLoading = false, error = failure.readableMessage(localized))
+                }
+            }
+        }
+    }
+
+    // ---- Studio update -------------------------------------------------
+
+    fun openStudioUpdate() {
+        _state.update { it.copy(screen = Screen.StudioUpdate) }
+        refreshStudioUpdate()
+    }
+
+    fun refreshStudioUpdate() {
+        _state.update { it.copy(studioLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.studioUpdatePreview() to api.studioUpdateTags() }
+            }.onSuccess { (preview, tags) ->
+                _state.update {
+                    it.copy(studioPreview = preview, studioTags = tags, studioLoading = false)
+                }
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(studioLoading = false, error = failure.readableMessage(localized))
+                }
+            }
+        }
     }
 
     // ---- Write gate ----------------------------------------------------

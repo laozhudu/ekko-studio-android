@@ -1066,6 +1066,72 @@ class HermesApi(
     // ── scheduled jobs ──────────────────────────────────────────────────
 
     /** The same profile-scoped list shown by Studio's Scheduled Jobs page. */
+    fun modelCatalog(): ModelCatalog {
+        val root = call("/api/hermes/config/models")
+        val groups = root.optJSONArray("groups") ?: JSONArray()
+        return ModelCatalog(
+            default = root.optString("default"),
+            groups = (0 until groups.length()).mapNotNull { i ->
+                groups.optJSONObject(i)?.let { group ->
+                    val models = group.optJSONArray("models") ?: JSONArray()
+                    ModelGroup(
+                        provider = group.optString("provider"),
+                        models = (0 until models.length()).mapNotNull { j ->
+                            models.optJSONObject(j)?.let { m ->
+                                ModelEntry(id = m.optString("id"), label = m.optString("label"))
+                            }
+                        }.filter { it.id.isNotBlank() },
+                    )
+                }
+            }.filter { it.models.isNotEmpty() },
+        )
+    }
+
+    fun setDefaultModel(modelId: String, provider: String?) {
+        val body = JSONObject().put("default", modelId)
+        if (!provider.isNullOrBlank()) body.put("provider", provider)
+        call("/api/hermes/config/model", "PUT", body)
+    }
+
+    fun modelContextLimit(provider: String, model: String): Long? {
+        val root = call("/api/hermes/model-context?provider=${enc(provider)}&model=${enc(model)}")
+        val data = root.optJSONObject("data") ?: root
+        val limit = data.optLong("context_limit", 0L)
+        return if (limit > 0L) limit else null
+    }
+
+    fun setModelContextLimit(provider: String, model: String, limit: Long) {
+        call(
+            "/api/hermes/model-context",
+            "PUT",
+            JSONObject()
+                .put("provider", provider)
+                .put("model", model)
+                .put("context_limit", limit),
+        )
+    }
+
+    fun studioUpdatePreview(): StudioUpdatePreview {
+        val root = call("/api/studio/update/preview")
+        return StudioUpdatePreview(
+            exists = root.optBoolean("exists"),
+            installed = root.optBoolean("installed"),
+            running = root.optBoolean("running"),
+            currentTag = root.optString("current_tag"),
+            frontendUrl = root.optString("frontend_url"),
+            lastAction = root.optString("last_action").ifBlank { null },
+        )
+    }
+
+    fun studioUpdateTags(): List<StudioUpdateTag> {
+        val array = call("/api/studio/update/preview/tags").optJSONArray("tags") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i ->
+            array.optJSONObject(i)?.let { item ->
+                StudioUpdateTag(name = item.optString("name"), sha = item.optString("sha"))
+            }
+        }.filter { it.name.isNotBlank() }
+    }
+
     fun writeGatePending(profile: String): List<WriteGateRecord> {
         val array = call(path = "/api/hermes/write-gate/pending", profile = profile)
             .optJSONArray("records") ?: JSONArray()
@@ -1962,6 +2028,23 @@ class HermesApi(
 }
 
 class HermesException(message: String, val statusCode: Int? = null) : Exception(message)
+
+data class ModelEntry(val id: String, val label: String)
+
+data class ModelGroup(val provider: String, val models: List<ModelEntry>)
+
+data class ModelCatalog(val default: String, val groups: List<ModelGroup>)
+
+data class StudioUpdateTag(val name: String, val sha: String)
+
+data class StudioUpdatePreview(
+    val exists: Boolean,
+    val installed: Boolean,
+    val running: Boolean,
+    val currentTag: String,
+    val frontendUrl: String,
+    val lastAction: String?,
+)
 
 data class WriteGateRecord(
     val id: String,
