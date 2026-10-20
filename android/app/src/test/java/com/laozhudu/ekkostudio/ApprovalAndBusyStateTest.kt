@@ -54,7 +54,7 @@ class ApprovalAndBusyStateTest {
 
     @Test
     fun composerIsNotBlockedByAnotherConversationsRun() {
-        val send = viewModel.substringAfter("fun send(message: String) {").substringBefore("_state.update {")
+        val send = viewModel.substringAfter("fun send(message: String, replyTo: String? = null) {").substringBefore("_state.update {")
         assertTrue("busy is scoped to this conversation", send.contains("val busyHere = activeRunSessionId != null"))
         assertFalse(
             "the app-wide flag must not gate sending",
