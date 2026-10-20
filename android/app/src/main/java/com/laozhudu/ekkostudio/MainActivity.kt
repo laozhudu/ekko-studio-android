@@ -292,14 +292,22 @@ private fun App(viewModel: AppViewModel = viewModel()) {
     HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Global run status strip — visible on every screen so the user
-                // always knows if a run is in progress, which conversation owns it,
-                // and what tool is currently executing (Telegram shows "typing…"
-                // in the header; we do the same but richer).
-                if (state.runStatus == "running") {
-                    GlobalRunStatusStrip(state)
-                }
                 AppContent(state, viewModel)
+                // Visible on every screen, bottom-anchored so it never covers the
+                // header: a run in another conversation must not be invisible.
+                if (state.runStatus == "running") {
+                    GlobalRunStatusStrip(
+                        state = state,
+                        onOpen = {
+                            val id = state.runSessionId
+                            val session = state.sessions.firstOrNull { it.id == id }
+                            if (session != null) viewModel.openSession(session)
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 84.dp),
+                    )
+                }
                 // Sits above every screen: an approval is never scoped to a screen.
                 RunActionHost(state, viewModel)
                 if (state.writeGateRecords.isNotEmpty() && state.screen != Screen.WriteGate) {
@@ -513,19 +521,21 @@ private fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier =
 }
 
 /**
- * Global run status strip — visible on every screen so the user always knows
- * if a run is in progress, which conversation owns it, and what tool is
- * currently executing. Mirrors Telegram's "typing..." in the header but richer:
- * shows elapsed time, current tool, and latest lifecycle notice.
+ * Global run status pill — shown on every screen while a run is in flight.
+ *
+ * Telegram answers "is it working?" in the chat header; a header is not always on
+ * screen here (settings, terminal, workspace), so the answer is a pill that
+ * follows the user. Tapping it jumps to the conversation that owns the run.
  */
 @Composable
-private fun GlobalRunStatusStrip(state: UiState) {
-    val working = state.runStatus == "running"
-    if (!working && state.runNotices.isEmpty()) return
-
+private fun GlobalRunStatusStrip(
+    state: UiState,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(working) {
-        while (working) {
+    LaunchedEffect(state.runStartedAtMillis) {
+        while (true) {
             now = System.currentTimeMillis()
             delay(500)
         }
@@ -533,41 +543,39 @@ private fun GlobalRunStatusStrip(state: UiState) {
     val elapsed = if (state.runStartedAtMillis > 0) {
         ((now - state.runStartedAtMillis).coerceAtLeast(0) / 1000.0)
     } else 0.0
-    val notice = state.runNotices.lastOrNull()
     val tool = state.lines.lastOrNull()?.tools?.lastOrNull { it.status == ToolRunStatus.Running }
+    val title = state.sessions.firstOrNull { it.id == state.runSessionId }?.title
+    val notice = state.runNotices.lastOrNull()
 
-    val inkDark = MaterialTheme.colorScheme.isInkDark()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Surface(
+        modifier = modifier.clickable(onClick = onOpen),
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp,
     ) {
-        if (working) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(12.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-        }
-        Column(modifier = Modifier.weight(1f)) {
             Text(
                 buildString {
-                    if (working) {
-                        append(stringResource(R.string.run_status_working))
-                        if (elapsed >= 1) append(" ").append("%.0fs".format(Locale.US, elapsed))
-                        tool?.let { append(" · ").append(it.name) }
-                    } else {
-                        append(stringResource(R.string.run_status_done))
-                    }
-                    notice?.let { append(" — ").append(it) }
+                    append(stringResource(R.string.run_status_working))
+                    if (elapsed >= 1) append(" ").append("%.0fs".format(Locale.US, elapsed))
+                    (tool?.name ?: title)?.let { append(" · ").append(it) }
+                    notice?.let { append(" · ").append(it.take(28)) }
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = if (working) MaterialTheme.colorScheme.primary else inkTextMuted(inkDark),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 260.dp),
             )
         }
     }
@@ -1464,6 +1472,7 @@ private fun AnimatedIndicator(
     )
 }
 
+@Composable
 private fun SessionRow(
     session: SessionSummary,
     avatar: AvatarSpec?,
