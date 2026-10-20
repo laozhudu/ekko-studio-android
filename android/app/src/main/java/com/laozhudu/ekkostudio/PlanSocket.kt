@@ -2,6 +2,7 @@ package com.laozhudu.ekkostudio
 
 import io.socket.client.IO
 import io.socket.client.Socket
+import io.socket.emitter.Emitter
 import org.json.JSONObject
 import java.net.URI
 
@@ -23,21 +24,22 @@ class PlanSocket(
     var onPlans: ((List<TaskPlanSnapshot>) -> Unit)? = null
 
     fun connect(sessionId: String, profile: String) {
-        val options = IO.Options().apply {
-            reconnection = false
-            auth = mapOf("token" to token)
-        }
-        val manager = IO.manager(URI.create(baseUrl.trimEnd('/')), options)
-        val namespaced = manager.socket("/chat-run")
-        socket = namespaced
+        val options = IO.Options.builder()
+            .setForceNew(true)
+            .setReconnection(false)
+            .setAuth(mapOf("token" to token))
+            .build()
+        // The namespace is part of the URL, the same way ChatSocket connects.
+        val live = IO.socket(URI.create(baseUrl.trimEnd('/') + "/chat-run"), options)
+        socket = live
 
-        namespaced.on(Socket.EVENT_CONNECT) {
-            namespaced.emit(
+        live.on(Socket.EVENT_CONNECT) {
+            live.emit(
                 "resume",
                 JSONObject().put("session_id", sessionId).put("profile", profile),
             )
         }
-        namespaced.on("resumed") { args ->
+        live.on("resumed", Emitter.Listener { args ->
             val payload = args.firstOrNull()
             val obj = when (payload) {
                 is JSONObject -> payload
@@ -46,9 +48,9 @@ class PlanSocket(
             }
             if (obj != null) onPlans?.invoke(parseTaskPlans(obj))
             close()
-        }
-        namespaced.on(Socket.EVENT_CONNECT_ERROR) { close() }
-        namespaced.connect()
+        })
+        live.on(Socket.EVENT_CONNECT_ERROR) { close() }
+        live.connect()
     }
 
     fun close() {
