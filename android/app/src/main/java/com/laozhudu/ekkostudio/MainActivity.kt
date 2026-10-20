@@ -522,6 +522,13 @@ private fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier =
  * currently executing. Mirrors Telegram's "typing…" in the header but richer:
  * shows elapsed time, current tool, and latest lifecycle notice.
  */
+
+/**
+ * Global run status strip — visible on every screen so the user always knows
+ * if a run is in progress, which conversation owns it, and what tool is
+ * currently executing. Mirrors Telegram's "typing..." in the header but richer:
+ * shows elapsed time, current tool, and latest lifecycle notice.
+ */
 @Composable
 private fun GlobalRunStatusStrip(state: UiState) {
     val working = state.runStatus == "running"
