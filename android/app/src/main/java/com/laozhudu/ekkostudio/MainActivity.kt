@@ -228,6 +228,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import java.util.Locale
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.HelpOutline
 
 class MainActivity : ComponentActivity() {
 
@@ -464,6 +466,31 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             onRefresh = viewModel::refreshModels,
             onBack = { viewModel.showTab(Tab.Chats) },
         )
+        Screen.Workspace -> {
+            val context = LocalContext.current
+            WorkspaceScreen(
+                path = state.workspacePath,
+                entries = state.workspaceEntries,
+                loading = state.workspaceLoading,
+                fileName = state.workspaceFileName.takeIf { state.workspaceFile != null },
+                fileContent = state.workspaceFile,
+                onOpenDir = viewModel::openWorkspaceDir,
+                onOpenFile = viewModel::openWorkspaceFile,
+                onUp = viewModel::workspaceUp,
+                onCloseFile = viewModel::closeWorkspaceFile,
+                onRefresh = viewModel::refreshWorkspace,
+                onDownload = { entry ->
+                    // Binary files are not readable as text; hand them to the
+                    // system so the viewer app decides what it can render.
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(viewModel.workspaceDownloadUrl(entry))),
+                        )
+                    }
+                },
+                onBack = { viewModel.showTab(Tab.Chats) },
+            )
+        }
         Screen.StudioUpdate -> StudioUpdateScreen(
             versions = state.serverVersions,
             remote = state.remoteVersions,
@@ -471,8 +498,19 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             preview = state.studioPreview,
             tags = state.studioTags,
             loading = state.studioLoading,
-            onRefresh = viewModel::refreshStudioUpdate,
+            hermesDeploy = state.hermesDeploy,
+            hermesLog = state.hermesUpdateLog,
+            hermesUpdating = state.hermesUpdating,
+            progress = state.updateProgress,
+            restartRequired = state.restartRequired,
+            restarting = state.serverRestarting,
+            onRefresh = {
+                viewModel.refreshStudioUpdate()
+                viewModel.detectHermesDeployment()
+            },
             onUpdateStudio = viewModel::updateStudio,
+            onUpdateHermes = viewModel::updateHermes,
+            onRestart = viewModel::restartServer,
             onUpdateAgent = viewModel::updateCodingAgent,
             onPreviewAction = { action, tag -> viewModel.runStudioUpdateAction(action, tag) },
             onBack = { viewModel.showTab(Tab.Chats) },
@@ -2078,11 +2116,11 @@ private fun MessageBubble(
             // HStudio .message-bubble: padding:10px 14px, border-radius:10px.
             // Both roles draw on --ink-bg-message with --ink-text-primary text.
             Card(
-                modifier = Modifier.combinedClickable(
-                    enabled = onActions != null,
-                    onClick = { onActions?.invoke() },
-                    onLongClick = { onActions?.invoke() },
-                ),
+                // Single tap opens the action sheet. Long press is deliberately
+                // NOT bound here: it belongs to the SelectionContainer inside, so
+                // a long press on the text raises the system selection handles
+                // instead of the sheet.
+                modifier = Modifier.clickable(enabled = onActions != null) { onActions?.invoke() },
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = bubbleColor, contentColor = onBubble),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -2093,10 +2131,14 @@ private fun MessageBubble(
                 ) {
                     if (hasThinking) ThinkingTimeline(line)
                     if (parsed.text.isNotBlank()) {
-                        if (isUser) {
-                            Text(text = parsed.text, color = onBubble)
-                        } else {
-                            ChatMarkdownText(text = parsed.text)
+                        // Long press selects text with the native handles and the
+                        // floating copy toolbar — no dialog round-trip.
+                        SelectionContainer {
+                            if (isUser) {
+                                Text(text = parsed.text, color = onBubble)
+                            } else {
+                                ChatMarkdownText(text = parsed.text)
+                            }
                         }
                     }
                     parsed.files.forEach { file ->
@@ -2675,6 +2717,11 @@ private fun Composer(
                     sheet = ComposerSheet.Model
                 },
                 onReasoning = { sheet = ComposerSheet.Reasoning },
+                onWorkspace = {
+                    sheet = null
+                    viewModel.openWorkspace()
+                },
+                onSlashCommands = { sheet = ComposerSheet.SlashCommands },
             )
         }
 
@@ -2714,6 +2761,51 @@ private fun Composer(
                     }
                 },
             )
+        }
+
+        ComposerSheet.SlashCommands -> ModalBottomSheet(
+            onDismissRequest = { sheet = null },
+            sheetState = rememberModalBottomSheetState(),
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                item {
+                    SheetTitle(stringResource(R.string.sheet_slash_commands))
+                    Text(
+                        stringResource(R.string.sheet_slash_commands_detail),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                    )
+                }
+                items(SlashCommands.suggestions, key = { it.name }) { command ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                // Insert, never send: most commands take an argument
+                                // the user still has to type.
+                                val prefix = if (draft.isBlank()) "" else draft.trimEnd() + " "
+                                val text = if (draft.isBlank()) command.usage else command.usage.trim()
+                                onDraftChange(prefix + text)
+                                sheet = null
+                            }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            command.usage.trim(),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            modifier = Modifier.widthIn(min = 96.dp),
+                        )
+                        Text(
+                            stringResource(command.descriptionRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
 
         null -> Unit
@@ -2943,9 +3035,16 @@ private fun Composer(
 @Composable
 private fun ContextUsage(state: UiState) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
-    val percent = if (state.contextWindow > 0) {
+    // -1 means the provider has not reported a prompt size yet. Showing "0" there
+    // claimed an empty context, which is exactly what made the stale meter look
+    // like a real reading.
+    val usedKnown = state.contextTokens >= 0
+    val windowKnown = state.contextWindow > 0
+    val known = usedKnown && windowKnown
+    val percent = if (known) {
         (state.contextTokens.toFloat() / state.contextWindow.toFloat() * 100f).coerceIn(0f, 100f)
     } else 0f
+    val remaining = if (known) (state.contextWindow - state.contextTokens).coerceAtLeast(0) else 0L
     val rowColor = when {
         percent > 80f -> inkError(inkDark)
         percent > 60f -> CONTEXT_WARNING
@@ -2957,17 +3056,26 @@ private fun ContextUsage(state: UiState) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            if (state.loadingContext) stringResource(R.string.context_loading)
-            else if (state.contextWindow > 0) stringResource(
-                R.string.context_usage,
-                compactNumber(state.contextTokens),
-                compactNumber(state.contextWindow),
-            ) else stringResource(R.string.context_unknown),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 14.sp),
+            when {
+                state.loadingContext -> stringResource(R.string.context_loading)
+                // "50.3k / 1.0M · 剩余 949.7k" — used, limit, and what is left of it.
+                known -> stringResource(
+                    R.string.context_usage_full,
+                    compactNumber(state.contextTokens),
+                    compactNumber(state.contextWindow),
+                    compactNumber(remaining),
+                )
+                usedKnown -> stringResource(
+                    R.string.context_usage_used_only,
+                    compactNumber(state.contextTokens),
+                )
+                else -> stringResource(R.string.context_unknown)
+            },
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
             color = rowColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 112.dp),
+            modifier = Modifier.widthIn(max = 220.dp),
         )
         // .input-context-meter: 34×3, --ink-border track, 999px radius.
         Box(
@@ -2992,11 +3100,11 @@ private val CONTEXT_WARNING = Color(0xFFD59A2D)
 
 private fun compactNumber(value: Long): String = when {
     value >= 1_000_000 -> "%.1fM".format(Locale.US, value / 1_000_000.0)
-    value >= 1_000 -> "%.1fK".format(Locale.US, value / 1_000.0)
+    value >= 1_000 -> "%.1fk".format(Locale.US, value / 1_000.0)
     else -> value.toString()
-}.replace(".0", "")
+}
 
-private enum class ComposerSheet { Options, Model, Reasoning }
+private enum class ComposerSheet { Options, Model, Reasoning, SlashCommands }
 
 private val REASONING_LEVELS = listOf(
     "" to R.string.reasoning_default,
@@ -3271,6 +3379,8 @@ private fun OptionsSheet(
     onDocument: () -> Unit,
     onModel: () -> Unit,
     onReasoning: () -> Unit,
+    onWorkspace: () -> Unit,
+    onSlashCommands: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
         SheetTitle(stringResource(R.string.sheet_add))
@@ -3295,6 +3405,20 @@ private fun OptionsSheet(
             label = stringResource(R.string.sheet_reasoning),
             detail = reasoningLabel(state.reasoningEffort),
             onClick = onReasoning,
+        )
+        SheetRow(
+            icon = Icons.Filled.FolderOpen,
+            label = stringResource(R.string.sheet_workspace),
+            detail = state.openSession?.workspace?.substringAfterLast('/').orEmpty(),
+            onClick = onWorkspace,
+        )
+        // Slash commands arrive as tap targets: the runner only accepts a fixed
+        // allow-list, and nobody should have to memorise it.
+        SheetRow(
+            icon = Icons.Filled.HelpOutline,
+            label = stringResource(R.string.sheet_slash_commands),
+            detail = stringResource(R.string.sheet_slash_commands_detail),
+            onClick = onSlashCommands,
         )
     }
 }

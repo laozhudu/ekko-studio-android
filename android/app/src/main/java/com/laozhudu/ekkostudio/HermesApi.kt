@@ -1093,6 +1093,50 @@ class HermesApi(
         call("/api/hermes/config/model", "PUT", body)
     }
 
+    // ── server restart ──────────────────────────────────────────────────
+
+    /**
+     * Restarts the Studio server process. The HTTP connection usually dies
+     * before the response is written, so callers must treat a transport
+     * failure here as success.
+     */
+    fun restartWebUi() {
+        call("/api/hermes/runtime-versions/restart-webui", "POST", JSONObject())
+    }
+
+    // ── workspace files ─────────────────────────────────────────────────
+
+    /** Absolute path of the profile root that file paths are resolved against. */
+    fun filesRoot(): String {
+        val root = call("/api/studio/files/list")
+        return root.optString("absolutePath").ifBlank { root.optString("path") }
+    }
+
+    fun filesList(path: String): List<WorkspaceEntry> {
+        val root = call("/api/studio/files/list?path=${enc(path)}")
+        val entries = root.optJSONArray("entries") ?: JSONArray()
+        return (0 until entries.length()).mapNotNull { index ->
+            entries.optJSONObject(index)?.let { item ->
+                val name = item.optString("name")
+                if (name.isBlank()) return@let null
+                WorkspaceEntry(
+                    name = name,
+                    path = item.optString("path").ifBlank { name },
+                    isDir = item.optBoolean("isDir"),
+                    size = item.optLong("size", 0L),
+                    modified = item.optString("modTime"),
+                )
+            }
+        }.sortedWith(compareByDescending<WorkspaceEntry> { it.isDir }.thenBy { it.name.lowercase() })
+    }
+
+    /** Reads a text file; the server caps oversized files itself. */
+    fun fileRead(path: String): String =
+        call("/api/studio/files/read?path=${enc(path)}").optString("content")
+
+    fun fileDownloadUrl(path: String): String =
+        url("/api/studio/files/download?path=${enc(path)}&token=${enc(token)}")
+
     fun modelContextLimit(provider: String, model: String): Long? {
         val root = call("/api/hermes/model-context?provider=${enc(provider)}&model=${enc(model)}")
         val data = root.optJSONObject("data") ?: root
@@ -2111,6 +2155,26 @@ data class ModelCatalog(val default: String, val groups: List<ModelGroup>)
 data class StudioUpdateTag(val name: String, val sha: String)
 
 data class ServerVersions(val studio: String, val agent: String)
+
+/** One row of the Studio file browser. `path` is relative to the profile root. */
+data class WorkspaceEntry(
+    val name: String,
+    val path: String,
+    val isDir: Boolean,
+    val size: Long,
+    val modified: String,
+)
+
+/**
+ * One slash command Studio accepts. The set is the server's own allow-list
+ * (`abort … yolo`); it is duplicated here because no endpoint publishes it, and
+ * an unknown command is silently ignored by the runner.
+ */
+data class SlashCommand(
+    val name: String,
+    val usage: String,
+    val descriptionRes: Int,
+)
 
 data class RemoteVersions(val studio: String, val hermes: List<String>)
 

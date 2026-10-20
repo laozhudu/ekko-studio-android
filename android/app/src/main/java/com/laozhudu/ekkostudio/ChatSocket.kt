@@ -263,6 +263,17 @@ class ChatSocket(
                 occurredAtMillis = System.currentTimeMillis(),
             )?.let { trySend(it) }
         }
+        // Live context accounting. The server estimates the prompt size on every
+        // model step and republishes the settled usage record, but neither event
+        // is named "run_usage" — that name only appears on the persisted tool
+        // message. Without these two listeners the meter stayed frozen at the
+        // value read when the conversation was opened.
+        live.on("context.estimated") { args ->
+            eventPayload(args)?.let { event -> usageFromEstimate(event)?.let { trySend(it) } }
+        }
+        live.on("run.usage.updated") { args ->
+            eventPayload(args)?.let { event -> usageFromEstimate(event)?.let { trySend(it) } }
+        }
         live.on("run.completed") { args ->
             val event = args.firstOrNull() as? JSONObject
             usageFrom(event)?.let { trySend(it) }
@@ -467,6 +478,40 @@ internal fun parseTaskPlans(payload: JSONObject): List<TaskPlanSnapshot> {
             steps = steps,
         )
     }
+}
+
+/**
+ * Reads a context estimate out of any of the payload shapes the server uses:
+ *
+ * - `context.estimated`: `{run_id, contextTokens, context_tokens, ...}`
+ * - `run.usage.updated`: `{session_id, run_id, run_usage:{...}}`, and the record
+ *   itself may carry `contextTokens` or only the token breakdown
+ * - `run.completed` / `run.failed`: usage fields inline
+ *
+ * The estimate is the only trustworthy "current prompt size"; a persisted
+ * `input_tokens` figure is a single request's increment and is deliberately not
+ * used here.
+ */
+internal fun usageFromEstimate(payload: JSONObject?): RunEvent.Usage? {
+    payload ?: return null
+    fun number(source: JSONObject, vararg keys: String): Long? = keys.firstNotNullOfOrNull { key ->
+        if (!source.has(key) || source.isNull(key)) return@firstNotNullOfOrNull null
+        when (val value = source.opt(key)) {
+            is Number -> value.toLong()
+            is String -> value.toLongOrNull()
+            else -> null
+        }
+    }
+    val record = payload.optJSONObject("run_usage") ?: payload
+    val used = number(record, "contextTokens", "context_tokens", "tokenCount", "token_count")
+        ?: number(payload, "contextTokens", "context_tokens")
+        ?: return null
+    val window = number(record, "contextWindow", "context_window", "contextLength", "context_length")
+        ?: number(payload, "contextWindow", "context_window", "contextLength", "context_length")
+    return RunEvent.Usage(
+        contextTokens = used.coerceAtLeast(0),
+        contextWindow = window?.takeIf { it > 0 },
+    )
 }
 
 internal fun usageFrom(payload: JSONObject?): RunEvent.Usage? {

@@ -35,6 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.text.font.FontFamily
 
 /**
  * Update centre: Studio itself, Hermes, and the coding agents.
@@ -52,8 +59,16 @@ fun StudioUpdateScreen(
     preview: StudioUpdatePreview?,
     tags: List<StudioUpdateTag>,
     loading: Boolean,
+    hermesDeploy: String,
+    hermesLog: String,
+    hermesUpdating: Boolean,
+    progress: Int,
+    restartRequired: Boolean,
+    restarting: Boolean,
     onRefresh: () -> Unit,
     onUpdateStudio: () -> Unit,
+    onUpdateHermes: () -> Unit,
+    onRestart: () -> Unit,
     onUpdateAgent: (String) -> Unit,
     onPreviewAction: (String, String?) -> Unit,
     onBack: () -> Unit,
@@ -61,11 +76,14 @@ fun StudioUpdateScreen(
     var confirmStudio by remember { mutableStateOf(false) }
     var confirmAgent by remember { mutableStateOf<AgentPolicy?>(null) }
     var showPreview by remember { mutableStateOf(false) }
+    var confirmHermes by remember { mutableStateOf(false) }
 
     val latestStudio = remote?.studio.orEmpty()
     val studioOutdated = latestStudio.isNotBlank() &&
         latestStudio != versions?.studio.orEmpty()
     val latestHermes = remote?.hermes?.maxByOrNull { versionWeight(it) }.orEmpty()
+    val hermesOutdated = latestHermes.isNotBlank() &&
+        versionWeight(latestHermes) > versionWeight(versions?.agent.orEmpty())
 
     confirmStudio.takeIf { it }?.let {
         AlertDialog(
@@ -86,6 +104,32 @@ fun StudioUpdateScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmStudio = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmHermes) {
+        AlertDialog(
+            onDismissRequest = { confirmHermes = false },
+            title = { Text(stringResource(R.string.action_update)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.confirm_update_hermes,
+                        hermesDeploy.ifBlank { "auto" },
+                        latestHermes.ifBlank { "—" },
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmHermes = false; onUpdateHermes() }) {
+                    Text(stringResource(R.string.action_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmHermes = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },
@@ -147,6 +191,58 @@ fun StudioUpdateScreen(
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (hermesUpdating || (progress in 0..99)) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (progress in 0..100) {
+                            LinearProgressIndicator(
+                                progress = { progress / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                        Text(
+                            if (progress in 0..100) "$progress%" else stringResource(R.string.update_in_progress),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            if (restartRequired) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                stringResource(R.string.update_complete_restart),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                stringResource(R.string.update_complete_restart_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Button(
+                                onClick = onRestart,
+                                enabled = !restarting,
+                                modifier = Modifier.padding(top = 8.dp),
+                            ) {
+                                Text(
+                                    if (restarting) stringResource(R.string.server_restarting)
+                                    else stringResource(R.string.action_restart_server),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             if (remote == null) {
                 item {
                     Text(
@@ -201,6 +297,47 @@ fun StudioUpdateScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Text(
+                            // The updater decides how to upgrade from this, not the app:
+                            // git checkouts, npm globals and docker images each need a
+                            // different command.
+                            if (hermesDeploy.isBlank()) {
+                                stringResource(R.string.hermes_deploy_unknown)
+                            } else {
+                                stringResource(R.string.hermes_deploy, hermesDeploy)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (hermesOutdated) {
+                                    stringResource(R.string.available_new, latestHermes)
+                                } else {
+                                    stringResource(R.string.up_to_date)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(
+                                onClick = { confirmHermes = true },
+                                enabled = !hermesUpdating && !restarting,
+                            ) { Text(stringResource(R.string.action_update)) }
+                        }
+                        if (hermesLog.isNotBlank()) {
+                            Text(
+                                hermesLog.takeLast(4_000),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 180.dp)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(top = 6.dp),
+                            )
+                        }
                     }
                 }
             }

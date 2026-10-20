@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -155,7 +155,8 @@ data class UiState(
     val savedPassword: String = "",
     val sessionModel: String? = null,
     val sessionProvider: String? = null,
-    val contextTokens: Long = 0,
+    /** Prompt tokens the provider last reported; -1 = not known yet. */
+    val contextTokens: Long = -1,
     val contextWindow: Long = 0,
     val loadingContext: Boolean = false,
     val defaultModel: String? = null,
@@ -199,6 +200,22 @@ data class UiState(
     val studioLoading: Boolean = false,
     val serverVersions: ServerVersions? = null,
     val remoteVersions: RemoteVersions? = null,
+    /** How Hermes Agent itself is installed on the server (git / npm / docker / nix). */
+    val hermesDeploy: String = "",
+    val hermesVersion: String = "",
+    val hermesUpdateLog: String = "",
+    val hermesUpdating: Boolean = false,
+    val serverRestarting: Boolean = false,
+    /** Workspace browser: path is relative to the profile root the API uses. */
+    val workspacePath: String = "",
+    val workspaceEntries: List<WorkspaceEntry> = emptyList(),
+    val workspaceLoading: Boolean = false,
+    val workspaceFile: String? = null,
+    val workspaceFileName: String = "",
+    /** True once an update finished and the server still has to be restarted. */
+    val restartRequired: Boolean = false,
+    /** 0..100, or -1 when the update reports no progress of its own. */
+    val updateProgress: Int = -1,
     val agentPolicies: List<AgentPolicy> = emptyList(),
     val textScale: Float = 1f,
     /** Bumped by the "check for updates" action to trigger a manual check. */
@@ -622,6 +639,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun openStudioUpdate() {
         _state.update { it.copy(screen = Screen.StudioUpdate) }
         refreshStudioUpdate()
+        detectHermesDeployment()
     }
 
     fun refreshStudioUpdate() {
@@ -666,19 +684,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Update Studio itself. The server may restart, so callers must confirm first. */
     fun updateStudio() {
-        _state.update { it.copy(studioLoading = true, error = null, notice = null) }
+        val before = _state.value.serverVersions?.studio.orEmpty()
+        _state.update {
+            it.copy(
+                studioLoading = true,
+                updateProgress = -1,
+                restartRequired = false,
+                error = null,
+                notice = null,
+            )
+        }
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { api.triggerStudioUpdate() } }
                 .onSuccess {
                     _state.update {
                         it.copy(studioLoading = false, notice = str(R.string.studio_update_started))
                     }
+                    awaitStudioUpdate(before)
                 }
                 .onFailure { failure ->
                     _state.update {
                         it.copy(studioLoading = false, error = failure.readableMessage(localized))
                     }
                 }
+        }
+    }
+
+    /**
+     * Studio's update endpoint is fire-and-forget, so the only honest progress
+     * signal is the installed version changing. Poll it until it does, then ask
+     * for the restart that requirement demands.
+     */
+    private suspend fun awaitStudioUpdate(previousVersion: String) {
+        val deadline = System.currentTimeMillis() + 10 * 60 * 1000L
+        while (System.currentTimeMillis() < deadline) {
+            delay(4_000)
+            val versions = runCatching { withContext(Dispatchers.IO) { api.serverVersions() } }.getOrNull()
+            if (versions != null) {
+                if (versions.studio.isNotBlank() && versions.studio != previousVersion) {
+                    _state.update {
+                        it.copy(
+                            serverVersions = versions,
+                            updateProgress = 100,
+                            restartRequired = true,
+                            notice = str(R.string.update_complete_restart),
+                        )
+                    }
+                    return
+                }
+            }
+        }
+        // The version never changed; say so instead of spinning forever.
+        _state.update {
+            it.copy(
+                updateProgress = -1,
+                notice = str(R.string.update_still_pending),
+            )
         }
     }
 
@@ -700,6 +761,297 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
         }
     }
+
+    // ---- Workspace browser ---------------------------------------------
+
+    private var filesRootCache: String? = null
+
+    /**
+     * Opens the folder this conversation actually works in.
+     *
+     * `session.workspace` is an absolute path, but the file API resolves paths
+     * relative to the profile root, so the two are reconciled here once and
+     * cached — the root never changes within a connection.
+     */
+    fun openWorkspace() {
+        _state.update { it.copy(screen = Screen.Workspace, workspaceLoading = true, error = null, workspaceFile = null) }
+        viewModelScope.launch {
+            val root = filesRootCache ?: runCatching {
+                withContext(Dispatchers.IO) { api.filesRoot() }
+            }.getOrNull().orEmpty().also { if (it.isNotBlank()) filesRootCache = it }
+            val absolute = _state.value.openSession?.workspace.orEmpty().ifBlank {
+                if (root.isNotBlank()) "$root/workspace" else "workspace"
+            }
+            val relative = relativeToRoot(absolute, root)
+            val entries = runCatching { withContext(Dispatchers.IO) { api.filesList(relative) } }
+                .getOrElse { failure ->
+                    _state.update {
+                        it.copy(workspaceLoading = false, error = failure.readableMessage(localized))
+                    }
+                    return@launch
+                }
+            _state.update {
+                it.copy(workspacePath = relative, workspaceEntries = entries, workspaceLoading = false)
+            }
+        }
+    }
+
+    /** Reloads whatever directory the browser is currently showing. */
+    fun refreshWorkspace() {
+        val path = _state.value.workspacePath
+        _state.update { it.copy(workspaceLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.filesList(path) } }
+                .onSuccess { entries ->
+                    _state.update { it.copy(workspaceEntries = entries, workspaceLoading = false) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(workspaceLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun openWorkspaceDir(entry: WorkspaceEntry) {
+        _state.update { it.copy(workspaceLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.filesList(entry.path) } }
+                .onSuccess { entries ->
+                    _state.update {
+                        it.copy(workspacePath = entry.path, workspaceEntries = entries, workspaceLoading = false)
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(workspaceLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    /** Goes one level up; at the profile root the request is ignored. */
+    fun workspaceUp() {
+        val path = _state.value.workspacePath
+        if (path.isBlank()) return
+        val parent = path.substringBeforeLast('/', "")
+        _state.update { it.copy(workspaceLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.filesList(parent) } }
+                .onSuccess { entries ->
+                    _state.update {
+                        it.copy(workspacePath = parent, workspaceEntries = entries, workspaceLoading = false)
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(workspaceLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun openWorkspaceFile(entry: WorkspaceEntry) {
+        _state.update { it.copy(workspaceLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.fileRead(entry.path) } }
+                .onSuccess { content ->
+                    _state.update {
+                        it.copy(
+                            workspaceLoading = false,
+                            workspaceFile = content,
+                            workspaceFileName = entry.name,
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(workspaceLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun closeWorkspaceFile() {
+        _state.update { it.copy(workspaceFile = null, workspaceFileName = "") }
+    }
+
+    /** Download URL for a file, handed to the system browser/downloader. */
+    fun workspaceDownloadUrl(entry: WorkspaceEntry): String = api.fileDownloadUrl(entry.path)
+
+    private fun relativeToRoot(absolute: String, root: String): String {
+        if (root.isBlank()) return absolute.trim('/')
+        if (absolute == root) return ""
+        if (absolute.startsWith("$root/")) return absolute.removePrefix("$root/")
+        // Unknown root (older server): fall back to the segment after .hermes.
+        val marker = "/.hermes/"
+        return if (absolute.contains(marker)) absolute.substringAfter(marker) else absolute.trim('/')
+    }
+
+    // ---- Hermes Agent update -------------------------------------------
+
+    private var opsTerminal: TerminalClient? = null
+    private var opsTimeoutJob: Job? = null
+
+    /**
+     * Asks the server how Hermes Agent is deployed. `hermes update --plan` is
+     * read-only and prints `Install: git (v0.21.7 @ abc1234)` as its first line,
+     * which is the authoritative deployment kind — guessing from npm presence
+     * would pick the wrong updater on a source checkout.
+     */
+    fun detectHermesDeployment() {
+        if (_state.value.hermesDeploy.isNotBlank()) return
+        runServerCommand(
+            command = "hermes update --plan 2>&1 | head -12",
+            onChunk = { chunk ->
+                val kind = Regex("Install:\\s*([a-z]+)", RegexOption.IGNORE_CASE)
+                    .find(chunk)?.groupValues?.get(1).orEmpty()
+                val version = Regex("v?(\\d+\\.\\d+\\.\\d+)").find(chunk)?.groupValues?.get(1).orEmpty()
+                if (kind.isNotBlank() || version.isNotBlank()) {
+                    _state.update {
+                        it.copy(
+                            hermesDeploy = kind.ifBlank { it.hermesDeploy },
+                            hermesVersion = version.ifBlank { it.hermesVersion },
+                        )
+                    }
+                }
+            },
+            onDone = { _ -> },
+        )
+    }
+
+    /**
+     * Updates Hermes Agent through its own updater, which is the only component
+     * that knows how this host's install is laid out (git / docker / nix).
+     * The server is restarted afterwards, as required for any update.
+     */
+    fun updateHermes() {
+        if (_state.value.hermesUpdating) return
+        _state.update {
+            it.copy(
+                hermesUpdating = true,
+                hermesUpdateLog = "",
+                serverRestarting = false,
+                error = null,
+                notice = null,
+            )
+        }
+        runServerCommand(
+            command = "hermes update --yes 2>&1",
+            onChunk = { chunk ->
+                _state.update { it.copy(hermesUpdateLog = (it.hermesUpdateLog + chunk).takeLast(80_000)) }
+            },
+            onDone = { exit ->
+                if (exit == 0) {
+                    _state.update {
+                        it.copy(
+                            hermesUpdating = false,
+                            updateProgress = 100,
+                            restartRequired = true,
+                            hermesUpdateLog = it.hermesUpdateLog + "\n[APP] Hermes updated. Restart the server to activate it.\n",
+                        )
+                    }
+                    // Requirement: every update ends with a restart. It is announced
+                    // first so the countdown can be cancelled by tapping now.
+                    viewModelScope.launch {
+                        delay(5_000)
+                        if (_state.value.restartRequired) restartServer()
+                    }
+                } else {
+                    _state.update {
+                        it.copy(
+                            hermesUpdating = false,
+                            updateProgress = -1,
+                            error = str(R.string.hermes_update_failed),
+                            hermesUpdateLog = it.hermesUpdateLog + "\n[APP] updater exited with ${exit ?: -1}\n",
+                        )
+                    }
+                }
+            },
+        )
+    }
+
+    /** Restarts the Studio server this app talks to, then re-reads its versions. */
+    fun restartServer() {
+        if (_state.value.serverRestarting) return
+        _state.update { it.copy(serverRestarting = true, restartRequired = false, notice = null, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.restartWebUi() } }
+                .onFailure { failure ->
+                    // The socket dying mid-restart is the expected outcome; only a
+                    // clean HTTP error is worth surfacing.
+                    if (failure is HermesException && failure.statusCode == 0) {
+                        _state.update { it.copy(serverRestarting = false) }
+                    }
+                }
+            // Give the process time to come back before re-reading versions.
+            delay(6_000)
+            _state.update { it.copy(serverRestarting = false) }
+            runCatching { withContext(Dispatchers.IO) { api.serverVersions() } }
+                .onSuccess { versions ->
+                    _state.update { it.copy(serverVersions = versions, hermesVersion = versions.agent) }
+                }
+            refreshStudioUpdate()
+        }
+    }
+
+    /**
+     * Runs one shell command on the server through the terminal socket and waits
+     * for `printf` to report its exit status. Used only for the updater, which
+     * has no REST endpoint of its own.
+     */
+    private fun runServerCommand(command: String, onChunk: (String) -> Unit, onDone: (Int?) -> Unit) {
+        opsTerminal?.close()
+        opsTerminal = null
+        opsTimeoutJob?.cancel()
+        val sentinel = "__EKKO_CMD_DONE__"
+        val buffer = StringBuilder()
+        var finished = false
+        fun finish(exit: Int?) {
+            if (finished) return
+            finished = true
+            opsTimeoutJob?.cancel()
+            opsTerminal = null
+            onDone(exit)
+        }
+        val client = TerminalClient(store.baseUrl, store.token)
+        client.onCreated = { _, _ ->
+            client.sendInput("$command; printf '\\n$sentinel%s\\n' \"$?\"\n")
+        }
+        client.onOutput = { text ->
+            val clean = stripAnsi(text)
+            buffer.append(clean)
+            val index = clean.indexOf(sentinel)
+            if (index >= 0) {
+                onChunk(clean.substring(0, index))
+                val exit = clean.substring(index + sentinel.length)
+                    .trim().takeWhile(Char::isDigit).toIntOrNull()
+                finish(exit)
+            } else {
+                onChunk(clean)
+            }
+        }
+        client.onError = { message ->
+            onChunk("\n[connection error] $message\n")
+            finish(null)
+        }
+        client.onClosed = { finish(null) }
+        opsTerminal = client
+        opsTimeoutJob = viewModelScope.launch {
+            delay(20 * 60 * 1000L)
+            if (!finished) {
+                onChunk("\n[timeout] no completion marker after 20 minutes\n")
+                client.close()
+                finish(null)
+            }
+        }
+        client.connect(cols = 120, rows = 40)
+    }
+
+    private fun stripAnsi(text: String): String = text
+        .replace(Regex("\u001B\\][^\u0007]*\u0007"), "")
+        .replace(Regex("\u001B\\[[0-9;?]*[ -/]*[@-~]"), "")
+        .replace("\r", "")
 
     /**
      * Runs one preview-upgrade step. The caller must have confirmed first: these
@@ -1193,7 +1545,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 openSession = session,
                 sessionModel = session.model,
                 sessionProvider = session.provider,
-                contextTokens = 0,
+                contextTokens = -1,
                 contextWindow = 0,
                 loadingContext = true,
                 lines = emptyList(),
@@ -1228,7 +1580,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         state.copy(
                             loadingHistory = false,
                             loadingContext = false,
-                            contextTokens = history.contextTokens ?: 0,
+                            contextTokens = history.contextTokens ?: -1,
                             contextWindow = window,
                             lines = history.messages.map { message ->
                                 ChatLine(
@@ -1318,7 +1670,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 attachments = emptyList(),
                 sessionModel = null,
                 sessionProvider = null,
-                contextTokens = 0,
+                contextTokens = -1,
                 contextWindow = 0,
                 loadingContext = false,
                 models = if (it.modelsProfile == profile) it.models else emptyList(),
