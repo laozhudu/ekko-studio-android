@@ -54,6 +54,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -1836,7 +1837,6 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 .imePadding(),
         ) {
             TaskPlanCard(state.taskPlans)
-            RunStatusStrip(state)
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth().pullRefresh(pullRefreshState),
             ) {
@@ -1869,17 +1869,23 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(state.lines) { line ->
+                    itemsIndexed(state.lines) { index, line ->
+                        val previous = state.lines.getOrNull(index - 1)
+                        val next = state.lines.getOrNull(index + 1)
                         MessageBubble(
                             line = line,
                             profile = profile.ifBlank { "default" },
                             avatar = avatar,
+                            // Telegram grouping: the agent badge and the clock
+                            // appear once per turn, not on every fragment.
+                            showAuthor = !line.fromUser && previous?.fromUser != false,
+                            showStamp = next == null || next.fromUser,
+                            notices = if (line.streaming) state.runNotices else emptyList(),
                             onActions = { actionLine = line },
                             onDownload = { file ->
                                 viewModel.downloadChatFile(file, profile.ifBlank { "default" })
                             },
                         )
-                        Spacer(Modifier.height(6.dp))
                     }
                 }
                 }
@@ -1914,21 +1920,6 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                             )
                         }
                     }
-                }
-            }
-
-            if (state.sending && state.lines.none { it.streaming }) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp))
-                    Text(
-                        state.activity?.let { stringResource(R.string.conversation_tool, it) }
-                            ?: stringResource(R.string.conversation_thinking),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
                 }
             }
 
@@ -2016,13 +2007,39 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Text(
-                                state.selectedRuntime.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            if (state.sending) {
-                                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                            // The only "is it working" indicator in the screen — the
+                            // way Telegram puts "typing…" under the chat name instead
+                            // of adding a row to the transcript.
+                            if (state.runStatus == "running") {
+                                var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                                LaunchedEffect(state.runStartedAtMillis) {
+                                    while (true) {
+                                        tick = System.currentTimeMillis()
+                                        delay(500)
+                                    }
+                                }
+                                val secs = if (state.runStartedAtMillis > 0) {
+                                    (tick - state.runStartedAtMillis).coerceAtLeast(0) / 1000
+                                } else 0
+                                Text(
+                                    buildString {
+                                        append(stringResource(R.string.run_status_working))
+                                        if (secs >= 1) append(" ").append(secs).append("s")
+                                        state.lines.lastOrNull()?.tools
+                                            ?.lastOrNull { it.status == ToolRunStatus.Running }
+                                            ?.let { append(" · ").append(it.name) }
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            } else {
+                                Text(
+                                    state.selectedRuntime.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
@@ -2061,6 +2078,12 @@ private fun MessageBubble(
     line: ChatLine,
     profile: String? = null,
     avatar: AvatarSpec? = null,
+    /** First assistant fragment of a turn only. */
+    showAuthor: Boolean = true,
+    /** Last fragment of a turn only, so a long answer carries one clock. */
+    showStamp: Boolean = true,
+    /** Lifecycle lines for the in-flight run; folded into the process block. */
+    notices: List<String> = emptyList(),
     onActions: (() -> Unit)? = null,
     onDownload: ((ChatFileLink) -> Unit)? = null,
 ) {
@@ -2110,7 +2133,7 @@ private fun MessageBubble(
         ) {
             // HStudio message-author: display:flex, min-height:22px, margin:0 0 4px 2px, gap:4px.
             // The agent name renders as an .agent-badge pill, not bare text.
-            line.sender?.takeIf { !isUser }?.let { sender ->
+            line.sender?.takeIf { !isUser && showAuthor }?.let { sender ->
                 InkAgentBadge(sender, modifier = Modifier.padding(start = 2.dp, bottom = 4.dp))
             }
 
@@ -2130,7 +2153,7 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (hasThinking) ThinkingTimeline(line)
+                    if (hasThinking) ThinkingTimeline(line, notices)
                     if (parsed.text.isNotBlank()) {
                         // Long press selects text with the native handles and the
                         // floating copy toolbar — no dialog round-trip.
@@ -2150,7 +2173,7 @@ private fun MessageBubble(
 
             // HStudio message-meta: margin-top:4px, padding:0 4px, color:var(--ink-text-muted)
             val stamp = formatStamp(line.timestamp)
-            if (stamp.isNotBlank()) {
+            if (stamp.isNotBlank() && showStamp) {
                 Text(
                     stamp,
                     modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp),
@@ -2216,85 +2239,61 @@ private fun ChatFileCard(file: ChatFileLink, onDownload: () -> Unit) {
 }
 
 @Composable
-private fun ThinkingTimeline(line: ChatLine) {
-    var expandedOverride by rememberSaveable(line.startedAtMillis) { mutableStateOf<Boolean?>(null) }
-    val hasDetails = line.tools.isNotEmpty() || !line.reasoning.isNullOrBlank()
-    val expanded = expandedOverride ?: line.streaming
+private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()) {
+    // One collapsed row per reply, the way Feishu folds a bot's tool work into a
+    // single "过程" line and Telegram keeps a chat free of process chrome.
+    // Expanding is always a deliberate tap; streaming never force-opens it, which
+    // is what turned a long answer into a wall of tool rows and reasoning text.
+    var expanded by rememberSaveable(line.startedAtMillis) { mutableStateOf(false) }
+    val hasDetails = line.tools.isNotEmpty() || !line.reasoning.isNullOrBlank() || notices.isNotEmpty()
     val nowMillis = timelineNow(line)
     val elapsed = line.startedAtMillis?.let { formatElapsed(nowMillis - it) }
     val inkDark = MaterialTheme.colorScheme.isInkDark()
-    // Reasoning char count (from content only, excluding tool entries)
-    val reasoningLen = line.reasoning?.length ?: 0
+    val runningTool = line.tools.lastOrNull { it.status == ToolRunStatus.Running }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
-        // ----------  clickable header row  ----------
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (hasDetails) Modifier
-                        .clickable { expandedOverride = !expanded }
-                    else Modifier,
-                )
-                .padding(vertical = 3.dp, horizontal = 2.dp),
+                .then(if (hasDetails) Modifier.clickable { expanded = !expanded } else Modifier)
+                .padding(vertical = 2.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // Leading status indicator
             if (line.streaming) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(12.dp),
                     strokeWidth = 2.dp,
                     color = inkTextMuted(inkDark),
                 )
             } else {
                 Icon(
-                    Icons.Filled.Psychology,
+                    if (line.tools.any { it.status == ToolRunStatus.Error }) Icons.Filled.Close else Icons.Filled.Check,
                     contentDescription = null,
-                    modifier = Modifier.size(15.dp),
-                    tint = inkTextSecondary(inkDark),
+                    modifier = Modifier.size(13.dp),
+                    tint = inkTextMuted(inkDark),
                 )
             }
-            // "Thinking" label: bold when streaming, regular otherwise
             Text(
-                stringResource(R.string.thinking_title),
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = if (line.streaming) FontWeight.SemiBold else FontWeight.Normal,
-                ),
-                color = inkTextSecondary(inkDark),
+                buildString {
+                    if (line.streaming) {
+                        append(stringResource(R.string.run_status_working))
+                        elapsed?.let { append(" · ").append(it) }
+                        runningTool?.let { append(" · ").append(it.name) }
+                    } else {
+                        append(stringResource(R.string.process_title))
+                        if (line.tools.isNotEmpty()) {
+                            append(" · ").append(stringResource(R.string.process_tools, line.tools.size))
+                        }
+                        elapsed?.let { append(" · ").append(it) }
+                    }
+                },
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = inkTextMuted(inkDark),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            // Time · chars metadata
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                elapsed?.let {
-                    Text("·", style = MaterialTheme.typography.labelSmall, color = inkTextMuted(inkDark))
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            textDirection = TextDirection.Ltr,
-                        ),
-                        color = inkTextMuted(inkDark),
-                    )
-                }
-                if (reasoningLen > 0) {
-                    Text("·", style = MaterialTheme.typography.labelSmall, color = inkTextMuted(inkDark))
-                    Text(
-                        stringResource(R.string.thinking_chars, reasoningLen),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            textDirection = TextDirection.Ltr,
-                        ),
-                        color = inkTextMuted(inkDark),
-                    )
-                }
-            }
-            Spacer(Modifier.weight(1f))
-            // Collapse/expand chevron
             if (hasDetails) {
                 val chevronDeg by animateFloatAsState(
                     targetValue = if (expanded) 0f else 180f,
@@ -2306,38 +2305,46 @@ private fun ThinkingTimeline(line: ChatLine) {
                     contentDescription = stringResource(
                         if (expanded) R.string.thinking_collapse else R.string.thinking_expand,
                     ),
-                    modifier = Modifier.size(16.dp).rotate(chevronDeg),
+                    modifier = Modifier.size(15.dp).rotate(chevronDeg),
                     tint = inkTextMuted(inkDark),
                 )
             }
         }
 
-        // ----------  expanded content  ----------
-        if (expanded) {
-            Column(
-                modifier = Modifier.padding(top = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+        if (expanded && hasDetails) {
+            // Everything the turn did, inside one container — not loose rows that
+            // read as separate messages.
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                color = inkCodeBg(inkDark),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, inkBorder(inkDark)),
             ) {
-                line.tools.forEach { tool -> ToolStepRow(tool, nowMillis) }
-                line.reasoning?.takeIf { it.isNotBlank() }?.let { reasoning ->
-                    val reasoningScroll = rememberScrollState()
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                        color = inkCodeBg(inkDark),
-                        shape = RoundedCornerShape(7.dp),
-                        border = BorderStroke(1.dp, inkBorder(inkDark)),
-                    ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    line.tools.forEach { tool -> ToolStepRow(tool, nowMillis) }
+                    notices.forEach { notice ->
+                        Text(
+                            notice,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = inkTextSecondary(inkDark).copy(alpha = 0.85f),
+                        )
+                    }
+                    line.reasoning?.takeIf { it.isNotBlank() }?.let { reasoning ->
+                        val reasoningScroll = rememberScrollState()
                         Text(
                             reasoning,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 12.sp,
-                                lineHeight = 19.sp,
+                                lineHeight = 18.sp,
                                 fontStyle = FontStyle.Italic,
                             ),
                             color = inkTextSecondary(inkDark).copy(alpha = 0.9f),
                             modifier = Modifier
-                                .verticalScroll(reasoningScroll)
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(reasoningScroll),
                         )
                     }
                 }
@@ -3015,80 +3022,6 @@ private fun Composer(
             }
         }
     }
-    }
-}
-
-/**
- * "Is it working?" — answered continuously while a run is in flight.
- *
- * Everything here is driven by real server events: `session.activity` for the
- * status word, `run.started` for the clock, `agent.event` for the latest
- * lifecycle line (retries, provider warnings) and the tool list for what is
- * executing right now. The elapsed counter ticks locally, so a silent provider
- * still shows that time is passing rather than a frozen screen.
- */
-@Composable
-private fun RunStatusStrip(state: UiState) {
-    // runStatus is written only while this conversation owns the run (the
-    // collector gates every UI write on that), so it is the honest signal here —
-    // `sending` is global and would claim another conversation is busy.
-    val working = state.runStatus == "running"
-    if (!working && state.runNotices.isEmpty()) return
-
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(working) {
-        while (working) {
-            now = System.currentTimeMillis()
-            delay(500)
-        }
-    }
-    val elapsed = if (state.runStartedAtMillis > 0) {
-        ((now - state.runStartedAtMillis).coerceAtLeast(0) / 1000.0)
-    } else 0.0
-    val notice = state.runNotices.lastOrNull()
-    val tool = state.lines.lastOrNull()?.tools?.lastOrNull { it.status == ToolRunStatus.Running }
-
-    val inkDark = MaterialTheme.colorScheme.isInkDark()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (working) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(12.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                buildString {
-                    if (working) {
-                        append(stringResource(R.string.run_status_working))
-                        if (elapsed >= 1) append(" · ").append("%.0fs".format(Locale.US, elapsed))
-                    } else {
-                        append(stringResource(R.string.run_status_done))
-                    }
-                    tool?.let { append(" · ").append(it.name) }
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = if (working) MaterialTheme.colorScheme.primary else inkTextMuted(inkDark),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            notice?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = inkTextMuted(inkDark),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
     }
 }
 

@@ -985,4 +985,6 @@
     <string name="slash_yolo">Skip approval prompts</string>
     <string name="run_status_working">Working</string>
     <string name="run_status_done">Done</string>
+    <string name="process_title">Process</string>
+    <string name="process_tools">%1$d tools</string>
 </resources>

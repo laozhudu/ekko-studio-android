@@ -984,4 +984,6 @@
     <string name="slash_yolo">تخطي طلبات الموافقة</string>
     <string name="run_status_working">يعمل الآن</string>
     <string name="run_status_done">تم</string>
+    <string name="process_title">العملية</string>
+    <string name="process_tools">%1$d أدوات</string>
 </resources>
