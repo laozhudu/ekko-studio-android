@@ -239,6 +239,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.animation.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.AnimatedVisibility
 
 class MainActivity : ComponentActivity() {
 
@@ -1444,7 +1447,6 @@ private fun InstanceRow(
 /**
  * Telegram-style pulsing indicator for "working" state.
  */
-@Composable
 private fun AnimatedIndicator(
     color: Color,
     modifier: Modifier = Modifier,
@@ -1454,7 +1456,7 @@ private fun AnimatedIndicator(
         initialValue = 0.8f,
         targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animationSpec = tween(800, easing = LinearEasing),
+            animation = tween(800, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulseScale",
@@ -1463,7 +1465,7 @@ private fun AnimatedIndicator(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animationSpec = tween(800, easing = LinearEasing),
+            animation = tween(800, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulseAlpha",
