@@ -204,6 +204,13 @@
     <string name="update_install">حدّث الآن</string>
     <string name="update_later">لاحقًا</string>
     <string name="update_skip">تخطي هذا الإصدار</string>
+    <string name="update_versions">المثبّت %1$s ← %2$s</string>
+    <string name="update_open_settings">السماح بالتثبيت</string>
+    <string name="update_browser">التنزيل في المتصفح</string>
+    <string name="update_miui_hint">MIUI/HyperOS: اسمح لهذا التطبيق بتثبيت التطبيقات غير المعروفة، وإذا ظهر فحص أمني فأوقف الوضع النقي أو استخدم «التنزيل في المتصفح».</string>
+    <string name="check_app_update">تحقق من تحديثات التطبيق</string>
+    <string name="check_app_update_hint">المثبّت %1$s</string>
+    <string name="update_none">أنت على أحدث إصدار</string>
     <string name="terminal_title">الطرفية</string>
     <string name="terminal_hub_note">نفّذ الأوامر على مضيف Studio</string>
     <string name="terminal_hint">الأمر</string>

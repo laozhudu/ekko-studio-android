@@ -205,6 +205,13 @@
     <string name="update_install">Update now</string>
     <string name="update_later">Later</string>
     <string name="update_skip">Skip this version</string>
+    <string name="update_versions">Installed %1$s → %2$s</string>
+    <string name="update_open_settings">Allow installs</string>
+    <string name="update_browser">Download in browser</string>
+    <string name="update_miui_hint">MIUI/HyperOS: allow this app to install unknown apps, and if it still shows a security scan, turn off Pure Mode or use \"Download in browser\".</string>
+    <string name="check_app_update">Check app updates</string>
+    <string name="check_app_update_hint">Installed %1$s</string>
+    <string name="update_none">Already on the latest build</string>
     <string name="terminal_title">Terminal</string>
     <string name="terminal_hub_note">Run commands on the Studio host</string>
     <string name="terminal_hint">Command</string>

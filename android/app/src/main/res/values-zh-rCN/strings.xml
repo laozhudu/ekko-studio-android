@@ -179,6 +179,13 @@
     <string name="update_install">立即更新</string>
     <string name="update_later">以后再说</string>
     <string name="update_skip">跳过此版本</string>
+    <string name="update_versions">已安装 %1$s → %2$s</string>
+    <string name="update_open_settings">允许安装</string>
+    <string name="update_browser">用浏览器下载</string>
+    <string name="update_miui_hint">小米 MIUI/HyperOS：请在「安装未知应用」中允许本应用；若仍提示安全审核，可关闭「纯净模式」，或点「用浏览器下载」。</string>
+    <string name="check_app_update">检查 App 更新</string>
+    <string name="check_app_update_hint">当前安装 %1$s</string>
+    <string name="update_none">已是最新版本</string>
     <string name="terminal_title">终端</string>
     <string name="terminal_hub_note">在 Studio 主机上执行命令</string>
     <string name="terminal_hint">命令</string>

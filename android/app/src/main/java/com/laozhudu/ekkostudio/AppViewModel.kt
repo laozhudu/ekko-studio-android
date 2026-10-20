@@ -201,6 +201,8 @@ data class UiState(
     val remoteVersions: RemoteVersions? = null,
     val agentPolicies: List<AgentPolicy> = emptyList(),
     val textScale: Float = 1f,
+    /** Bumped by the "check for updates" action to trigger a manual check. */
+    val appUpdateCheckTick: Int = 0,
     val taskPlans: List<TaskPlanSnapshot> = emptyList(),
     val cronLoading: Boolean = false,
     /** The job currently running a pause/resume/run/delete request. */
@@ -3918,6 +3920,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setTextScale(value: Float) {
         store.textScale = value
         _state.update { it.copy(textScale = store.textScale) }
+    }
+
+    /** Asks the activity to re-check GitHub for a newer build. */
+    fun requestAppUpdateCheck() {
+        _state.update { it.copy(appUpdateCheckTick = it.appUpdateCheckTick + 1) }
     }
 
     private fun str(id: Int, vararg args: Any): String = localized.getString(id, *args)

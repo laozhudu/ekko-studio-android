@@ -78,6 +78,7 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -128,8 +129,8 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Palette
+import android.widget.Toast
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
@@ -221,8 +222,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import java.util.Locale
 
@@ -248,10 +251,20 @@ private fun App(viewModel: AppViewModel = viewModel()) {
     var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
     var downloadingUpdate by remember { mutableStateOf(false) }
     var updateError by remember { mutableStateOf<Int?>(null) }
+    var updateProgress by remember { mutableStateOf(0) }
+    var installBlocked by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(state.appUpdateCheckTick) {
         val update = runCatching { AppUpdater.check() }.getOrNull()
-        if (update != null && viewModel.shouldPromptForUpdate(update.tag)) availableUpdate = update
+        when {
+            update != null && viewModel.shouldPromptForUpdate(update.tag) -> {
+                availableUpdate = update
+            }
+            // A manual check that finds nothing should say so instead of doing nothing.
+            state.appUpdateCheckTick > 0 -> {
+                Toast.makeText(context, R.string.update_none, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
@@ -263,11 +276,43 @@ private fun App(viewModel: AppViewModel = viewModel()) {
                 onDismissRequest = { if (!downloadingUpdate) availableUpdate = null },
                 title = { Text(stringResource(R.string.update_available_title)) },
                 text = {
-                    Text(
-                        stringResource(
-                            updateError ?: if (downloadingUpdate) R.string.update_downloading else R.string.update_available_body,
-                        ),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            stringResource(
+                                R.string.update_versions,
+                                BuildConfig.VERSION_NAME,
+                                update.tag,
+                            ),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            stringResource(
+                                updateError
+                                    ?: if (downloadingUpdate) R.string.update_downloading
+                                    else R.string.update_available_body,
+                            ),
+                        )
+                        if (downloadingUpdate && updateProgress > 0) {
+                            Text("$updateProgress%")
+                        }
+                        if (installBlocked && AppUpdater.isMiui) {
+                            Text(
+                                stringResource(R.string.update_miui_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (installBlocked) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(
+                                    onClick = { AppUpdater.openInstallSettings(context) },
+                                ) { Text(stringResource(R.string.update_open_settings)) }
+                                TextButton(
+                                    onClick = { AppUpdater.openDownloadPage(context, update) },
+                                ) { Text(stringResource(R.string.update_browser)) }
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
                     TextButton(
@@ -276,17 +321,25 @@ private fun App(viewModel: AppViewModel = viewModel()) {
                             scope.launch {
                                 downloadingUpdate = true
                                 updateError = null
-                                runCatching { AppUpdater.download(context, update) }
-                                    .onSuccess { apk ->
-                                        downloadingUpdate = false
-                                        if (AppUpdater.install(context, apk) == InstallResult.PermissionRequired) {
-                                            updateError = R.string.update_permission
-                                        }
+                                installBlocked = false
+                                updateProgress = 0
+                                val apk = runCatching {
+                                    AppUpdater.download(context, update) { percent ->
+                                        // The callback fires on the IO thread; Compose state
+                                        // must be touched on the main thread.
+                                        android.os.Handler(android.os.Looper.getMainLooper())
+                                            .post { updateProgress = percent }
                                     }
-                                    .onFailure {
-                                        downloadingUpdate = false
-                                        updateError = R.string.update_failed
-                                    }
+                                }.getOrElse {
+                                    downloadingUpdate = false
+                                    updateError = R.string.update_failed
+                                    return@launch
+                                }
+                                downloadingUpdate = false
+                                if (AppUpdater.install(context, apk) == InstallResult.PermissionRequired) {
+                                    updateError = R.string.update_permission
+                                    installBlocked = true
+                                }
                             }
                         },
                     ) { Text(stringResource(R.string.update_install)) }
@@ -3817,6 +3870,17 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                         title = stringResource(R.string.studio_update_title),
                         subtitle = stringResource(R.string.studio_update_hub_note),
                         onClick = { viewModel.openStudioUpdate() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.Download,
+                        color = Color(0xFF4CA66A),
+                        title = stringResource(R.string.check_app_update),
+                        subtitle = stringResource(
+                            R.string.check_app_update_hint,
+                            BuildConfig.VERSION_NAME,
+                        ),
+                        onClick = { viewModel.requestAppUpdateCheck() },
                     )
                     StudioCardDivider()
                     Row(

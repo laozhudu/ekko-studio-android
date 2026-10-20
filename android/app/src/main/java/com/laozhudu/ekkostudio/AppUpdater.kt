@@ -64,7 +64,11 @@ object AppUpdater {
         return AvailableUpdate(tag, url)
     }
 
-    suspend fun download(context: Context, update: AvailableUpdate): File = withContext(Dispatchers.IO) {
+    suspend fun download(
+        context: Context,
+        update: AvailableUpdate,
+        onProgress: ((Int) -> Unit)? = null,
+    ): File = withContext(Dispatchers.IO) {
         val directory = File(context.cacheDir, "updates").apply { mkdirs() }
         val destination = File(directory, APK_NAME)
         val request = Request.Builder()
@@ -74,11 +78,55 @@ object AppUpdater {
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val body = response.body ?: error("Empty update")
-            destination.outputStream().use { output -> body.byteStream().use { it.copyTo(output) } }
+            val total = body.contentLength()
+            var copied = 0L
+            destination.outputStream().use { output ->
+                body.byteStream().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        output.write(buffer, 0, read)
+                        copied += read
+                        if (total > 0) {
+                            onProgress?.invoke(((copied * 100) / total).toInt())
+                        }
+                    }
+                }
+            }
         }
         if (destination.length() < 1_000_000) error("Incomplete update")
         destination
     }
+
+    /** Jumps straight to this app's "install unknown apps" switch. */
+    fun openInstallSettings(context: Context) {
+        context.startActivity(
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:${context.packageName}"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+
+    /**
+     * Hands the APK URL to the browser. Some vendor install guards treat a
+     * browser-initiated download differently from an in-app FileProvider install,
+     * so this is the fallback when the system installer keeps refusing.
+     */
+    fun openDownloadPage(context: Context, update: AvailableUpdate) {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+
+    /** MIUI/HyperOS add their own install guard on top of the AOSP prompt. */
+    val isMiui: Boolean
+        get() = Build.MANUFACTURER.equals("xiaomi", ignoreCase = true) ||
+            Build.BRAND.equals("xiaomi", ignoreCase = true) ||
+            Build.BRAND.equals("redmi", ignoreCase = true) ||
+            Build.BRAND.equals("poco", ignoreCase = true)
 
     fun install(context: Context, apk: File): InstallResult {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
