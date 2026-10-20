@@ -202,7 +202,7 @@
     <string name="model_saved">已保存</string>
     <string name="model_use">使用</string>
     <string name="studio_update_title">Studio 更新</string>
-    <string name="studio_update_hub_note">查看版本与预览状态</string>
+    <string name="studio_update_hub_note">更新 Studio 与智能体</string>
     <string name="studio_update_current">预览目录版本：%1$s</string>
     <string name="text_scale_title">应用字体大小</string>
     <string name="text_scale_small">小</string>
@@ -211,6 +211,16 @@
     <string name="text_scale_xl">特大</string>
     <string name="message_select_text">选择文字</string>
     <string name="action_close">关闭</string>
+    <string name="section_agents">智能体</string>
+    <string name="available_new">可更新到 %1$s</string>
+    <string name="up_to_date">已是最新</string>
+    <string name="remote_offline">无法访问更新清单（手机没有外网？）</string>
+    <string name="action_update">更新</string>
+    <string name="action_install">安装</string>
+    <string name="confirm_update_studio">更新 Studio 到 %1$s？服务会重启，本 App 稍后自动重连。</string>
+    <string name="confirm_update_agent">在服务器上安装或更新 %1$s 到 %2$s？</string>
+    <string name="agent_not_installed">未安装</string>
+    <string name="developer_preview">开发者预览（源码 tag）</string>
     <string name="studio_update_warning">这些操作会重启 Studio，本 App 会短暂断开。</string>
     <string name="studio_update_tags">可用版本</string>
     <string name="studio_update_unavailable">无法获取更新信息</string>

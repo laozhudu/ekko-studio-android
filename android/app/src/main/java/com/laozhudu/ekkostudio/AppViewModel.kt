@@ -198,6 +198,8 @@ data class UiState(
     val studioTags: List<StudioUpdateTag> = emptyList(),
     val studioLoading: Boolean = false,
     val serverVersions: ServerVersions? = null,
+    val remoteVersions: RemoteVersions? = null,
+    val agentPolicies: List<AgentPolicy> = emptyList(),
     val textScale: Float = 1f,
     val taskPlans: List<TaskPlanSnapshot> = emptyList(),
     val cronLoading: Boolean = false,
@@ -625,14 +627,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    Triple(api.studioUpdatePreview(), api.studioUpdateTags(), api.serverVersions())
+                    UpdateBundle(
+                        preview = api.studioUpdatePreview(),
+                        tags = api.studioUpdateTags(),
+                        versions = api.serverVersions(),
+                        remote = api.remoteVersions(),
+                        agents = api.codingAgentPolicies(),
+                    )
                 }
-            }.onSuccess { (preview, tags, versions) ->
+            }.onSuccess { bundle ->
                 _state.update {
                     it.copy(
-                        studioPreview = preview,
-                        studioTags = tags,
-                        serverVersions = versions,
+                        studioPreview = bundle.preview,
+                        studioTags = bundle.tags,
+                        serverVersions = bundle.versions,
+                        remoteVersions = bundle.remote,
+                        agentPolicies = bundle.agents,
                         studioLoading = false,
                     )
                 }
@@ -641,6 +651,51 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(studioLoading = false, error = failure.readableMessage(localized))
                 }
             }
+        }
+    }
+
+    private data class UpdateBundle(
+        val preview: StudioUpdatePreview,
+        val tags: List<StudioUpdateTag>,
+        val versions: ServerVersions,
+        val remote: RemoteVersions?,
+        val agents: List<AgentPolicy>,
+    )
+
+    /** Update Studio itself. The server may restart, so callers must confirm first. */
+    fun updateStudio() {
+        _state.update { it.copy(studioLoading = true, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.triggerStudioUpdate() } }
+                .onSuccess {
+                    _state.update {
+                        it.copy(studioLoading = false, notice = str(R.string.studio_update_started))
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(studioLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    /** Install or update one coding agent on the server. */
+    fun updateCodingAgent(agentId: String) {
+        _state.update { it.copy(studioLoading = true, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.installCodingAgent(agentId) } }
+                .onSuccess {
+                    _state.update {
+                        it.copy(studioLoading = false, notice = str(R.string.studio_update_started))
+                    }
+                    refreshStudioUpdate()
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(studioLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
         }
     }
 
@@ -664,6 +719,44 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    // ---- Task plan watcher ---------------------------------------------
+
+    private var planWatchJob: Job? = null
+    private var planWatcher: PlanSocket? = null
+
+    /**
+     * While a run is in flight the agent keeps rewriting its plan, but the only
+     * place Studio exposes it is the resume payload. Poll it with a throwaway
+     * socket so the card tracks the live plan without reloading the transcript.
+     */
+    private fun startPlanWatch() {
+        val session = _state.value.openSession ?: return
+        stopPlanWatch()
+        val sessionId = session.id
+        val profile = session.profile?.ifBlank { null } ?: currentProfile()
+        planWatchJob = viewModelScope.launch {
+            while (true) {
+                val watcher = PlanSocket(store.baseUrl, store.token)
+                watcher.onPlans = { plans ->
+                    if (plans.isNotEmpty()) {
+                        _state.update { it.copy(taskPlans = plans) }
+                    }
+                }
+                planWatcher = watcher
+                watcher.connect(sessionId, profile)
+                delay(10_000)
+                watcher.close()
+            }
+        }
+    }
+
+    private fun stopPlanWatch() {
+        planWatchJob?.cancel()
+        planWatchJob = null
+        planWatcher?.close()
+        planWatcher = null
     }
 
     // ---- Write gate ----------------------------------------------------
@@ -1317,6 +1410,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         activeRunSessionId = sessionId
+        startPlanWatch()
         runJob = viewModelScope.launch {
             var answer = StringBuilder()
             var thinking = StringBuilder()
@@ -1700,6 +1794,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (activeRunSessionId != sessionId) return
         activeRunSessionId = null
         runJob = null
+        stopPlanWatch()
         _state.update { it.copy(sending = false, activity = null) }
     }
 

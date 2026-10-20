@@ -412,12 +412,16 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             onBack = { viewModel.showTab(Tab.Chats) },
         )
         Screen.StudioUpdate -> StudioUpdateScreen(
+            versions = state.serverVersions,
+            remote = state.remoteVersions,
+            agents = state.agentPolicies,
             preview = state.studioPreview,
             tags = state.studioTags,
-            versions = state.serverVersions,
             loading = state.studioLoading,
             onRefresh = viewModel::refreshStudioUpdate,
-            onAction = { action, tag -> viewModel.runStudioUpdateAction(action, tag) },
+            onUpdateStudio = viewModel::updateStudio,
+            onUpdateAgent = viewModel::updateCodingAgent,
+            onPreviewAction = { action, tag -> viewModel.runStudioUpdateAction(action, tag) },
             onBack = { viewModel.showTab(Tab.Chats) },
         )
     }

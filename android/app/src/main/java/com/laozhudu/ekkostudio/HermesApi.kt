@@ -1122,6 +1122,49 @@ class HermesApi(
         )
     }
 
+    /** Update catalog published by the vendor; null when the phone has no internet. */
+    fun remoteVersions(): RemoteVersions? = runCatching {
+        val request = Request.Builder()
+            .url("https://api.ekkostudio.xyz/api/studio/versions")
+            .header("Accept", "application/json")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@runCatching null
+            val root = JSONObject(response.body?.string().orEmpty())
+            val studio = root.optJSONObject("desktop")?.optString("version").orEmpty()
+            val hermesArray = root.optJSONArray("hermes")
+            val hermes = (0 until (hermesArray?.length() ?: 0))
+                .mapNotNull { hermesArray?.optString(it)?.takeIf(String::isNotBlank) }
+            RemoteVersions(studio = studio, hermes = hermes)
+        }
+    }.getOrNull()
+
+    /** Per-agent current/latest version, straight from the server's policy cache. */
+    fun codingAgentPolicies(): List<AgentPolicy> {
+        val root = call("/api/coding-agents/update-policies")
+        val agents = root.optJSONObject("agents") ?: return emptyList()
+        return agents.keys().asSequence().mapNotNull { id ->
+            agents.optJSONObject(id)?.let { item ->
+                AgentPolicy(
+                    id = id,
+                    current = item.optString("currentVersion"),
+                    latest = item.optString("latestVersion"),
+                    status = item.optString("status"),
+                )
+            }
+        }.sortedBy { it.id }.toList()
+    }
+
+    /** Ask the server to update Studio itself. May restart it. */
+    fun triggerStudioUpdate() {
+        call("/api/studio/update", "POST", JSONObject())
+    }
+
+    /** Install or update one coding agent (npm-based, server-side). */
+    fun installCodingAgent(agentId: String) {
+        call("/api/coding-agents/${enc(agentId)}/install", "POST", JSONObject())
+    }
+
     fun studioUpdatePreview(): StudioUpdatePreview {
         val root = call("/api/studio/update/preview")
         return StudioUpdatePreview(
@@ -2068,6 +2111,15 @@ data class ModelCatalog(val default: String, val groups: List<ModelGroup>)
 data class StudioUpdateTag(val name: String, val sha: String)
 
 data class ServerVersions(val studio: String, val agent: String)
+
+data class RemoteVersions(val studio: String, val hermes: List<String>)
+
+data class AgentPolicy(
+    val id: String,
+    val current: String,
+    val latest: String,
+    val status: String,
+)
 
 data class StudioUpdatePreview(
     val exists: Boolean,

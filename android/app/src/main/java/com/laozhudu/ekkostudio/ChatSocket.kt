@@ -66,6 +66,8 @@ data class TaskPlanSnapshot(
     val planId: String,
     val revision: Int,
     val executionState: String,
+    /** Server epoch millis; newest plan in the array wins. */
+    val updatedAt: Long,
     val steps: List<TaskPlanStep>,
 )
 
@@ -454,10 +456,14 @@ internal fun parseTaskPlans(payload: JSONObject): List<TaskPlanSnapshot> {
             )
         }.filter { it.step.isNotBlank() }
         if (steps.isEmpty()) return@mapNotNull null
+        // Server sends millis; tolerate seconds from older builds.
+        val rawUpdated = item.optLong("updated_at", 0L)
+        val updatedAt = if (rawUpdated in 1..9_999_999_999L) rawUpdated * 1000L else rawUpdated
         TaskPlanSnapshot(
             planId = item.optString("plan_id"),
             revision = item.optInt("revision", 0),
             executionState = item.optString("execution_state"),
+            updatedAt = updatedAt,
             steps = steps,
         )
     }

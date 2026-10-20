@@ -228,7 +228,7 @@
     <string name="model_saved">Saved</string>
     <string name="model_use">Use</string>
     <string name="studio_update_title">Studio update</string>
-    <string name="studio_update_hub_note">Versions and preview status</string>
+    <string name="studio_update_hub_note">Update Studio and coding agents</string>
     <string name="studio_update_current">Preview dir: %1$s</string>
     <string name="text_scale_title">App text size</string>
     <string name="text_scale_small">Small</string>
@@ -237,6 +237,16 @@
     <string name="text_scale_xl">Huge</string>
     <string name="message_select_text">Select text</string>
     <string name="action_close">Close</string>
+    <string name="section_agents">Agents</string>
+    <string name="available_new">Update available: %1$s</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="remote_offline">Cannot reach the update catalog (no internet?)</string>
+    <string name="action_update">Update</string>
+    <string name="action_install">Install</string>
+    <string name="confirm_update_studio">Update Studio to %1$s? The service restarts and this app reconnects shortly after.</string>
+    <string name="confirm_update_agent">Install or update %1$s to %2$s on the server?</string>
+    <string name="agent_not_installed">Not installed</string>
+    <string name="developer_preview">Developer preview (source tags)</string>
     <string name="studio_update_warning">These actions can restart Studio and drop this app\'s connection for a moment.</string>
     <string name="studio_update_tags">Available versions</string>
     <string name="studio_update_unavailable">Update information unavailable</string>

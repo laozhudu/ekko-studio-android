@@ -35,8 +35,11 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun TaskPlanCard(plans: List<TaskPlanSnapshot>) {
-    val latest = plans.maxByOrNull { it.revision } ?: return
-    var expanded by rememberSaveable(latest.planId, latest.revision) { mutableStateOf(false) }
+    // Different plans restart their revision counter, so recency must come from
+    // updated_at; sorting by revision picks whichever old plan happened to reach a
+    // high number.
+    val latest = plans.maxByOrNull { it.updatedAt } ?: return
+    var expanded by rememberSaveable(latest.planId, latest.updatedAt) { mutableStateOf(false) }
 
     val total = latest.steps.size
     val done = latest.steps.count { it.status == "completed" }
