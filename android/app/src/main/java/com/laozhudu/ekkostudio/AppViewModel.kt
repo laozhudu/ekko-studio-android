@@ -80,6 +80,8 @@ data class ChatLine(
     val startedAtMillis: Long? = null,
     val finishedAtMillis: Long? = null,
     val messageId: String? = null,
+    /** Text this message answers, rendered as a quote block inside the bubble. */
+    val replyToNote: String? = null,
 )
 
 data class ChatToolStep(
@@ -769,6 +771,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
         }
     }
+
+
+    // ---- Telegram-style per-chat state --------------------------------
+
+    fun draft(conversationId: String): String = store.draftFor(conversationId)
+
+    fun saveDraft(conversationId: String, text: String) = store.setDraftFor(conversationId, text)
+
+    fun readIndex(conversationId: String, total: Int): Int = store.readIndexFor(conversationId, total)
+
+    fun markRead(conversationId: String, index: Int) = store.setReadIndexFor(conversationId, index)
 
     // ---- Workspace browser ---------------------------------------------
 
@@ -1789,7 +1802,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun send(message: String) {
+    fun send(message: String, replyTo: String? = null) {
         val text = message.trim()
         val files = _state.value.attachments
         val openId = _state.value.openSession?.id
@@ -1817,7 +1830,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         _state.update {
             it.copy(
-                lines = it.lines + ChatLine(echo, fromUser = true),
+                lines = it.lines + ChatLine(echo, fromUser = true, replyToNote = replyTo?.take(400)),
                 sending = true,
                 attachments = emptyList(),
                 error = null,
@@ -1875,7 +1888,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 chat.run(
                     profile = profile,
                     sessionId = sessionId,
-                    input = text,
+                    input = replyTo?.let { quoteForReply(it, text) } ?: text,
                     attachments = files,
                     reasoningEffort = reasoningEffort,
                     model = selectedModel,

@@ -157,4 +157,30 @@ class Store(context: Context) {
         const val KEY_SKIPPED_UPDATE = "skipped_update_tag"
         const val KEY_SESSIONS_SNAPSHOT = "sessions_snapshot"
     }
+
+    /**
+     * Per-conversation draft, the way Telegram keeps a separate unsent message in
+     * every chat. One global field lost whatever you had typed the moment you
+     * opened another conversation.
+     */
+    fun draftFor(conversationId: String): String {
+        val key = conversationId.ifBlank { "new" }
+        return prefs.getString("draft_$key", "").orEmpty()
+    }
+
+    fun setDraftFor(conversationId: String, text: String) {
+        val key = conversationId.ifBlank { "new" }
+        val editor = prefs.edit()
+        if (text.isBlank()) editor.remove("draft_$key") else editor.putString("draft_$key", text)
+        editor.apply()
+    }
+
+    /** Index of the last message this device has shown for a conversation. */
+    fun readIndexFor(conversationId: String, total: Int): Int =
+        prefs.getInt("read_index_$conversationId", total).coerceAtMost(total)
+
+    fun setReadIndexFor(conversationId: String, index: Int) {
+        if (conversationId.isBlank()) return
+        prefs.edit().putInt("read_index_$conversationId", index).apply()
+    }
 }

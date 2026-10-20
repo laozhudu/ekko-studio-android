@@ -232,6 +232,13 @@ import java.util.Locale
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material.icons.automirrored.filled.Reply
 
 class MainActivity : ComponentActivity() {
 
@@ -1806,14 +1813,16 @@ private fun RoomScreen(state: UiState, viewModel: AppViewModel) {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
-    var draft by rememberSaveable { mutableStateOf("") }
+    val conversationKey = state.openSession?.id ?: "new"
+    // Telegram keeps a separate draft per chat; rememberSaveable alone dropped it
+    // on navigation because the whole screen is recreated.
+    var draft by rememberSaveable(conversationKey) { mutableStateOf(viewModel.draft(conversationKey)) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     var actionLine by remember { mutableStateOf<ChatLine?>(null) }
     var replyingTo by remember { mutableStateOf<ChatLine?>(null) }
     var selectingText by remember { mutableStateOf<ChatLine?>(null) }
-    val conversationKey = state.openSession?.id ?: "new"
     var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -1969,6 +1978,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                             if (dayKeyOf(previous?.timestamp) != dayKeyOf(line.timestamp)) {
                                 DaySeparator(line.timestamp)
                             }
+                            SwipeToReply(enabled = true, onReply = { replyingTo = line }) {
                             MessageBubble(
                                 line = line,
                                 profile = profile.ifBlank { "default" },
@@ -1984,6 +1994,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                                     viewModel.downloadChatFile(file, profile.ifBlank { "default" })
                                 },
                             )
+                            }
                         }
                     }
                     // Telegram's inline keyboard: the approval rides in the message
@@ -2007,6 +2018,11 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                     backgroundColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
                 )
+                LaunchedEffect(listState.canScrollForward, state.lines.size) {
+                    if (!listState.canScrollForward && state.lines.isNotEmpty()) {
+                        viewModel.markRead(conversationKey, state.lines.size)
+                    }
+                }
                 if (reachedInitialBottom && listState.canScrollForward && state.lines.isNotEmpty()) {
                     Surface(
                         modifier = Modifier
@@ -2016,6 +2032,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                             .clickable {
                                 scope.launch {
                                     listState.animateScrollToItem(state.lines.lastIndex, Int.MAX_VALUE / 2)
+                                    viewModel.markRead(conversationKey, state.lines.size)
                                 }
                             },
                         shape = CircleShape,
@@ -2025,10 +2042,21 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                         shadowElevation = 5.dp,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Filled.KeyboardArrowDown,
-                                contentDescription = stringResource(R.string.conversation_jump_latest),
-                            )
+                            val unread = (state.lines.size - viewModel.readIndex(conversationKey, state.lines.size))
+                                .coerceAtLeast(0)
+                            if (unread > 0) {
+                                // Telegram's unread counter on the scroll-to-bottom pill.
+                                Text(
+                                    if (unread > 99) "99+" else unread.toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.conversation_jump_latest),
+                                )
+                            }
                         }
                     }
                 }
@@ -2077,11 +2105,17 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
             Composer(
                 state = state,
                 draft = draft,
-                onDraftChange = { draft = it },
+                onDraftChange = {
+                    draft = it
+                    viewModel.saveDraft(conversationKey, it)
+                },
                 onSend = {
-                    viewModel.send(replyingTo?.let { quoteForReply(it.text, draft) } ?: draft)
+                    // The quote travels as its own field so the bubble can draw a
+                    // reply block; the agent still receives it inside the payload.
+                    viewModel.send(draft, replyingTo?.text)
                     draft = ""
                     replyingTo = null
+                    viewModel.saveDraft(conversationKey, "")
                 },
                 viewModel = viewModel,
             )
@@ -2302,6 +2336,53 @@ private fun labelForChoice(choice: String): String = when (choice) {
     else -> choice
 }
 
+
+/**
+ * Telegram's swipe-to-reply: drag a message to the right and it quotes itself in
+ * the composer. The gesture is deliberately generous (56dp) because the same
+ * drag also scrolls sideways in tables.
+ */
+@Composable
+private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Composable () -> Unit) {
+    if (!enabled) {
+        content()
+        return
+    }
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 56.dp.toPx() }
+    var offset by remember { mutableFloatStateOf(0f) }
+    val animated by animateFloatAsState(targetValue = offset, animationSpec = tween(120), label = "swipeReply")
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (offset >= thresholdPx) onReply()
+                        offset = 0f
+                    },
+                    onDragCancel = { offset = 0f },
+                ) { _, dragAmount ->
+                    offset = (offset + dragAmount).coerceIn(-12f, thresholdPx * 1.6f)
+                }
+            },
+    ) {
+        if (animated > 8f) {
+            Icon(
+                Icons.AutoMirrored.Filled.Reply,
+                contentDescription = stringResource(R.string.message_reply),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 6.dp)
+                    .size(18.dp)
+                    .graphicsLayer { alpha = (animated / thresholdPx).coerceIn(0f, 1f) },
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Box(modifier = Modifier.offset { IntOffset(animated.toInt(), 0) }) { content() }
+    }
+}
+
 @Composable
 private fun MessageBubble(
     line: ChatLine,
@@ -2382,7 +2463,12 @@ private fun MessageBubble(
                 // instead of the sheet.
                 modifier = Modifier
                     .widthIn(max = 300.dp)
-                    .clickable(enabled = onActions != null) { onActions?.invoke() },
+                    .combinedClickable(
+                        enabled = onActions != null,
+                        // Telegram: a tap does nothing, a long press opens the menu.
+                        onClick = {},
+                        onLongClick = { onActions?.invoke() },
+                    ),
                 shape = telegramBubbleShape(isUser),
                 colors = CardDefaults.cardColors(containerColor = bubbleColor, contentColor = onBubble),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -2391,6 +2477,38 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    // Telegram's reply block: a thin accent bar and two lines of the
+                    // quoted message, above the answer.
+                    line.replyToNote?.takeIf { it.isNotBlank() }?.let { quoted ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
+                            Row {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .heightIn(min = 30.dp)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                )
+                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
+                                    Text(
+                                        stringResource(R.string.message_replying),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    Text(
+                                        quoted.lineSequence().take(2).joinToString(" "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = onBubble.copy(alpha = 0.8f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     if (hasThinking) ThinkingTimeline(line, notices)
                     if (parsed.text.isNotBlank()) {
                         // Long press selects text with the native handles and the
