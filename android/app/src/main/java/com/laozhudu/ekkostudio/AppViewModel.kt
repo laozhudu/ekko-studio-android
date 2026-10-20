@@ -742,7 +742,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             while (true) {
                 val watcher = PlanSocket(store.baseUrl, store.token)
                 watcher.onPlans = { plans ->
-                    if (plans.isNotEmpty()) {
+                    // Ignore a late reply for a conversation the user already left,
+                    // and let an empty list clear the card rather than keeping the
+                    // previous conversation's plan.
+                    if (_state.value.openSession?.id == sessionId) {
                         _state.update { it.copy(taskPlans = plans) }
                     }
                 }
@@ -1178,6 +1181,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Open an existing Studio conversation and load its history. */
     fun openSession(session: SessionSummary) {
         cancelActiveRun(abort = false)
+        stopPlanWatch()
         historyJob?.cancel()
         val profile = session.profile?.ifBlank { null }
             ?: _state.value.activeProfile.ifBlank { "default" }
@@ -1193,6 +1197,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 contextWindow = 0,
                 loadingContext = true,
                 lines = emptyList(),
+                // Plans belong to the conversation that produced them; a session
+                // without a plan must not inherit the previous one's card.
+                taskPlans = emptyList(),
                 attachments = emptyList(),
                 models = if (it.modelsProfile == profile) it.models else emptyList(),
                 modelsProfile = it.modelsProfile.takeIf { loaded -> loaded == profile },
@@ -1297,6 +1304,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startNewConversation(runtime: AgentRuntimeSelection = AgentRuntimeSelection()) {
         cancelActiveRun(abort = false)
+        stopPlanWatch()
         historyJob?.cancel()
         historyJob = null
         val profile = _state.value.activeProfile.ifBlank { "default" }
@@ -1306,6 +1314,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 screen = Screen.Conversation,
                 openSession = null,
                 lines = emptyList(),
+                taskPlans = emptyList(),
                 attachments = emptyList(),
                 sessionModel = null,
                 sessionProvider = null,
@@ -1535,7 +1544,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     }
                                     state.copy(
                                         lines = restoredLines ?: state.lines,
-                                        taskPlans = if (event.taskPlans.isNotEmpty()) event.taskPlans else state.taskPlans,
+                                        taskPlans = event.taskPlans,
                                         sessionModel = event.model ?: state.sessionModel,
                                         sessionProvider = event.provider ?: state.sessionProvider,
                                         reasoningEffort = event.reasoningEffort ?: state.reasoningEffort,
@@ -3856,9 +3865,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             consumingBackNavigation = true
+            if (state.screen == Screen.Conversation) stopPlanWatch()
             state.copy(
                 screen = target,
                 error = null,
+                taskPlans = if (state.screen == Screen.Conversation) emptyList() else state.taskPlans,
                 openSession = state.openSession.takeUnless { state.screen == Screen.Conversation },
                 openRoom = state.openRoom.takeUnless { state.screen == Screen.Room },
                 attachments = if (state.screen == Screen.Conversation) emptyList() else state.attachments,
