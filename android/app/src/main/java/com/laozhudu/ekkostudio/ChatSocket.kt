@@ -26,6 +26,12 @@ sealed interface RunEvent {
         val occurredAtMillis: Long,
     ) : RunEvent
     data class Usage(val contextTokens: Long, val contextWindow: Long?) : RunEvent
+    /** `session.activity{status}`: running | completed | failed. */
+    data class Status(val status: String) : RunEvent
+    /** `agent.event{kind,text}`: lifecycle warnings, retries, tool chatter. */
+    data class Notice(val kind: String, val text: String) : RunEvent
+    /** `plan.updated`: the live task plan, no polling needed. */
+    data class Plans(val plans: List<TaskPlanSnapshot>) : RunEvent
     data class Done(val output: String, val reasoning: String) : RunEvent
     data class RequiresAction(
         val kind: RequiredAction,
@@ -263,16 +269,43 @@ class ChatSocket(
                 occurredAtMillis = System.currentTimeMillis(),
             )?.let { trySend(it) }
         }
-        // Live context accounting. The server estimates the prompt size on every
-        // model step and republishes the settled usage record, but neither event
-        // is named "run_usage" — that name only appears on the persisted tool
-        // message. Without these two listeners the meter stayed frozen at the
-        // value read when the conversation was opened.
+        // Live context accounting. Verified against the server: the event is
+        // called `usage.updated` and carries
+        // {inputTokens, outputTokens, contextTokens}; there is no
+        // `context.estimated` and no `run.usage.updated` on this transport.
+        live.on("usage.updated") { args ->
+            eventPayload(args)?.let { event -> usageFromEstimate(event)?.let { trySend(it) } }
+        }
         live.on("context.estimated") { args ->
             eventPayload(args)?.let { event -> usageFromEstimate(event)?.let { trySend(it) } }
         }
         live.on("run.usage.updated") { args ->
             eventPayload(args)?.let { event -> usageFromEstimate(event)?.let { trySend(it) } }
+        }
+        // Is the agent working right now? `session.activity` is the only event
+        // that answers that, and it fires for running / completed / failed.
+        listOf("session.activity", "app.activity").forEach { name ->
+            live.on(name) { args ->
+                val status = eventPayload(args)?.optString("status").orEmpty()
+                if (status.isNotBlank()) trySend(RunEvent.Status(status))
+            }
+        }
+        // Lifecycle chatter — retries, warnings, "auxiliary title generation
+        // failed". Without it a failing provider looks like a silent hang.
+        live.on("agent.event") { args ->
+            val event = eventPayload(args) ?: return@on
+            val text = event.optString("text")
+            if (text.isNotBlank()) {
+                runStarted = true
+                trySend(RunEvent.Notice(event.optString("kind").ifBlank { "info" }, text))
+            }
+        }
+        // The plan arrives push-style; the 10s resume poller is only a fallback.
+        live.on("plan.updated") { args ->
+            eventPayload(args)?.let { event ->
+                val plans = parseTaskPlans(event)
+                if (plans.isNotEmpty()) trySend(RunEvent.Plans(plans))
+            }
         }
         live.on("run.completed") { args ->
             val event = args.firstOrNull() as? JSONObject

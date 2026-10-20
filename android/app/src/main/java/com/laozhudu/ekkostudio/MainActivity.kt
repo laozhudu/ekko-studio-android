@@ -1836,6 +1836,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 .imePadding(),
         ) {
             TaskPlanCard(state.taskPlans)
+            RunStatusStrip(state)
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth().pullRefresh(pullRefreshState),
             ) {
@@ -3014,6 +3015,77 @@ private fun Composer(
             }
         }
     }
+    }
+}
+
+/**
+ * "Is it working?" — answered continuously while a run is in flight.
+ *
+ * Everything here is driven by real server events: `session.activity` for the
+ * status word, `run.started` for the clock, `agent.event` for the latest
+ * lifecycle line (retries, provider warnings) and the tool list for what is
+ * executing right now. The elapsed counter ticks locally, so a silent provider
+ * still shows that time is passing rather than a frozen screen.
+ */
+@Composable
+private fun RunStatusStrip(state: UiState) {
+    val working = state.sending || state.runStatus == "running"
+    if (!working && state.runNotices.isEmpty()) return
+
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(working) {
+        while (working) {
+            now = System.currentTimeMillis()
+            delay(500)
+        }
+    }
+    val elapsed = if (state.runStartedAtMillis > 0) {
+        ((now - state.runStartedAtMillis).coerceAtLeast(0) / 1000.0)
+    } else 0.0
+    val notice = state.runNotices.lastOrNull()
+    val tool = state.lines.lastOrNull()?.tools?.lastOrNull { it.status == ToolRunStatus.Running }
+
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (working) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                buildString {
+                    if (working) {
+                        append(stringResource(R.string.run_status_working))
+                        if (elapsed >= 1) append(" · ").append("%.0fs".format(Locale.US, elapsed))
+                    } else {
+                        append(stringResource(R.string.run_status_done))
+                    }
+                    tool?.let { append(" · ").append(it.name) }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = if (working) MaterialTheme.colorScheme.primary else inkTextMuted(inkDark),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            notice?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = inkTextMuted(inkDark),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 

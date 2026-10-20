@@ -987,4 +987,6 @@
     <string name="slash_destroy">销毁智能体</string>
     <string name="slash_abort">中止当前任务</string>
     <string name="slash_yolo">跳过审批提示</string>
+    <string name="run_status_working">正在工作</string>
+    <string name="run_status_done">已完成</string>
 </resources>

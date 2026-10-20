@@ -163,6 +163,12 @@ data class UiState(
     val savingSetting: Boolean = false,
     /** The tool the agent is running right now, when it says so. */
     val activity: String? = null,
+    /** running | completed | failed, straight from `session.activity`. */
+    val runStatus: String = "",
+    /** Latest lifecycle notices from `agent.event` (retries, warnings). */
+    val runNotices: List<String> = emptyList(),
+    /** When the current run started, for the elapsed counter. */
+    val runStartedAtMillis: Long = 0,
     /** True once the room socket is carrying messages. */
     val roomLive: Boolean = false,
     val serverConfig: ServerConfig? = null,
@@ -1768,6 +1774,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 attachments = emptyList(),
                 error = null,
                 activity = null,
+                runNotices = emptyList(),
+                runStatus = "running",
+                runStartedAtMillis = System.currentTimeMillis(),
                 voiceReplyPending = false,
             )
         }
@@ -1812,7 +1821,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 )
                     .collect { event ->
                         when (event) {
-                            is RunEvent.Started -> ensureStreamingReply(event.occurredAtMillis)
+                            is RunEvent.Started -> {
+                                _state.update {
+                                    it.copy(runStatus = "running", runStartedAtMillis = event.occurredAtMillis)
+                                }
+                                ensureStreamingReply(event.occurredAtMillis)
+                            }
+                            is RunEvent.Status -> _state.update {
+                                it.copy(
+                                    runStatus = event.status,
+                                    runStartedAtMillis = if (event.status == "running") {
+                                        it.runStartedAtMillis.takeIf { t -> t > 0 } ?: System.currentTimeMillis()
+                                    } else {
+                                        it.runStartedAtMillis
+                                    },
+                                )
+                            }
+                            is RunEvent.Notice -> {
+                                // Keep the tail: a long retry storm must not grow the
+                                // state without bound, and only the last line matters.
+                                _state.update {
+                                    it.copy(runNotices = (it.runNotices + event.text).takeLast(6))
+                                }
+                                runStarted = true
+                                ensureStreamingReply()
+                            }
+                            is RunEvent.Plans -> _state.update { it.copy(taskPlans = event.plans) }
                             is RunEvent.Text -> {
                                 answer.append(event.delta)
                                 ensureStreamingReply()
@@ -2158,7 +2192,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         activeRunSessionId = null
         runJob = null
         stopPlanWatch()
-        _state.update { it.copy(sending = false, activity = null) }
+        _state.update { it.copy(sending = false, activity = null, runStatus = "", runStartedAtMillis = 0) }
     }
 
     private class SocketUnavailable(message: String) : Exception(message)

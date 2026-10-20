@@ -982,4 +982,6 @@
     <string name="slash_destroy">حذف وكيل</string>
     <string name="slash_abort">إيقاف المهمة</string>
     <string name="slash_yolo">تخطي طلبات الموافقة</string>
+    <string name="run_status_working">يعمل الآن</string>
+    <string name="run_status_done">تم</string>
 </resources>

@@ -983,4 +983,6 @@
     <string name="slash_destroy">Destroy an agent</string>
     <string name="slash_abort">Abort the running task</string>
     <string name="slash_yolo">Skip approval prompts</string>
+    <string name="run_status_working">Working</string>
+    <string name="run_status_done">Done</string>
 </resources>
