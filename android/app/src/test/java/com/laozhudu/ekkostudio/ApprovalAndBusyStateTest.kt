@@ -35,9 +35,17 @@ class ApprovalAndBusyStateTest {
     @Test
     fun backgroundApprovalsAreRecordedInsteadOfDropped() {
         val collector = viewModel.substringAfter("is RunEvent.RequiresAction ->")
+            .substringBefore("is RunEvent.ActionResolved ->")
+        // The state write must not sit behind the on-screen gate: that gate is what
+        // dropped approvals for a run the user had navigated away from.
         assertTrue(
-            "the event is stored even when its session is off screen",
-            collector.contains("Always recorded"),
+            "pendingRunAction is written unconditionally",
+            collector.contains("pendingRunAction = PendingRunAction("),
+        )
+        val beforeWrite = collector.substringBefore("pendingRunAction = PendingRunAction(")
+        assertFalse(
+            "the write must not be guarded by onScreen()",
+            beforeWrite.contains("if (onScreen()) _state.update"),
         )
     }
 

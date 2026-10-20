@@ -23,7 +23,8 @@ class RunSurvivesNavigationTest {
     fun openingAnotherConversationDoesNotCancelTheRun() {
         assertTrue(
             "the run's own session must re-attach instead of cancelling",
-            openSession.contains("activeRunSessionId == session.id -> attachLiveRun()"),
+            openSession.contains("activeRunSessionId == session.id -> {") &&
+                openSession.contains("attachLiveRun()"),
         )
         assertTrue(
             "a run in another session is left alone",
