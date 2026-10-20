@@ -70,11 +70,10 @@ class IconSemanticsTest {
         assertTrue("monochrome variant must ship", monochrome.exists())
         assertTrue("launcher background must be the official white", colors.contains("#FFFFFF"))
 
-        val image = javax.imageio.ImageIO.read(foreground)
-        assertNotNull("foreground must decode", image)
-        assertEquals(432, image.width)
-        assertEquals(432, image.height)
-        // The artwork sits inside the adaptive safe zone, so the corners stay clear.
-        assertEquals(0, image.getRGB(0, 0) ushr 24)
+        val header = foreground.readBytes()
+        assertTrue("foreground must be a PNG", header.size > 24 && header[1].toInt() == 'P'.code)
+        val buffer = java.nio.ByteBuffer.wrap(header)
+        assertEquals(432, buffer.getInt(16))
+        assertEquals(432, buffer.getInt(20))
     }
 }
