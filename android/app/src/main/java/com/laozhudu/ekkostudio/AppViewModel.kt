@@ -618,6 +618,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         work = { api.archiveSession(session.id, !session.archived) },
         onSuccess = { refreshSessions(); _state.update { it.copy(sessionSearchResults = null, notice = str(if (session.archived) R.string.session_unarchived else R.string.session_archived)) } },
     )
+    fun pinSession(session: SessionSummary) = launchWork(
+        work = { api.setSessionPinned(session.id, !session.pinned) },
+        onSuccess = { refreshSessions(); _state.update { it.copy(sessionSearchResults = null, notice = str(if (session.pinned) R.string.session_unpinned else R.string.session_pinned)) } },
+    )
     fun setSessionWorkspace(session: SessionSummary, workspace: String) = launchWork(work = { api.setSessionWorkspace(session.id, workspace) }, onSuccess = { refreshSessions() })
     fun exportSession(session: SessionSummary) { val safe = session.title.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { session.id }; val request = DownloadManager.Request(Uri.parse(api.sessionExportUrl(session.id))).setTitle("$safe.json").setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED).setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "$safe.json"); store.token.takeIf(String::isNotBlank)?.let { request.addRequestHeader("Authorization", "Bearer $it") }; getApplication<Application>().getSystemService(DownloadManager::class.java)?.enqueue(request) }
     fun batchDeleteVisibleSessions() { val ids = (_state.value.sessionSearchResults ?: _state.value.sessions).map { it.id }; if (ids.isEmpty()) return; launchWork(work = { api.batchDeleteSessions(ids) }, onSuccess = { refreshSessions() }) }

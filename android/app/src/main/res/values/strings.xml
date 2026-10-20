@@ -748,6 +748,10 @@
     <string name="approval_always">Always allow</string>
     <string name="session_archive">Archive</string>
     <string name="session_unarchive">Unarchive</string>
+    <string name="session_pin">Pin</string>
+    <string name="session_unpin">Unpin</string>
+    <string name="session_pinned">Conversation pinned</string>
+    <string name="session_unpinned">Conversation unpinned</string>
     <string name="session_archived">Conversation archived</string>
     <string name="session_unarchived">Conversation restored</string>
     <string name="session_move_category">Move to %1$s</string>

@@ -5,50 +5,16 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Command and direction. -->
+    <!-- Speech bubble: the conversation surface. -->
     <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M54,24 L54,47"
-        android:strokeColor="#4CA66A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="9" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M28,32 L80,32 A10,10 0 0 1 90,42 L90,66 A10,10 0 0 1 80,76 L52,76 L36,90 L36,76 L28,76 A10,10 0 0 1 18,66 L18,42 A10,10 0 0 1 28,32 Z" />
 
-    <!-- Independent agent inputs. -->
+    <!-- Two text lines, punched in the background colour. -->
     <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M38,38 L38,52 L25,63"
-        android:strokeColor="#4CA66A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="9" />
+        android:fillColor="#FF101418"
+        android:pathData="M32,45 L70,45 A3.5,3.5 0 0 1 70,52 L32,52 A3.5,3.5 0 0 1 32,45 Z" />
     <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M70,38 L70,52 L83,63"
-        android:strokeColor="#4CA66A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="9" />
-
-    <!-- Unified result flow. -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M31,76 L50,64 L58,64 L77,76"
-        android:strokeColor="#4CA66A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="9" />
-
-    <!--
-        Intentional brand clearance: erase the strokes around the orchestration
-        core before drawing it, so the purple point stays visibly independent.
-    -->
-    <path
-        android:fillColor="@color/ic_launcher_background"
-        android:pathData="M54,44 A10,10 0,1 1,54,64 A10,10 0,1 1,54,44" />
-
-    <!-- Central intelligence. -->
-    <path
-        android:fillColor="#4CA66A"
-        android:pathData="M54,48 A6,6 0,1 1,54,60 A6,6 0,1 1,54,48" />
+        android:fillColor="#FF101418"
+        android:pathData="M32,58 L56,58 A3.5,3.5 0 0 1 56,65 L32,65 A3.5,3.5 0 0 1 32,58 Z" />
 </vector>

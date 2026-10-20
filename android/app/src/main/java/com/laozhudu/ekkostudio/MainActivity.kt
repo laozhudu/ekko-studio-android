@@ -811,7 +811,9 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
     var deleteVisible by remember { mutableStateOf(false) }
     val visibleSessions = remember(state.sessions, state.sessionSearchResults, query) {
         val clean = query.trim()
-        if (clean.isBlank()) state.sessions else state.sessionSearchResults.orEmpty()
+        val base = if (clean.isBlank()) state.sessions else state.sessionSearchResults.orEmpty()
+        // Stable sort: pinned conversations float to the top, everything else keeps server order.
+        base.sortedByDescending { it.pinned }
     }
     LaunchedEffect(query) { viewModel.searchSessions(query) }
     LaunchedEffect(Unit) { viewModel.loadSessionCategories() }
@@ -836,6 +838,9 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                     confirmDelete = session
                 },
             )
+            TextButton(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), onClick = { viewModel.pinSession(session); manage = null }) {
+                Text(stringResource(if (session.pinned) R.string.session_unpin else R.string.session_pin), Modifier.fillMaxWidth())
+            }
             TextButton(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), onClick = { viewModel.archiveSession(session); manage = null }) {
                 Text(stringResource(if (session.archived) R.string.session_unarchive else R.string.session_archive), Modifier.fillMaxWidth())
             }

@@ -747,6 +747,10 @@
     <string name="approval_always">سماح دائم</string>
     <string name="session_archive">أرشفة</string>
     <string name="session_unarchive">إلغاء الأرشفة</string>
+    <string name="session_pin">تثبيت</string>
+    <string name="session_unpin">إلغاء التثبيت</string>
+    <string name="session_pinned">تم تثبيت المحادثة</string>
+    <string name="session_unpinned">تم إلغاء تثبيت المحادثة</string>
     <string name="session_archived">تمت أرشفة المحادثة</string>
     <string name="session_unarchived">تمت استعادة المحادثة</string>
     <string name="session_move_category">نقل إلى %1$s</string>

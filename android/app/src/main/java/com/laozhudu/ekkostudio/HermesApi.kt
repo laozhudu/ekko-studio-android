@@ -265,6 +265,10 @@ class HermesApi(
         call("/api/studio/sessions/${enc(sessionId)}/${if (archived) "archive" else "unarchive"}", "POST", JSONObject())
     }
 
+    fun setSessionPinned(sessionId: String, pinned: Boolean) {
+        call("/api/studio/sessions/${enc(sessionId)}/pin", "POST", JSONObject().put("is_pinned", pinned))
+    }
+
     fun sessionCategories(): List<SessionCategory> {
         val array = call("/api/studio/session-categories").optJSONArray("categories") ?: JSONArray()
         return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { SessionCategory(it.optInt("id"), it.optString("name")) } }.filter { it.id > 0 && it.name.isNotBlank() }
@@ -605,6 +609,7 @@ class HermesApi(
                 workspace = firstNonBlank(item, "workspace", "cwd"),
                 running = item.optBoolean("running", false) || item.optString("status", "") == "running" || item.optString("kanban_status", "") == "running",
                 activity = firstNonBlank(item, "activity", "live_activity", "current_step"),
+                pinned = item.optBoolean("is_pinned", false) || item.optInt("is_pinned", 0) != 0,
             )
         }
 
@@ -1997,6 +2002,7 @@ data class SessionSummary(
     val agentId: String? = null,
     val agentMode: String? = null,
     val archived: Boolean = false,
+    val pinned: Boolean = false,
     val categoryId: Int? = null,
     val workspace: String? = null,
     /** True when this session has an agent run in progress (HStudio shows a rainbow bar). */

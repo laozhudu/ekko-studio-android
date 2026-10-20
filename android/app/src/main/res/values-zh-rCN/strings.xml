@@ -696,6 +696,10 @@
     <string name="approval_always">始终允许</string>
     <string name="session_archive">归档</string>
     <string name="session_unarchive">取消归档</string>
+    <string name="session_pin">置顶</string>
+    <string name="session_unpin">取消置顶</string>
+    <string name="session_pinned">会话已置顶</string>
+    <string name="session_unpinned">已取消置顶</string>
     <string name="session_archived">会话已归档</string>
     <string name="session_unarchived">会话已恢复</string>
     <string name="session_move_category">移动到 %1$s</string>
