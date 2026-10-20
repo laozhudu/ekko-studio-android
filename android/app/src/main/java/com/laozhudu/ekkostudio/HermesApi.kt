@@ -1132,6 +1132,25 @@ class HermesApi(
         }.filter { it.name.isNotBlank() }
     }
 
+    /**
+     * Runs one step of Studio's preview-upgrade flow.
+     * [action] is prepare / start / stop / install; prepare and start take a tag.
+     */
+    fun studioUpdateAction(action: String, tag: String?) {
+        val path = when (action) {
+            "prepare" -> "/api/studio/update/preview/prepare"
+            "start" -> "/api/studio/update/preview/start"
+            "stop" -> "/api/studio/update/preview/stop"
+            "install" -> "/api/studio/update/preview/install"
+            else -> "/api/studio/update"
+        }
+        val body = JSONObject()
+        if (!tag.isNullOrBlank() && (action == "prepare" || action == "start")) {
+            body.put("tag", tag)
+        }
+        call(path, "POST", body)
+    }
+
     fun writeGatePending(profile: String): List<WriteGateRecord> {
         val array = call(path = "/api/hermes/write-gate/pending", profile = profile)
             .optJSONArray("records") ?: JSONArray()

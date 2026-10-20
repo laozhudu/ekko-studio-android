@@ -197,6 +197,7 @@ data class UiState(
     val studioPreview: StudioUpdatePreview? = null,
     val studioTags: List<StudioUpdateTag> = emptyList(),
     val studioLoading: Boolean = false,
+    val taskPlans: List<TaskPlanSnapshot> = emptyList(),
     val cronLoading: Boolean = false,
     /** The job currently running a pause/resume/run/delete request. */
     val cronActionId: String? = null,
@@ -625,6 +626,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update {
                     it.copy(studioPreview = preview, studioTags = tags, studioLoading = false)
                 }
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(studioLoading = false, error = failure.readableMessage(localized))
+                }
+            }
+        }
+    }
+
+    /**
+     * Runs one preview-upgrade step. The caller must have confirmed first: these
+     * actions can restart the very server this app is connected to.
+     */
+    fun runStudioUpdateAction(action: String, tag: String?) {
+        _state.update { it.copy(studioLoading = true, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.studioUpdateAction(action, tag) }
+            }.onSuccess {
+                _state.update {
+                    it.copy(studioLoading = false, notice = str(R.string.studio_update_started))
+                }
+                refreshStudioUpdate()
             }.onFailure { failure ->
                 _state.update {
                     it.copy(studioLoading = false, error = failure.readableMessage(localized))
@@ -1406,6 +1429,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     }
                                     state.copy(
                                         lines = restoredLines ?: state.lines,
+                                        taskPlans = if (event.taskPlans.isNotEmpty()) event.taskPlans else state.taskPlans,
                                         sessionModel = event.model ?: state.sessionModel,
                                         sessionProvider = event.provider ?: state.sessionProvider,
                                         reasoningEffort = event.reasoningEffort ?: state.reasoningEffort,

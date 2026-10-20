@@ -44,6 +44,7 @@ sealed interface RunEvent {
         val reasoningEffort: String?,
         val workspace: String?,
         val workspaceChanges: List<WorkspaceRunChange>,
+        val taskPlans: List<TaskPlanSnapshot> = emptyList(),
     ) : RunEvent
     data class Failed(val error: String, val retryableTransport: Boolean) : RunEvent
 }
@@ -57,6 +58,15 @@ data class ResumedMessage(
     val role: String,
     val content: String,
     val reasoning: String?,
+)
+
+data class TaskPlanStep(val id: String, val step: String, val status: String)
+
+data class TaskPlanSnapshot(
+    val planId: String,
+    val revision: Int,
+    val executionState: String,
+    val steps: List<TaskPlanStep>,
 )
 
 data class WorkspaceRunChange(
@@ -425,7 +435,32 @@ internal fun parseResumedState(payload: JSONObject): RunEvent.ResumedState {
         reasoningEffort = payload.firstString("reasoning_effort", "reasoningEffort").takeIf(String::isNotBlank),
         workspace = payload.optString("workspace").takeIf(String::isNotBlank),
         workspaceChanges = changes,
+        taskPlans = parseTaskPlans(payload),
     )
+}
+
+/** Studio ships every plan revision for the session; newest revision wins in the UI. */
+internal fun parseTaskPlans(payload: JSONObject): List<TaskPlanSnapshot> {
+    val array = payload.optJSONArray("taskPlans") ?: return emptyList()
+    return (0 until array.length()).mapNotNull { index ->
+        val item = array.optJSONObject(index) ?: return@mapNotNull null
+        val rawSteps = item.optJSONArray("plan") ?: item.optJSONArray("steps") ?: JSONArray()
+        val steps = (0 until rawSteps.length()).mapNotNull { stepIndex ->
+            val step = rawSteps.optJSONObject(stepIndex) ?: return@mapNotNull null
+            TaskPlanStep(
+                id = step.optString("id"),
+                step = step.optString("step").ifBlank { step.optString("title") },
+                status = step.optString("status").ifBlank { "pending" },
+            )
+        }.filter { it.step.isNotBlank() }
+        if (steps.isEmpty()) return@mapNotNull null
+        TaskPlanSnapshot(
+            planId = item.optString("plan_id"),
+            revision = item.optInt("revision", 0),
+            executionState = item.optString("execution_state"),
+            steps = steps,
+        )
+    }
 }
 
 internal fun usageFrom(payload: JSONObject?): RunEvent.Usage? {

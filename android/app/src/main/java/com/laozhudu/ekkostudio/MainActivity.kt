@@ -415,6 +415,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             tags = state.studioTags,
             loading = state.studioLoading,
             onRefresh = viewModel::refreshStudioUpdate,
+            onAction = { action, tag -> viewModel.runStudioUpdateAction(action, tag) },
             onBack = { viewModel.showTab(Tab.Chats) },
         )
     }
@@ -1716,6 +1717,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 .padding(padding)
                 .imePadding(),
         ) {
+            TaskPlanCard(state.taskPlans)
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth().pullRefresh(pullRefreshState),
             ) {

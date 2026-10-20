@@ -233,6 +233,15 @@
     <string name="studio_update_warning">Install/start runs from the Studio web UI. Doing it here would restart the server this app is connected to.</string>
     <string name="studio_update_tags">Available versions</string>
     <string name="studio_update_unavailable">Update information unavailable</string>
+    <string name="task_plan_title">Task plan</string>
+    <string name="task_plan_progress">%1$d/%2$d</string>
+    <string name="studio_update_prepare">Prepare</string>
+    <string name="studio_update_start">Start</string>
+    <string name="studio_update_stop">Stop</string>
+    <string name="studio_update_install">Install</string>
+    <string name="studio_update_confirm_title">Confirm %1$s</string>
+    <string name="studio_update_confirm_body">Run \"%1$s\" for %2$s? This restarts Studio and briefly drops this app\'s connection.</string>
+    <string name="studio_update_started">Requested</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="update_failed">Could not download the update</string>
     <string name="update_permission">Allow updates from Hermes Studio, then return and tap Update now again.</string>

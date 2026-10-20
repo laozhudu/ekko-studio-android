@@ -61,15 +61,20 @@ class IconSemanticsTest {
     }
 
     @Test
-    fun launcherUsesTheEkkoBrandColours() {
-        val foreground = File(drawableDir, "ic_launcher_foreground.xml").readText()
-        val monochrome = File(drawableDir, "ic_launcher_monochrome.xml").readText()
+    fun launcherUsesTheOfficialArtwork() {
+        val foreground = File("src/main/res/drawable-nodpi/ic_launcher_foreground.png")
+        val monochrome = File("src/main/res/drawable-nodpi/ic_launcher_monochrome.png")
         val colors = File("src/main/res/values/colors.xml").readText()
 
-        assertTrue("launcher needs the speech-bubble mark", foreground.contains("M28,32"))
-        assertTrue("launcher mark must be white", foreground.contains("#FFFFFFFF"))
-        assertTrue("text lines must be punched in the ink colour", foreground.contains("#FF101418"))
-        assertTrue("launcher background must be Ekko ink (#101418)", colors.contains("#101418"))
-        assertTrue("monochrome variant must exist", monochrome.contains("#FFFFFFFF"))
+        assertTrue("adaptive foreground must ship", foreground.exists())
+        assertTrue("monochrome variant must ship", monochrome.exists())
+        assertTrue("launcher background must be the official white", colors.contains("#FFFFFF"))
+
+        val image = javax.imageio.ImageIO.read(foreground)
+        assertNotNull("foreground must decode", image)
+        assertEquals(432, image.width)
+        assertEquals(432, image.height)
+        // The artwork sits inside the adaptive safe zone, so the corners stay clear.
+        assertEquals(0, image.getRGB(0, 0) ushr 24)
     }
 }
