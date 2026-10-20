@@ -1066,6 +1066,33 @@ class HermesApi(
     // ── scheduled jobs ──────────────────────────────────────────────────
 
     /** The same profile-scoped list shown by Studio's Scheduled Jobs page. */
+    fun writeGatePending(profile: String): List<WriteGateRecord> {
+        val array = call(path = "/api/hermes/write-gate/pending", profile = profile)
+            .optJSONArray("records") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { i ->
+            array.optJSONObject(i)?.let { item ->
+                WriteGateRecord(
+                    id = item.optString("id"),
+                    subsystem = item.optString("subsystem"),
+                    action = item.optString("action"),
+                    summary = item.optString("summary"),
+                    origin = item.optString("origin"),
+                    createdAt = item.optDouble("created_at", 0.0),
+                )
+            }
+        }.filter { it.id.isNotBlank() && it.subsystem.isNotBlank() }
+    }
+
+    fun decideWriteGate(profile: String, record: WriteGateRecord, approve: Boolean) {
+        call(
+            path = "/api/hermes/write-gate/pending/${enc(record.subsystem)}/${enc(record.id)}/" +
+                if (approve) "approve" else "reject",
+            method = "POST",
+            body = JSONObject(),
+            profile = profile,
+        )
+    }
+
     fun cronJobs(profile: String): List<CronJob> {
         val array = call(
             path = "/api/hermes/jobs?include_disabled=true",
@@ -1935,6 +1962,16 @@ class HermesApi(
 }
 
 class HermesException(message: String, val statusCode: Int? = null) : Exception(message)
+
+data class WriteGateRecord(
+    val id: String,
+    val subsystem: String,
+    val action: String,
+    val summary: String,
+    val origin: String,
+    /** Server timestamp in seconds. */
+    val createdAt: Double,
+)
 
 data class CronJob(
     val id: String,

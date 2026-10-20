@@ -319,6 +319,11 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.Devices,
         -> BackHandler { viewModel.back() }
         Screen.Groups, Screen.AgentHub -> BackHandler { viewModel.showTab(Tab.Chats) }
+        Screen.Terminal -> BackHandler {
+            viewModel.closeTerminal()
+            viewModel.showTab(Tab.Chats)
+        }
+        Screen.WriteGate -> BackHandler { viewModel.showTab(Tab.Chats) }
         else -> Unit
     }
 
@@ -369,6 +374,26 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.Room -> RoomScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
+        Screen.Terminal -> TerminalScreen(
+            output = viewModel.terminalOutput.collectAsState().value,
+            connected = viewModel.terminalConnected.collectAsState().value,
+            connecting = viewModel.terminalConnecting.collectAsState().value,
+            onInput = viewModel::terminalInput,
+            onClear = viewModel::clearTerminalOutput,
+            onReconnect = viewModel::connectTerminal,
+            onBack = {
+                viewModel.closeTerminal()
+                viewModel.showTab(Tab.Chats)
+            },
+        )
+        Screen.WriteGate -> WriteGateScreen(
+            records = state.writeGateRecords,
+            loading = state.writeGateLoading,
+            busyId = state.writeGateBusyId,
+            onRefresh = viewModel::refreshWriteGate,
+            onDecision = { record, approve -> viewModel.decideWriteGate(record, approve) },
+            onBack = { viewModel.showTab(Tab.Chats) },
+        )
     }
 }
 
@@ -3708,6 +3733,22 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                         title = stringResource(R.string.agent_runtimes_title),
                         subtitle = stringResource(R.string.agent_runtimes_hub_note),
                         onClick = { viewModel.openAgentRuntimes() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.Terminal,
+                        color = Color(0xFF4CA66A),
+                        title = stringResource(R.string.terminal_title),
+                        subtitle = stringResource(R.string.terminal_hub_note),
+                        onClick = { viewModel.openTerminal() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.VerifiedUser,
+                        color = Color(0xFF4CA66A),
+                        title = stringResource(R.string.write_gate_title),
+                        subtitle = stringResource(R.string.write_gate_hub_note),
+                        onClick = { viewModel.openWriteGate() },
                     )
                     StudioCardDivider()
                     Row(

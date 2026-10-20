@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -187,6 +187,9 @@ data class UiState(
     val modelProviders: List<ModelProvider> = emptyList(),
     val loadingModelProviders: Boolean = false,
     val cronJobs: List<CronJob> = emptyList(),
+    val writeGateRecords: List<WriteGateRecord> = emptyList(),
+    val writeGateLoading: Boolean = false,
+    val writeGateBusyId: String? = null,
     val cronLoading: Boolean = false,
     /** The job currently running a pause/resume/run/delete request. */
     val cronActionId: String? = null,
@@ -450,6 +453,114 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun skipUpdateTag(tag: String) {
         if (tag.isNotBlank()) store.skippedUpdateTag = tag
+    }
+
+    // ---- Terminal ------------------------------------------------------
+
+    private var terminal: TerminalClient? = null
+
+    private val _terminalOutput = MutableStateFlow("")
+    val terminalOutput: StateFlow<String> = _terminalOutput.asStateFlow()
+
+    private val _terminalConnected = MutableStateFlow(false)
+    val terminalConnected: StateFlow<Boolean> = _terminalConnected.asStateFlow()
+
+    private val _terminalConnecting = MutableStateFlow(false)
+    val terminalConnecting: StateFlow<Boolean> = _terminalConnecting.asStateFlow()
+
+    fun openTerminal() {
+        _state.update { it.copy(screen = Screen.Terminal) }
+        connectTerminal()
+    }
+
+    fun connectTerminal() {
+        terminal?.close()
+        _terminalOutput.value = ""
+        _terminalConnecting.value = true
+        _terminalConnected.value = false
+        val client = TerminalClient(store.baseUrl, store.token)
+        client.onOutput = { text -> _terminalOutput.update { (it + text).takeLast(200_000) } }
+        client.onCreated = { _, _ ->
+            _terminalConnecting.value = false
+            _terminalConnected.value = true
+        }
+        client.onExited = { _, code ->
+            _terminalOutput.update { it + "\n[exit $code]\n" }
+        }
+        client.onError = { message ->
+            _terminalConnecting.value = false
+            _terminalConnected.value = false
+            _terminalOutput.update { it + "\n[error] $message\n" }
+        }
+        client.onClosed = {
+            _terminalConnecting.value = false
+            _terminalConnected.value = false
+        }
+        terminal = client
+        client.connect(cols = 100, rows = 40)
+    }
+
+    fun terminalInput(data: String) {
+        terminal?.sendInput(data)
+    }
+
+    fun closeTerminal() {
+        terminal?.close()
+        terminal = null
+        _terminalConnecting.value = false
+        _terminalConnected.value = false
+    }
+
+    fun clearTerminalOutput() {
+        _terminalOutput.value = ""
+    }
+
+    // ---- Write gate ----------------------------------------------------
+
+    fun openWriteGate() {
+        _state.update { it.copy(screen = Screen.WriteGate) }
+        refreshWriteGate()
+    }
+
+    fun refreshWriteGate() {
+        val profile = _state.value.activeProfile.ifBlank { "default" }
+        _state.update { it.copy(writeGateLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.writeGatePending(profile) } }
+                .onSuccess { records ->
+                    _state.update { it.copy(writeGateRecords = records, writeGateLoading = false) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(writeGateLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun decideWriteGate(record: WriteGateRecord, approve: Boolean) {
+        if (_state.value.writeGateBusyId != null) return
+        val profile = _state.value.activeProfile.ifBlank { "default" }
+        _state.update { it.copy(writeGateBusyId = record.id, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.decideWriteGate(profile, record, approve) }
+            }.onSuccess {
+                _state.update {
+                    it.copy(
+                        writeGateBusyId = null,
+                        writeGateRecords = it.writeGateRecords.filterNot { r -> r.id == record.id },
+                        notice = str(
+                            if (approve) R.string.write_gate_approved else R.string.write_gate_rejected,
+                        ),
+                    )
+                }
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(writeGateBusyId = null, error = failure.readableMessage(localized))
+                }
+            }
+        }
     }
 
     fun login(baseUrl: String, username: String, password: String, remember: Boolean = false, label: String = "") {
