@@ -1843,7 +1843,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 _state.update {
                                     it.copy(runNotices = (it.runNotices + event.text).takeLast(6))
                                 }
-                                runStarted = true
                                 ensureStreamingReply()
                             }
                             is RunEvent.Plans -> _state.update { it.copy(taskPlans = event.plans) }
