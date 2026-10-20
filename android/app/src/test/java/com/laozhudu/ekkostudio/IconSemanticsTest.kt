@@ -61,13 +61,15 @@ class IconSemanticsTest {
     }
 
     @Test
-    fun launcherUsesTheHStudioBrandColours() {
+    fun launcherUsesTheEkkoBrandColours() {
         val foreground = File(drawableDir, "ic_launcher_foreground.xml").readText()
+        val monochrome = File(drawableDir, "ic_launcher_monochrome.xml").readText()
         val colors = File("src/main/res/values/colors.xml").readText()
 
-        assertTrue("launcher needs the brand clearance ring", foreground.contains("M54,44 A10,10"))
-        assertTrue("clearance must match the icon background", foreground.contains("@color/ic_launcher_background"))
-        assertTrue("launcher background must be HStudio ink black (#000)", colors.contains("#000000"))
-        assertTrue("launcher mark must use the HStudio brand green", foreground.contains("#4CA66A"))
+        assertTrue("launcher needs the speech-bubble mark", foreground.contains("M28,32"))
+        assertTrue("launcher mark must be white", foreground.contains("#FFFFFFFF"))
+        assertTrue("text lines must be punched in the ink colour", foreground.contains("#FF101418"))
+        assertTrue("launcher background must be Ekko ink (#101418)", colors.contains("#101418"))
+        assertTrue("monochrome variant must exist", monochrome.contains("#FFFFFFFF"))
     }
 }
