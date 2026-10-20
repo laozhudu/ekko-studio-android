@@ -993,4 +993,5 @@
     <string name="process_tools">%1$d 个工具</string>
     <string name="approval_banner">%1$d 条审批在等你</string>
     <string name="approval_banner_open">去处理</string>
+    <string name="day_today">今天</string>
 </resources>

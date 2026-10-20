@@ -231,6 +231,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import java.util.Locale
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Done
 
 class MainActivity : ComponentActivity() {
 
@@ -404,6 +405,14 @@ private fun App(viewModel: AppViewModel = viewModel()) {
 @Composable
 private fun RunActionHost(state: UiState, viewModel: AppViewModel) {
     val action = state.pendingRunAction ?: return
+    // In the conversation that owns the run, the inline keyboard under the message
+    // handles it (Telegram never covers the chat for its own inline buttons). The
+    // dialog exists for every other case: another conversation, another screen,
+    // or a clarification that needs free text.
+    val answeredInline = state.screen == Screen.Conversation &&
+        action.sessionId == state.openSession?.id &&
+        (action.kind == RequiredAction.Approval || action.options.isNotEmpty())
+    if (answeredInline) return
     var clarification by rememberSaveable(action.id) { mutableStateOf("") }
 
     AlertDialog(
@@ -1941,27 +1950,54 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                     state = listState,
                         modifier = Modifier.fillMaxSize(),
                     // HStudio message-list uses a 20px outer gutter and 8px rhythm between messages.
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    // Telegram's gutters are tight; the bubble tail needs the room.
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     itemsIndexed(state.lines) { index, line ->
                         val previous = state.lines.getOrNull(index - 1)
                         val next = state.lines.getOrNull(index + 1)
-                        MessageBubble(
-                            line = line,
-                            profile = profile.ifBlank { "default" },
-                            avatar = avatar,
-                            // Telegram grouping: the agent badge and the clock
-                            // appear once per turn, not on every fragment.
-                            showAuthor = !line.fromUser && previous?.fromUser != false,
-                            showStamp = next == null || next.fromUser,
-                            notices = if (line.streaming) state.runNotices else emptyList(),
-                            onActions = { actionLine = line },
-                            onDownload = { file ->
-                                viewModel.downloadChatFile(file, profile.ifBlank { "default" })
-                            },
-                        )
+                        val sameSender = previous != null && previous.fromUser == line.fromUser &&
+                            dayKeyOf(previous.timestamp) == dayKeyOf(line.timestamp)
+                        Column(
+                            modifier = Modifier.padding(
+                                // Telegram: a hairline gap inside a sender's group,
+                                // a real gap between groups.
+                                top = if (sameSender) 2.dp else 10.dp,
+                            ),
+                        ) {
+                            if (dayKeyOf(previous?.timestamp) != dayKeyOf(line.timestamp)) {
+                                DaySeparator(line.timestamp)
+                            }
+                            MessageBubble(
+                                line = line,
+                                profile = profile.ifBlank { "default" },
+                                avatar = avatar,
+                                // Telegram grouping: the agent badge and the clock
+                                // appear once per turn, not on every fragment.
+                                showAuthor = !line.fromUser && !sameSender,
+                                showStamp = next == null || next.fromUser ||
+                                    dayKeyOf(next?.timestamp) != dayKeyOf(line.timestamp),
+                                notices = if (line.streaming) state.runNotices else emptyList(),
+                                onActions = { actionLine = line },
+                                onDownload = { file ->
+                                    viewModel.downloadChatFile(file, profile.ifBlank { "default" })
+                                },
+                            )
+                        }
                     }
+                    // Telegram's inline keyboard: the approval rides in the message
+                    // flow, right under the request, instead of stealing the screen.
+                    state.pendingRunAction
+                        ?.takeIf { it.sessionId == state.openSession?.id }
+                        ?.let { action ->
+                            item(key = "run-action-" + action.id) {
+                                InlineActionKeyboard(
+                                    action = action,
+                                    onChoice = viewModel::resolveRunAction,
+                                )
+                            }
+                        }
                 }
                 }
                 PullRefreshIndicator(
@@ -2148,6 +2184,124 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
     }
 }
 
+
+/** Local yyyy-MM-dd, used to decide where a date separator belongs. */
+private fun dayKeyOf(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    val millis = raw.toLongOrNull()
+    if (millis != null) {
+        val normalized = if (millis < 100_000_000_000L) millis * 1000 else millis
+        return android.text.format.DateFormat.format("yyyy-MM-dd", normalized).toString()
+    }
+    return raw.take(10)
+}
+
+/** Centred day pill, Telegram's date separator. */
+@Composable
+private fun DaySeparator(raw: String?) {
+    val key = dayKeyOf(raw)
+    if (key.isBlank()) return
+    val today = dayKeyOf(System.currentTimeMillis().toString())
+    val label = when (key) {
+        today -> stringResource(R.string.day_today)
+        else -> key
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        ) {
+            Text(
+                label,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Telegram's inline keyboard: full-width rows separated by hairlines, attached to
+ * the message that asked. Used for approvals and for clarifications that offer a
+ * fixed set of answers; free-text clarification still opens the dialog.
+ */
+@Composable
+private fun InlineActionKeyboard(action: PendingRunAction, onChoice: (String) -> Unit) {
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    val choices = if (action.kind == RequiredAction.Approval) {
+        action.options.filter { it != "deny" }
+    } else {
+        action.options
+    }
+    if (action.kind == RequiredAction.Clarification && choices.isEmpty()) return
+    if (choices.isEmpty() && action.kind == RequiredAction.Approval) return
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Surface(
+            modifier = Modifier.widthIn(max = 300.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = telegramIncomingBg(inkDark),
+            border = BorderStroke(1.dp, inkBorder(inkDark)),
+        ) {
+            Column {
+                Text(
+                    action.prompt.ifBlank {
+                        stringResource(
+                            if (action.kind == RequiredAction.Approval) R.string.run_requires_approval
+                            else R.string.run_requires_clarification,
+                        )
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = telegramIncomingText(inkDark),
+                )
+                HorizontalDivider(color = inkBorder(inkDark), thickness = 0.5.dp)
+                choices.forEach { choice ->
+                    Text(
+                        labelForChoice(choice),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChoice(choice) }
+                            .padding(vertical = 11.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    HorizontalDivider(color = inkBorder(inkDark), thickness = 0.5.dp)
+                }
+                if (action.kind == RequiredAction.Approval) {
+                    Text(
+                        stringResource(R.string.action_reject),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChoice(action.options.firstOrNull { it == "deny" } ?: "deny") }
+                            .padding(vertical = 11.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun labelForChoice(choice: String): String = when (choice) {
+    "session" -> stringResource(R.string.approval_session)
+    "always" -> stringResource(R.string.approval_always)
+    "once" -> stringResource(R.string.approval_once)
+    "deny" -> stringResource(R.string.action_reject)
+    else -> choice
+}
+
 @Composable
 private fun MessageBubble(
     line: ChatLine,
@@ -2177,13 +2331,17 @@ private fun MessageBubble(
     // The only user-specific rule is `.message.user .message-bubble { max-width:
     // 100% }`, so both roles share one surface and --ink-text-primary colour.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
+    // Telegram colour-coding: outgoing is tinted, incoming is a flat card. The
+    // old build drew both on --ink-bg-message, so the two sides looked the same.
     val bubbleColor = when {
         line.isError -> inkErrorSoft(inkDark)
-        else -> inkMessageBg(inkDark)
+        isUser -> telegramOutgoingBg(inkDark)
+        else -> telegramIncomingBg(inkDark)
     }
     val onBubble = when {
         line.isError -> inkError(inkDark)
-        else -> MaterialTheme.colorScheme.onSurface
+        isUser -> telegramOutgoingText(inkDark)
+        else -> telegramIncomingText(inkDark)
     }
 
     // HStudio msg-body: width:fit-content, max-width:88%
@@ -2192,9 +2350,12 @@ private fun MessageBubble(
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         // HStudio: AI messages show msg-avatar (22dp circle) before the bubble
-        if (!isUser && !profile.isNullOrBlank()) {
+        if (!isUser && !profile.isNullOrBlank() && showAuthor) {
             ProfileAvatar(profile, avatar, size = 22.dp)
             Spacer(Modifier.width(6.dp))
+        } else if (!isUser && !profile.isNullOrBlank()) {
+            // Keep the bubble edge aligned across a group.
+            Spacer(Modifier.width(28.dp))
         }
 
         // HStudio msg-body (scope c0c550c3, main message list):
@@ -2219,8 +2380,10 @@ private fun MessageBubble(
                 // NOT bound here: it belongs to the SelectionContainer inside, so
                 // a long press on the text raises the system selection handles
                 // instead of the sheet.
-                modifier = Modifier.clickable(enabled = onActions != null) { onActions?.invoke() },
-                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .clickable(enabled = onActions != null) { onActions?.invoke() },
+                shape = telegramBubbleShape(isUser),
                 colors = CardDefaults.cardColors(containerColor = bubbleColor, contentColor = onBubble),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
@@ -2243,18 +2406,37 @@ private fun MessageBubble(
                     parsed.files.forEach { file ->
                         ChatFileCard(file = file, onDownload = { onDownload?.invoke(file) })
                     }
-                }
-            }
 
-            // HStudio message-meta: margin-top:4px, padding:0 4px, color:var(--ink-text-muted)
-            val stamp = formatStamp(line.timestamp)
-            if (stamp.isNotBlank() && showStamp) {
-                Text(
-                    stamp,
-                    modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = inkTextMuted(inkDark),
-                )
+                    // Telegram keeps the clock inside the bubble, bottom-right,
+                    // next to a state glyph. One per turn, not per fragment.
+                    val stamp = formatStamp(line.timestamp)
+                    if (stamp.isNotBlank() && showStamp) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stamp,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = telegramMetaText(isUser, inkDark),
+                            )
+                            if (!isUser) {
+                                Spacer(Modifier.width(3.dp))
+                                Icon(
+                                    imageVector = when {
+                                        line.streaming -> Icons.Filled.Schedule
+                                        line.isError -> Icons.Filled.Close
+                                        else -> Icons.Filled.Done
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = telegramMetaText(false, inkDark),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

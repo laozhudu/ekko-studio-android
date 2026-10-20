@@ -67,11 +67,11 @@ class TranscriptQuietUiTest {
         )
         assertTrue(
             "author only on the first assistant fragment",
-            conversation.contains("showAuthor = !line.fromUser && previous?.fromUser != false"),
+            conversation.contains("showAuthor = !line.fromUser && !sameSender"),
         )
         assertTrue(
             "clock only on the last fragment",
-            conversation.contains("showStamp = next == null || next.fromUser"),
+            conversation.contains("showStamp = next == null || next.fromUser ||"),
         )
     }
 }

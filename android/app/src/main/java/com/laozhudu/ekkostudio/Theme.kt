@@ -174,6 +174,46 @@ fun inkAccent(dark: Boolean): Color =
 fun inkOnAccent(dark: Boolean): Color =
     if (dark) Color(0xFF191A1A) else Color.White
 
+// ── Telegram-style chat surfaces ──────────────────────────────────────────
+// Telegram separates the two sides by colour, not by alignment alone: outgoing
+// is a saturated bubble, incoming is a flat card on the chat background. The
+// values below are the Android client's light/dark pairs, adapted to this app's
+// neutral palette.
+
+/** Outgoing (user) bubble. */
+fun telegramOutgoingBg(dark: Boolean): Color =
+    if (dark) Color(0xFF2B5278) else Color(0xFFDCF8C6)
+
+/** Incoming (agent) bubble. */
+fun telegramIncomingBg(dark: Boolean): Color =
+    if (dark) Color(0xFF1E2021) else Color(0xFFFFFFFF)
+
+fun telegramOutgoingText(dark: Boolean): Color =
+    if (dark) Color(0xFFF2F4F5) else Color(0xFF141414)
+
+fun telegramIncomingText(dark: Boolean): Color =
+    if (dark) Color(0xFFE9EAEA) else Color(0xFF141414)
+
+/** Meta line inside a bubble (time / status). */
+fun telegramMetaText(isUser: Boolean, dark: Boolean): Color =
+    if (isUser) {
+        if (dark) Color(0xFFA8C4DC) else Color(0xFF5B7A52)
+    } else {
+        if (dark) Color(0xFF8E9699) else Color(0xFF8A9299)
+    }
+
+/**
+ * Telegram's bubble: 16dp everywhere except the bottom corner on the sender's
+ * own side, which pinches to 4dp — the "tail" that says who wrote it without an
+ * avatar on every row.
+ */
+fun telegramBubbleShape(isUser: Boolean) = androidx.compose.foundation.shape.RoundedCornerShape(
+    topStart = 16.dp,
+    topEnd = 16.dp,
+    bottomEnd = if (isUser) 4.dp else 16.dp,
+    bottomStart = if (isUser) 16.dp else 4.dp,
+)
+
 /** --ink-bg-card-hover: tool-call rows, attach chips, avatar discs. */
 fun inkCardHover(dark: Boolean): Color =
     if (dark) Color(0xFF222323) else Color(0xFFFAFAFA)
