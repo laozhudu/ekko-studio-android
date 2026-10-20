@@ -42,7 +42,7 @@ import androidx.compose.ui.res.stringResource
  * Read-only browser for the folder the current conversation works in.
  *
  * The path shown is relative to the profile root, because that is what
- * `/api/studio/files/*` resolves against; the absolute workspace from the
+ * `/api/studio/files/…` resolves against; the absolute workspace from the
  * session is translated by [AppViewModel.openWorkspace].
  */
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1095,15 +1095,6 @@ class HermesApi(
 
     // ── server restart ──────────────────────────────────────────────────
 
-    /**
-     * Restarts the Studio server process. The HTTP connection usually dies
-     * before the response is written, so callers must treat a transport
-     * failure here as success.
-     */
-    fun restartWebUi() {
-        call("/api/hermes/runtime-versions/restart-webui", "POST", JSONObject())
-    }
-
     // ── workspace files ─────────────────────────────────────────────────
 
     /** Absolute path of the profile root that file paths are resolved against. */
