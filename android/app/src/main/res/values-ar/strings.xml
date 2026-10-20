@@ -986,4 +986,6 @@
     <string name="run_status_done">تم</string>
     <string name="process_title">العملية</string>
     <string name="process_tools">%1$d أدوات</string>
+    <string name="approval_banner">%1$d موافقات بالانتظار</string>
+    <string name="approval_banner_open">مراجعة</string>
 </resources>

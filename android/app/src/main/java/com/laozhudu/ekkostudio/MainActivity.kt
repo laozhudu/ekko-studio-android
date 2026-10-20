@@ -270,9 +270,34 @@ private fun App(viewModel: AppViewModel = viewModel()) {
         }
     }
 
+    // A blocked run must announce itself. Poll the write gate while the app is
+    // open — Telegram surfaces a bot's pending action immediately, and a phone in
+    // your pocket should not leave a tool call waiting invisibly.
+    LaunchedEffect(state.baseUrl, state.screen) {
+        if (state.baseUrl.isBlank()) return@LaunchedEffect
+        while (true) {
+            when (state.screen) {
+                Screen.Login, Screen.Onboarding, Screen.Loading -> Unit
+                else -> viewModel.pollWriteGate()
+            }
+            delay(15_000)
+        }
+    }
+
     HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
         Surface(modifier = Modifier.fillMaxSize()) {
-            AppContent(state, viewModel)
+            Box(modifier = Modifier.fillMaxSize()) {
+                AppContent(state, viewModel)
+                // Sits above every screen: an approval is never scoped to a screen.
+                RunActionHost(state, viewModel)
+                if (state.writeGateRecords.isNotEmpty() && state.screen != Screen.WriteGate) {
+                    ApprovalBanner(
+                        count = state.writeGateRecords.size,
+                        onClick = { viewModel.openWriteGate() },
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
+            }
         }
         availableUpdate?.let { update ->
             AlertDialog(
@@ -363,6 +388,107 @@ private fun App(viewModel: AppViewModel = viewModel()) {
                     }
                 },
             )
+        }
+    }
+}
+
+/**
+ * Approvals and clarifications belong to the app, not to one screen.
+ *
+ * Telegram keeps a bot's inline keyboard on screen wherever you are; the same
+ * rule applies here: a run blocked on approval must ask immediately, even if the
+ * user has navigated to another conversation or the settings list. Rendering this
+ * inside ConversationScreen was why the dialog "never appeared" for a run the
+ * user had walked away from.
+ */
+@Composable
+private fun RunActionHost(state: UiState, viewModel: AppViewModel) {
+    val action = state.pendingRunAction ?: return
+    var clarification by rememberSaveable(action.id) { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(if (action.kind == RequiredAction.Approval) R.string.run_approval_title else R.string.run_clarification_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(action.prompt.ifBlank { stringResource(if (action.kind == RequiredAction.Approval) R.string.run_requires_approval else R.string.run_requires_clarification) })
+                if (action.kind == RequiredAction.Approval && action.options.count { it != "deny" } > 1) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        action.options.filter { it != "deny" }.forEach { choice ->
+                            AssistChip(
+                                onClick = { viewModel.resolveRunAction(choice) },
+                                label = { Text(stringResource(when (choice) {
+                                    "session" -> R.string.approval_session
+                                    "always" -> R.string.approval_always
+                                    else -> R.string.approval_once
+                                })) },
+                            )
+                        }
+                    }
+                }
+                if (action.kind == RequiredAction.Clarification) {
+                    if (action.options.isNotEmpty()) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            action.options.forEach { choice ->
+                                AssistChip(onClick = { clarification = choice }, label = { Text(choice) })
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = clarification,
+                        onValueChange = { clarification = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.run_clarification_answer)) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = action.kind == RequiredAction.Approval || clarification.isNotBlank(),
+                onClick = { viewModel.resolveRunAction(if (action.kind == RequiredAction.Approval) action.options.firstOrNull() ?: "once" else clarification.trim()) },
+            ) { Text(stringResource(if (action.kind == RequiredAction.Approval) R.string.action_approve else R.string.action_send)) }
+        },
+        dismissButton = if (action.kind == RequiredAction.Approval) {
+            { TextButton(onClick = { viewModel.resolveRunAction(action.options.firstOrNull { it == "deny" } ?: "deny") }) { Text(stringResource(R.string.action_reject)) } }
+        } else null,
+    )
+    }
+}
+
+
+/**
+ * Pinned notice for pending approvals, visible on any screen.
+ *
+ * Deliberately not a dialog: an approval that steals focus mid-typing is worse
+ * than a strip you can ignore until you choose to act.
+ */
+@Composable
+private fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier
+            .statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 3.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.Filled.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(
+                stringResource(R.string.approval_banner, count),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(R.string.approval_banner_open), style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -1682,57 +1808,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
     val conversationKey = state.openSession?.id ?: "new"
     var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    var clarification by rememberSaveable(state.pendingRunAction?.id) { mutableStateOf("") }
 
-    state.pendingRunAction?.let { action ->
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(if (action.kind == RequiredAction.Approval) R.string.run_approval_title else R.string.run_clarification_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(action.prompt.ifBlank { stringResource(if (action.kind == RequiredAction.Approval) R.string.run_requires_approval else R.string.run_requires_clarification) })
-                    if (action.kind == RequiredAction.Approval && action.options.count { it != "deny" } > 1) {
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            action.options.filter { it != "deny" }.forEach { choice ->
-                                AssistChip(
-                                    onClick = { viewModel.resolveRunAction(choice) },
-                                    label = { Text(stringResource(when (choice) {
-                                        "session" -> R.string.approval_session
-                                        "always" -> R.string.approval_always
-                                        else -> R.string.approval_once
-                                    })) },
-                                )
-                            }
-                        }
-                    }
-                    if (action.kind == RequiredAction.Clarification) {
-                        if (action.options.isNotEmpty()) {
-                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                action.options.forEach { choice ->
-                                    AssistChip(onClick = { clarification = choice }, label = { Text(choice) })
-                                }
-                            }
-                        }
-                        OutlinedTextField(
-                            value = clarification,
-                            onValueChange = { clarification = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(stringResource(R.string.run_clarification_answer)) },
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = action.kind == RequiredAction.Approval || clarification.isNotBlank(),
-                    onClick = { viewModel.resolveRunAction(if (action.kind == RequiredAction.Approval) action.options.firstOrNull() ?: "once" else clarification.trim()) },
-                ) { Text(stringResource(if (action.kind == RequiredAction.Approval) R.string.action_approve else R.string.action_send)) }
-            },
-            dismissButton = if (action.kind == RequiredAction.Approval) {
-                { TextButton(onClick = { viewModel.resolveRunAction(action.options.firstOrNull { it == "deny" } ?: "deny") }) { Text(stringResource(R.string.action_reject)) } }
-            } else null,
-        )
-    }
 
     // A run continues in Studio after the mobile stream is detached. Reload
     // the server history whenever the app returns to the foreground so a reply
@@ -1798,7 +1874,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 onClick = { replyingTo = line; actionLine = null },
             ) { Text(stringResource(R.string.message_reply), modifier = Modifier.fillMaxWidth()) }
             TextButton(
-                enabled = !state.sending,
+                enabled = !(state.runSessionId != null && state.runSessionId == state.openSession?.id),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 onClick = { actionLine = null; viewModel.send("/fork") },
             ) { Text(stringResource(R.string.message_fork), modifier = Modifier.fillMaxWidth()) }
@@ -2058,7 +2134,7 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.action_refresh)) }, onClick = { menuOpen = false; viewModel.refreshConversation() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.action_new_chat)) }, onClick = { menuOpen = false; viewModel.startNewConversation() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.message_fork)) }, enabled = !state.sending, onClick = { menuOpen = false; viewModel.send("/fork") })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.message_fork)) }, enabled = !(state.runSessionId != null && state.runSessionId == state.openSession?.id), onClick = { menuOpen = false; viewModel.send("/fork") })
                     }
                 }
             },
@@ -2974,7 +3050,7 @@ private fun Composer(
             // + button to open the attachment / options sheet
             IconButton(
                 onClick = { sheet = ComposerSheet.Options },
-                enabled = !state.sending,
+                enabled = !(state.runSessionId != null && state.runSessionId == state.openSession?.id),
                 modifier = Modifier.size(36.dp),
             ) {
                 Icon(
@@ -3168,7 +3244,8 @@ private fun ComposerActionButton(
     onRecord: () -> Unit,
 ) {
     val hasPayload = draft.isNotBlank() || state.attachments.isNotEmpty()
-    val active = hasPayload || state.recording || state.sending
+    val runHere = state.runSessionId != null && state.runSessionId == state.openSession?.id
+    val active = hasPayload || state.recording || runHere
     // HStudio .composer-send-button (official App): 30px circle; inactive is
     // #fff glyph on --ink-text-muted, active is --ink-on-accent glyph on
     // --ink-accent, and dark mode overrides the active pair to
@@ -3194,7 +3271,7 @@ private fun ComposerActionButton(
             state.recording -> IconButton(onClick = { viewModel.stopRecordingAndTranscribe() }) {
                 Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.composer_stop), tint = tint, modifier = Modifier.size(20.dp))
             }
-            state.sending -> IconButton(onClick = { viewModel.stopRun() }) {
+            runHere -> IconButton(onClick = { viewModel.stopRun() }) {
                 Icon(Icons.Filled.Stop, contentDescription = stringResource(R.string.conversation_stop), tint = tint, modifier = Modifier.size(20.dp))
             }
             hasPayload -> IconButton(onClick = onSend) {

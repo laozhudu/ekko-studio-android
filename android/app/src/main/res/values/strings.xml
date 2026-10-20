@@ -987,4 +987,6 @@
     <string name="run_status_done">Done</string>
     <string name="process_title">Process</string>
     <string name="process_tools">%1$d tools</string>
+    <string name="approval_banner">%1$d approval(s) waiting</string>
+    <string name="approval_banner_open">Review</string>
 </resources>

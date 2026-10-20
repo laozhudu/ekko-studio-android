@@ -169,6 +169,8 @@ data class UiState(
     val runNotices: List<String> = emptyList(),
     /** When the current run started, for the elapsed counter. */
     val runStartedAtMillis: Long = 0,
+    /** Session that owns the in-flight run; null when nothing is running. */
+    val runSessionId: String? = null,
     /** True once the room socket is carrying messages. */
     val roomLive: Boolean = false,
     val serverConfig: ServerConfig? = null,
@@ -1136,6 +1138,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refreshWriteGate()
     }
 
+    /**
+     * Quiet poll for the write gate while the app is open.
+     *
+     * Hermes blocks a tool call until a human approves it, and nothing on the
+     * socket announces that for every tool — so without this the phone showed no
+     * sign of a run sitting blocked. Failures are swallowed: a 404 or a dropped
+     * connection must not paint an error over whatever the user is doing.
+     */
+    fun pollWriteGate() {
+        if (_state.value.writeGateLoading) return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.writeGatePending(currentProfile()) } }
+                .onSuccess { records ->
+                    _state.update { it.copy(writeGateRecords = records) }
+                }
+        }
+    }
+
     fun refreshWriteGate() {
         val profile = _state.value.activeProfile.ifBlank { "default" }
         _state.update { it.copy(writeGateLoading = true, error = null) }
@@ -1772,7 +1792,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun send(message: String) {
         val text = message.trim()
         val files = _state.value.attachments
-        if ((text.isEmpty() && files.isEmpty()) || _state.value.sending) return
+        val openId = _state.value.openSession?.id
+        // `sending` is app-wide: a run in another conversation must not block this
+        // one. Only a run that owns *this* conversation is busy.
+        val busyHere = activeRunSessionId != null && (openId == null || activeRunSessionId == openId)
+        if ((text.isEmpty() && files.isEmpty()) || busyHere) return
         val session = _state.value.openSession
         val profile = session?.profile?.ifBlank { null }
             ?: _state.value.activeProfile.ifBlank { "default" }
@@ -1805,7 +1829,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
 
+        // A run in another conversation keeps running server-side; we simply stop
+        // tracking it here, so this conversation stays usable.
+        if (activeRunSessionId != null && activeRunSessionId != sessionId) {
+            cancelActiveRun(abort = false)
+        }
         activeRunSessionId = sessionId
+        _state.update { it.copy(runSessionId = sessionId) }
         runAnswer.setLength(0)
         runThinking.setLength(0)
         runStreamed = false
@@ -1933,9 +1963,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 runStreamed = true
                             }
                             is RunEvent.RequiresAction -> {
+                                // Always recorded. The approval host lives at the app
+                                // root, so a run in another conversation still asks —
+                                // dropping it here is what made approvals invisible.
                                 if (!onScreen()) {
-                                    // Leave it queued; the run is blocked until the
-                                    // user reopens this conversation and answers.
+                                    runStreamed = true
                                 } else if (runStreamed) {
                                     updateLastReply(answer.toString(), thinking.toString(), streaming = false)
                                 }
@@ -2268,7 +2300,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         activeRunSessionId = null
         runJob = null
         stopPlanWatch()
-        _state.update { it.copy(sending = false, activity = null, runStatus = "", runStartedAtMillis = 0) }
+        _state.update {
+            it.copy(
+                sending = false,
+                activity = null,
+                runStatus = "",
+                runStartedAtMillis = 0,
+                runSessionId = null,
+            )
+        }
         // The run finished while another conversation was open: its messages only
         // exist on the server, so pull them in when the user is on this screen.
         // Otherwise the list stays stale until the next refresh, which is harmless.
