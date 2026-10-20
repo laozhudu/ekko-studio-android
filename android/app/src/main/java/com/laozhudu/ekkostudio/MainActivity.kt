@@ -98,7 +98,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ModelTraining
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -117,7 +116,6 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Schedule
@@ -178,7 +176,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -198,7 +195,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
 import java.io.File
@@ -235,13 +231,11 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.animation.animateFloatAsState
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.AnimatedVisibility
 
 class MainActivity : ComponentActivity() {
 
@@ -517,14 +511,6 @@ private fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier =
         }
     }
 }
-
-@Composable
-/**
- * Global run status strip — visible on every screen so the user always knows
- * if a run is in progress, which conversation owns it, and what tool is
- * currently executing. Mirrors Telegram's "typing…" in the header but richer:
- * shows elapsed time, current tool, and latest lifecycle notice.
- */
 
 /**
  * Global run status strip — visible on every screen so the user always knows
@@ -1472,11 +1458,8 @@ private fun AnimatedIndicator(
     )
     Box(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                alpha = alpha
-            }
+            .scale(scale)
+            .alpha(alpha)
             .background(color, CircleShape),
     )
 }
@@ -1528,12 +1511,10 @@ private fun SessionRow(
                     Spacer(Modifier.width(8.dp))
                     if (locallyRunning) {
                         // Telegram-style animated dot for "working"
-                        AnimatedVisibility(visible = true) {
-                            AnimatedIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(6.dp),
-                            )
-                        }
+                        AnimatedIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(6.dp),
+                        )
                         Spacer(Modifier.width(4.dp))
                     } else if (running) {
                         Text("●", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
@@ -2503,7 +2484,7 @@ private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Compos
                     .align(Alignment.CenterStart)
                     .padding(start = 6.dp)
                     .size(18.dp)
-                    .graphicsLayer { alpha = (animated / thresholdPx).coerceIn(0f, 1f) },
+                    .alpha((animated / thresholdPx).coerceIn(0f, 1f)),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
