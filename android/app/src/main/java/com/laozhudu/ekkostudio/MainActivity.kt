@@ -453,7 +453,6 @@ private fun RunActionHost(state: UiState, viewModel: AppViewModel) {
             { TextButton(onClick = { viewModel.resolveRunAction(action.options.firstOrNull { it == "deny" } ?: "deny") }) { Text(stringResource(R.string.action_reject)) } }
         } else null,
     )
-    }
 }
 
 
