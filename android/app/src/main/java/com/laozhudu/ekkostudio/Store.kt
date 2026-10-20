@@ -76,6 +76,11 @@ class Store(context: Context) {
         get() = prefs.getString(KEY_APPEARANCE, "dark").orEmpty().ifBlank { "dark" }
         set(value) = prefs.edit().putString(KEY_APPEARANCE, value).apply()
 
+    /** Global text scale for the whole UI (1f = system default). */
+    var textScale: Float
+        get() = prefs.getFloat(KEY_TEXT_SCALE, 1f).takeIf { it in 0.8f..1.4f } ?: 1f
+        set(value) = prefs.edit().putFloat(KEY_TEXT_SCALE, value.coerceIn(0.8f, 1.4f)).apply()
+
     /**
      * Route the app dials, mirroring the official `ApiRouteSwitch` storage entry.
      *
@@ -144,6 +149,7 @@ class Store(context: Context) {
         const val KEY_ONBOARDED = "onboarded"
         const val KEY_LANGUAGE = "language"
         const val KEY_APPEARANCE = "appearance"
+        const val KEY_TEXT_SCALE = "text_scale"
         const val KEY_API_ROUTE = "api_route"
         const val KEY_REMEMBER = "remember_credentials"
         const val KEY_SAVED_USER = "saved_username"

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 fun StudioUpdateScreen(
     preview: StudioUpdatePreview?,
     tags: List<StudioUpdateTag>,
+    versions: ServerVersions?,
     loading: Boolean,
     onRefresh: () -> Unit,
     onAction: (String, String?) -> Unit,
@@ -128,11 +129,18 @@ fun StudioUpdateScreen(
                 ) {
                     item {
                         Text(
+                            "Studio ${versions?.studio.orEmpty().ifBlank { "—" }} · Hermes ${versions?.agent.orEmpty().ifBlank { "—" }}",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                    item {
+                        Text(
                             stringResource(
                                 R.string.studio_update_current,
                                 preview.currentTag.ifBlank { "—" },
                             ),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     item {

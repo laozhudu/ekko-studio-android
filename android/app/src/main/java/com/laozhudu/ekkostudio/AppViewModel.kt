@@ -197,6 +197,8 @@ data class UiState(
     val studioPreview: StudioUpdatePreview? = null,
     val studioTags: List<StudioUpdateTag> = emptyList(),
     val studioLoading: Boolean = false,
+    val serverVersions: ServerVersions? = null,
+    val textScale: Float = 1f,
     val taskPlans: List<TaskPlanSnapshot> = emptyList(),
     val cronLoading: Boolean = false,
     /** The job currently running a pause/resume/run/delete request. */
@@ -362,6 +364,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             reasoningEffort = store.reasoningEffort,
             language = store.language,
             appearance = store.appearance,
+            textScale = store.textScale,
             instances = store.instances,
             devicesUi = DevicesUi(route = store.apiRoute),
             rememberCredentials = store.rememberCredentials,
@@ -621,10 +624,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(studioLoading = true, error = null) }
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.studioUpdatePreview() to api.studioUpdateTags() }
-            }.onSuccess { (preview, tags) ->
+                withContext(Dispatchers.IO) {
+                    Triple(api.studioUpdatePreview(), api.studioUpdateTags(), api.serverVersions())
+                }
+            }.onSuccess { (preview, tags, versions) ->
                 _state.update {
-                    it.copy(studioPreview = preview, studioTags = tags, studioLoading = false)
+                    it.copy(
+                        studioPreview = preview,
+                        studioTags = tags,
+                        serverVersions = versions,
+                        studioLoading = false,
+                    )
                 }
             }.onFailure { failure ->
                 _state.update {
@@ -3807,6 +3817,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setAppearance(value: String) {
         store.appearance = value
         _state.update { it.copy(appearance = value) }
+    }
+
+    /** Global text scale; 1f follows the system font size. */
+    fun setTextScale(value: Float) {
+        store.textScale = value
+        _state.update { it.copy(textScale = store.textScale) }
     }
 
     private fun str(id: Int, vararg args: Any): String = localized.getString(id, *args)

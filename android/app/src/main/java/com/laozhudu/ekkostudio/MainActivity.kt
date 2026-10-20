@@ -131,6 +131,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -253,7 +254,7 @@ private fun App(viewModel: AppViewModel = viewModel()) {
         if (update != null && viewModel.shouldPromptForUpdate(update.tag)) availableUpdate = update
     }
 
-    HermesTheme(appearance = state.appearance) {
+    HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
         Surface(modifier = Modifier.fillMaxSize()) {
             AppContent(state, viewModel)
         }
@@ -413,6 +414,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.StudioUpdate -> StudioUpdateScreen(
             preview = state.studioPreview,
             tags = state.studioTags,
+            versions = state.serverVersions,
             loading = state.studioLoading,
             onRefresh = viewModel::refreshStudioUpdate,
             onAction = { action, tag -> viewModel.runStudioUpdateAction(action, tag) },
@@ -1580,6 +1582,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
     val clipboard = LocalClipboardManager.current
     var actionLine by remember { mutableStateOf<ChatLine?>(null) }
     var replyingTo by remember { mutableStateOf<ChatLine?>(null) }
+    var selectingText by remember { mutableStateOf<ChatLine?>(null) }
     val conversationKey = state.openSession?.id ?: "new"
     var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -1692,6 +1695,10 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
             ) { Text(stringResource(R.string.message_copy), modifier = Modifier.fillMaxWidth()) }
             TextButton(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                onClick = { selectingText = line; actionLine = null },
+            ) { Text(stringResource(R.string.message_select_text), modifier = Modifier.fillMaxWidth()) }
+            TextButton(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 onClick = { replyingTo = line; actionLine = null },
             ) { Text(stringResource(R.string.message_reply), modifier = Modifier.fillMaxWidth()) }
             TextButton(
@@ -1701,6 +1708,22 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
             ) { Text(stringResource(R.string.message_fork), modifier = Modifier.fillMaxWidth()) }
             Spacer(Modifier.height(18.dp))
         }
+    }
+    selectingText?.let { line ->
+        AlertDialog(
+            onDismissRequest = { selectingText = null },
+            title = { Text(stringResource(R.string.message_select_text)) },
+            text = {
+                SelectionContainer {
+                    Text(line.text, style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectingText = null }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
     }
     Scaffold(
         // The composer applies the IME inset itself. Scaffold's default system

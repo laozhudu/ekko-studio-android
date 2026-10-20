@@ -7,6 +7,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -120,19 +123,33 @@ private val StudioTypography = Typography(
 )
 
 @Composable
-fun HermesTheme(appearance: String = "system", content: @Composable () -> Unit) {
+fun HermesTheme(
+    appearance: String = "system",
+    fontScale: Float = 1f,
+    content: @Composable () -> Unit,
+) {
     val dark = when (appearance) {
         "light" -> false
         "dark" -> true
         // HStudio 深色优先（--UI-BG #000），未设置时按系统
         else -> androidx.compose.foundation.isSystemInDarkTheme()
     }
-    MaterialTheme(
-        colorScheme = if (dark) StudioDarkColors else StudioLightColors,
-        typography = StudioTypography,
-        shapes = StudioShapes,
-        content = content,
-    )
+    // Scaling density's fontScale scales every sp in the tree, including the
+    // markdown renderer, without touching individual typography styles.
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = density.density,
+            fontScale = density.fontScale * fontScale,
+        ),
+    ) {
+        MaterialTheme(
+            colorScheme = if (dark) StudioDarkColors else StudioLightColors,
+            typography = StudioTypography,
+            shapes = StudioShapes,
+            content = content,
+        )
+    }
 }
 
 /**

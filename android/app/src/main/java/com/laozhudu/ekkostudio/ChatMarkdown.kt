@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -676,34 +678,48 @@ private fun MarkdownTable(block: ChatMarkdownBlock.Table) {
     val columns = block.header.size
     if (columns == 0) return
     val sample = block.rows + listOf(block.header)
-    val weights = List(columns) { column -> 
-        val widest = sample.maxOfOrNull { it.getOrElse(column) { "" } }?.length ?: 1
-        widest.coerceIn(3, 42).toFloat()
+    // Width comes from the longest cell in the column: wide enough that words do
+    // not break every few characters, capped so one long cell cannot starve the
+    // rest. The table scrolls horizontally when the sum exceeds the screen.
+    val widths = List(columns) { column ->
+        val widest = sample.maxOfOrNull { it.getOrElse(column) { "" }.length } ?: 1
+        (widest * 7.2f).coerceIn(84f, 260f).dp
     }
+    val totalWidth = widths.fold(0.dp) { acc, width -> acc + width }
     val outline = MaterialTheme.colorScheme.outlineVariant
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, selectedBg, RoundedCornerShape(8.dp)),
-    ) {
-        TableRow(
-            cells = block.header,
-            aligns = block.aligns,
-            weights = weights,
-            header = true,
-            divider = false,
-            outline = outline,
-        )
-        block.rows.forEachIndexed { rowIndex, row ->
-            TableRow(
-                cells = row,
-                aligns = block.aligns,
-                weights = weights,
-                header = false,
-                divider = rowIndex < block.rows.lastIndex,
-                outline = outline,
-            )
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val tableWidth = if (totalWidth < maxWidth) maxWidth else totalWidth
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(tableWidth)
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, selectedBg, RoundedCornerShape(8.dp)),
+            ) {
+                TableRow(
+                    cells = block.header,
+                    aligns = block.aligns,
+                    widths = widths,
+                    header = true,
+                    divider = false,
+                    outline = outline,
+                )
+                block.rows.forEachIndexed { rowIndex, row ->
+                    TableRow(
+                        cells = row,
+                        aligns = block.aligns,
+                        widths = widths,
+                        header = false,
+                        divider = rowIndex < block.rows.lastIndex,
+                        outline = outline,
+                    )
+                }
+            }
         }
     }
 }
@@ -712,7 +728,7 @@ private fun MarkdownTable(block: ChatMarkdownBlock.Table) {
 private fun TableRow(
     cells: List<String>,
     aligns: List<TextAlign>,
-    weights: List<Float>,
+    widths: List<Dp>,
     header: Boolean,
     divider: Boolean,
     outline: Color,
@@ -730,7 +746,7 @@ private fun TableRow(
                 TableCell(
                     cell = cell,
                     align = aligns.getOrElse(column) { TextAlign.Left },
-                    weight = weights.getOrElse(column) { 1f },
+                    width = widths.getOrElse(column) { 84.dp },
                     header = header,
                 )
             }
@@ -742,7 +758,7 @@ private fun TableRow(
 }
 
 @Composable
-private fun RowScope.TableCell(cell: String, align: TextAlign, weight: Float, header: Boolean) {
+private fun RowScope.TableCell(cell: String, align: TextAlign, width: Dp, header: Boolean) {
     val style = if (header) {
         MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
     } else {
@@ -755,7 +771,7 @@ private fun RowScope.TableCell(cell: String, align: TextAlign, weight: Float, he
             codeBackground = inkCodeBg(MaterialTheme.colorScheme.isInkDark()),
             codeColor = inkTextPrimary(MaterialTheme.colorScheme.isInkDark()),
         ),
-        modifier = Modifier.weight(weight).padding(horizontal = 8.dp, vertical = 7.dp),
+        modifier = Modifier.width(width).padding(horizontal = 8.dp, vertical = 7.dp),
         style = style.copy(textDirection = chatTextDirection(cell)),
         textAlign = align,
         color = if (header) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface,

@@ -1111,6 +1111,17 @@ class HermesApi(
         )
     }
 
+    /** Real installed versions: webui.currentVersion is the Studio build. */
+    fun serverVersions(): ServerVersions {
+        val root = call("/api/hermes/runtime-versions")
+        val webui = root.optJSONObject("webui")
+        val hermes = root.optJSONObject("hermes")
+        return ServerVersions(
+            studio = webui?.optString("currentVersion").orEmpty(),
+            agent = hermes?.optString("agentVersion").orEmpty(),
+        )
+    }
+
     fun studioUpdatePreview(): StudioUpdatePreview {
         val root = call("/api/studio/update/preview")
         return StudioUpdatePreview(
@@ -2055,6 +2066,8 @@ data class ModelGroup(val provider: String, val models: List<ModelEntry>)
 data class ModelCatalog(val default: String, val groups: List<ModelGroup>)
 
 data class StudioUpdateTag(val name: String, val sha: String)
+
+data class ServerVersions(val studio: String, val agent: String)
 
 data class StudioUpdatePreview(
     val exists: Boolean,

@@ -203,8 +203,15 @@
     <string name="model_use">使用</string>
     <string name="studio_update_title">Studio 更新</string>
     <string name="studio_update_hub_note">查看版本与预览状态</string>
-    <string name="studio_update_current">当前：%1$s</string>
-    <string name="studio_update_warning">安装/启动请在 Studio 网页端执行。在手机上执行会重启本 App 正在连接的服务。</string>
+    <string name="studio_update_current">预览目录版本：%1$s</string>
+    <string name="text_scale_title">应用字体大小</string>
+    <string name="text_scale_small">小</string>
+    <string name="text_scale_normal">标准</string>
+    <string name="text_scale_large">大</string>
+    <string name="text_scale_xl">特大</string>
+    <string name="message_select_text">选择文字</string>
+    <string name="action_close">关闭</string>
+    <string name="studio_update_warning">这些操作会重启 Studio，本 App 会短暂断开。</string>
     <string name="studio_update_tags">可用版本</string>
     <string name="studio_update_unavailable">无法获取更新信息</string>
     <string name="task_plan_title">任务计划</string>

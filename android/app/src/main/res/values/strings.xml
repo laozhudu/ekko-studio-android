@@ -229,8 +229,15 @@
     <string name="model_use">Use</string>
     <string name="studio_update_title">Studio update</string>
     <string name="studio_update_hub_note">Versions and preview status</string>
-    <string name="studio_update_current">Current: %1$s</string>
-    <string name="studio_update_warning">Install/start runs from the Studio web UI. Doing it here would restart the server this app is connected to.</string>
+    <string name="studio_update_current">Preview dir: %1$s</string>
+    <string name="text_scale_title">App text size</string>
+    <string name="text_scale_small">Small</string>
+    <string name="text_scale_normal">Normal</string>
+    <string name="text_scale_large">Large</string>
+    <string name="text_scale_xl">Huge</string>
+    <string name="message_select_text">Select text</string>
+    <string name="action_close">Close</string>
+    <string name="studio_update_warning">These actions can restart Studio and drop this app\'s connection for a moment.</string>
     <string name="studio_update_tags">Available versions</string>
     <string name="studio_update_unavailable">Update information unavailable</string>
     <string name="task_plan_title">Task plan</string>

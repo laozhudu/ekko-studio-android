@@ -228,8 +228,15 @@
     <string name="model_use">استخدام</string>
     <string name="studio_update_title">تحديث Studio</string>
     <string name="studio_update_hub_note">الإصدارات وحالة المعاينة</string>
-    <string name="studio_update_current">الحالي: %1$s</string>
-    <string name="studio_update_warning">التثبيت والتشغيل يتمان من واجهة Studio على الويب. تنفيذه هنا سيعيد تشغيل الخادم المتصل به التطبيق.</string>
+    <string name="studio_update_current">نسخة المعاينة: %1$s</string>
+    <string name="text_scale_title">حجم خط التطبيق</string>
+    <string name="text_scale_small">صغير</string>
+    <string name="text_scale_normal">عادي</string>
+    <string name="text_scale_large">كبير</string>
+    <string name="text_scale_xl">كبير جدًا</string>
+    <string name="message_select_text">تحديد نص</string>
+    <string name="action_close">إغلاق</string>
+    <string name="studio_update_warning">قد تعيد هذه الإجراءات تشغيل Studio وتقطع اتصال التطبيق لحظة.</string>
     <string name="studio_update_tags">الإصدارات المتاحة</string>
     <string name="studio_update_unavailable">معلومات التحديث غير متاحة</string>
     <string name="task_plan_title">خطة المهمة</string>
