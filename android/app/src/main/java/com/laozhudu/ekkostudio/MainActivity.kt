@@ -2560,7 +2560,7 @@ private fun MessageBubble(
     }
 }
 
-private fun quoteForReply(quoted: String, reply: String): String {
+internal fun quoteForReply(quoted: String, reply: String): String {
     val excerpt = quoted.trim().lineSequence().take(8).joinToString("\n") { "> $it" }
     return listOf(excerpt, reply.trim()).filter { it.isNotBlank() }.joinToString("\n\n")
 }
