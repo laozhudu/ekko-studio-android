@@ -16,7 +16,7 @@ class RunSurvivesNavigationTest {
     private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
 
     private val openSession: String
-        get() = viewModel.substringAfter("fun openSession(session: SessionSummary) {")
+        get() = viewModel.substringAfter("fun openSession(")
             .substringBefore("historyJob?.cancel()")
 
     @Test

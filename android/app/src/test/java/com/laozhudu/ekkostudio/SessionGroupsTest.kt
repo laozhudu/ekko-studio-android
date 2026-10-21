@@ -96,7 +96,7 @@ class SessionGroupsTest {
         val sessions = listOf(session("orphan", categoryId = 9), session("none"))
 
         assertEquals(
-            listOf("orphan", "none"),
+            listOf("none", "orphan"),
             sessionsInGroup(sessions, categories, GROUP_NO_CATEGORY).map { it.id }.sorted(),
         )
         assertTrue(sessionsInGroup(sessions, categories, "category-9").isEmpty())

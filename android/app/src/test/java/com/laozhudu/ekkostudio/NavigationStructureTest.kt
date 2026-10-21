@@ -1,5 +1,6 @@
 package com.laozhudu.ekkostudio
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,7 +27,15 @@ class NavigationStructureTest {
         val agent = activity.substringAfter("private fun AgentHubScreen")
             .substringBefore("/** App settings stay intentionally small")
 
-        assertFalse("Chats must not duplicate the Settings shortcut", chats.contains("openSettings()"))
+        // The chat list has no settings *row* of its own. The account drawer does
+        // reach Settings — the official drawer carries it too — so the rule is that
+        // the only mention in this screen is the drawer's callback.
+        assertEquals(
+            "Chats may only reach Settings through the drawer",
+            1,
+            chats.split("openSettings()").size - 1,
+        )
+        assertTrue("the drawer callback must be the one", chats.contains("onSettings = {"))
         assertTrue("Agent must retain the Settings shortcut", agent.contains("openSettings()"))
         listOf("Tab.Chats", "Tab.Groups", "Tab.Agent").forEach { tab ->
             assertTrue("Bottom tab must always navigate to $tab home", activity.contains("onClick = { viewModel.showTab($tab) }"))
