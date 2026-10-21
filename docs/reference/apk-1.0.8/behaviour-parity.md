@@ -62,3 +62,62 @@ does this app disagree?
 3. **Local background image** — the official keeps the chat backdrop on the
    device; ours is account-wide.
 4. **Local STT model** — large download, but it removes the round trip.
+
+## 0.17.0 — chat look and chat events
+
+### Events the official client listens to, and we now do too
+
+Extracted from the official page bundle's own handler table, then verified with
+a live probe against this server (two namespaces: `/chat-run`, which this app
+uses, and `/`, which the web client uses).
+
+| Event | What it carries | Why it mattered |
+| --- | --- | --- |
+| `message.interim` | whole message text | a model can answer with no deltas at all; the bubble stayed empty until completion |
+| `reasoning.available` | nothing | lets the thinking fold appear before the first token |
+| `session.activity.snapshot` | sessions already running | a run started on the desktop was invisible in the list until a manual reload |
+| `session.workspace.updated` | `workspace` | the agent moving the workspace silently changed what the composer files into |
+| `workspace.diff.completed` | `change_id`, `change` | "this run touched N files" was never said |
+| `peer.user.message` | message | another device posting into the same conversation went unseen |
+| `app.notification` | title/content/sessionId | the server's own completion notice was dropped |
+| `abort.started` / `abort.timeout` / `abort.completed` | — | `abort.timeout` means the run did **not** stop; we used to claim it did |
+
+Measured on a short live turn, the server delivered: `run.started`,
+`message.delta`, `reasoning.delta` (49 frames), `reasoning.available`,
+`usage.updated` (6), `session.activity` (2), `session.activity.snapshot`,
+`session.workspace.updated`, `app.notification`, `run.completed`. The
+`/` namespace delivered nothing for that run — `/chat-run` is the correct
+namespace for a native client.
+
+### Chrome and metrics, taken as numbers
+
+`ChatMetrics.kt` records the official page stylesheet's measurements. No
+stylesheet text is stored, only numbers and colour values.
+
+| Surface | Official | Before |
+| --- | --- | --- |
+| Session row | 8/10 padding, 6dp radius, 16dp agent badge inline | 13/11 padding, 42dp portrait, chevron, 2-line title |
+| Session title | 13sp / 18sp, weight 550, one line | titleSmall, 2 lines |
+| Session clock | 11sp / 16sp muted | labelSmall |
+| Session preview | 10sp / 14sp muted, one line, 3dp below title | 12sp fact line |
+| Running indicator | 2dp rainbow track inside the row | 2dp bar plus a dot plus a separate status line |
+| Header | 46dp, 3/14 padding, centred 15sp/22sp at weight 650, 38dp buttons | TopAppBar with 33dp avatar and a two-line title block |
+| Message rhythm | 14dp between messages, 20dp gutter | 8dp rhythm, 10dp gutter |
+| Bubble | one `--ink-bg-message` for both roles, 10dp radius, 10/14 padding | two-sided Telegram tint, 16dp with a 4dp pinched corner |
+| Clock | outside the bubble: 24dp meta row, 11sp/16sp | inside the bubble, 10sp |
+| Process strip | fixed 32dp, 26dp live tool chip, mono elapsed | variable height, status text with the tool glued on |
+
+### Deliberately kept from the old build
+
+Swipe-to-reply, per-chat drafts, long-press-only action menu, unread counter on
+the jump pill. These are interaction logic, not paint, and the official client
+does not have them — the user asked for them earlier.
+
+### Not done, with the reason
+
+- **Per-session unread dot** — the list route returns no message count and no
+  last-message preview, so a dot would be a guess. The official client gets
+  both from its own session store.
+- **Last-message preview text** — same missing field. The preview slot shows
+  source / profile / model instead of inventing text.
+- **960dp readable cap** — a phone never reaches it; only matters on a tablet.
