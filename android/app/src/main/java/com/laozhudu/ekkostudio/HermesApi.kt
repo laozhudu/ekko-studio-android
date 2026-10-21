@@ -1982,7 +1982,10 @@ class HermesApi(
             body.put("mode", "global")
         }
 
-        val result = call("/api/chat-run/runs", "POST", body)
+        // The REST bridge lives under /api/studio/chat-run/runs. The old
+        // /api/chat-run/runs path returns 404 on 0.7.x, which silently turned the
+        // "socket failed, fall back to HTTP" path into a dead end.
+        val result = call("/api/studio/chat-run/runs", "POST", body)
         val failure = result.optString("error").takeIf { it.isNotBlank() }
         val output = firstNonBlank(result, "output", "text", "message").orEmpty()
         return ChatReply(
