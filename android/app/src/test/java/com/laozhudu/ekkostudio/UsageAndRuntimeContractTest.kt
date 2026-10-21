@@ -193,4 +193,19 @@ class UsageAndRuntimeContractTest {
 
         assertEquals("/api/hermes/runtime-versions/webui/0.7.38", server.takeRequest().path)
     }
+
+    @Test
+    fun `session usage reads the studio route and keeps the cache split`() {
+        enqueue(
+            """{"session_id":"s1","input_tokens":724,"output_tokens":670,"cache_read_tokens":289792,
+                "cache_write_tokens":0,"reasoning_tokens":0,"model":"deepseek-v4.1-flash","profile":"default"}""",
+        )
+
+        val usage = api.sessionUsage("s1")
+
+        assertEquals(724L, usage.input)
+        assertEquals(289_792L, usage.cacheRead)
+        assertEquals("deepseek-v4.1-flash", usage.model)
+        assertEquals("/api/studio/sessions/s1/usage", server.takeRequest().path)
+    }
 }

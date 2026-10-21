@@ -1066,9 +1066,9 @@ class HermesApi(
         }
     }
 
-    /** GET /api/hermes/sessions/{id}/usage — this conversation's token split. */
+    /** GET /api/studio/sessions/{id}/usage — this conversation's token split. */
     fun sessionUsage(sessionId: String): SessionUsage {
-        val r = call("/api/hermes/sessions/${enc(sessionId)}/usage")
+        val r = call("/api/studio/sessions/${enc(sessionId)}/usage")
         return SessionUsage(
             input = r.optLong("input_tokens"),
             output = r.optLong("output_tokens"),
