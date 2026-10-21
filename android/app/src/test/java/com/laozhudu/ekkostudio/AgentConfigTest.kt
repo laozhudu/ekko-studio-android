@@ -154,7 +154,7 @@ class AgentConfigTest {
         api.saveDelegationConfig("default", delegation)
         val put = server.takeRequest()
         assertEquals("PUT", put.method)
-        assertEquals("/api/hermes/config/delegation-model", put.path.substringBefore('?'))
+        assertEquals("/api/hermes/config/delegation-model", put.path.orEmpty().substringBefore('?'))
         val body = JSONObject(put.body.readUtf8()).getJSONObject("delegation")
         assertEquals("m2", body.getString("model"))
         assertEquals("high", body.getString("reasoning_effort"))
