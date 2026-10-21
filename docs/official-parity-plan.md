@@ -128,7 +128,7 @@
 | 位置发送 | 位置选择器、附近、发送 | — | **missing** | `Geolocation` 权限 + 地图选点（第三方 SDK 体积大，需决策） |
 | 全局搜索 | 会话+消息级命中 | **已完成 P2**：`/api/studio/search/sessions` 带 snippet 与 matched_message_id，打开后滚动到命中消息 | have | 技能/工作流未纳入 |
 
-统计：**have 38 / partial 2 / missing 1 / cannot 1 / ours 4**。只剩 `inbox` 通知收件箱未做、`location` 待决策、画布编辑与语音模式为 partial。
+统计：**have 39 / partial 2 / missing 0 / cannot 1 / ours 4**。官方有而我方完全没做的模块已清零（`inbox` 按实际含义“待添加文件”完成）。剩余 partial：画布编辑、语音模式；`location` 仍待你决策。
 
 ---
 
