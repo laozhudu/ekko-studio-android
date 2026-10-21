@@ -63,7 +63,7 @@ class TranscriptQuietUiTest {
     fun authorAndClockAppearOncePerTurn() {
         assertTrue(
             "the list decides grouping from neighbours",
-            conversation.contains("itemsIndexed(state.lines)"),
+            conversation.contains("items = state.lines,"),
         )
         assertTrue(
             "author only on the first assistant fragment",

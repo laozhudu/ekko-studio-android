@@ -306,7 +306,7 @@ class HermesApiContractTest {
 
         assertEquals("1786800123", message.timestamp)
         assertEquals(
-            "/api/hermes/sessions/conversations/session-1/messages?humanOnly=true",
+            "/api/studio/sessions/conversations/session-1/messages?humanOnly=true",
             server.takeRequest().path,
         )
     }
@@ -375,12 +375,33 @@ class HermesApiContractTest {
 
     @Test
     fun `conversation page carries paging fields and the live plan`() {
-        enqueue(
-            """{"session":{"id":"s"},"messages":[{"id":"9","role":"assistant","content":"hi"}],"""
-                + """"total":3098,"offset":0,"limit":50,"hasMore":true,"workspaceRunChanges":[],"""
-                + """"taskPlans":[{"plan":[{"id":"1","step":"a","status":"completed"}],"session_id":"s",""""
-                + """"plan_id":"p","revision":1,"execution_state":"running","updated_at":1792489489357}]}""",
-        )
+        // Built with JSONObject on purpose: a raw Kotlin string keeps `\"` as a
+        // literal backslash-quote, which produces invalid JSON.
+        val plan = JSONObject()
+            .put("id", "1")
+            .put("step", "a")
+            .put("status", "completed")
+        val planRecord = JSONObject()
+            .put("plan", org.json.JSONArray().put(plan))
+            .put("session_id", "s")
+            .put("plan_id", "p")
+            .put("revision", 1)
+            .put("execution_state", "running")
+            .put("updated_at", 1792489489357L)
+        val message = JSONObject()
+            .put("id", "9")
+            .put("role", "assistant")
+            .put("content", "hi")
+        val body = JSONObject()
+            .put("session", JSONObject().put("id", "s"))
+            .put("messages", org.json.JSONArray().put(message))
+            .put("total", 3098)
+            .put("offset", 0)
+            .put("limit", 50)
+            .put("hasMore", true)
+            .put("workspaceRunChanges", org.json.JSONArray())
+            .put("taskPlans", org.json.JSONArray().put(planRecord))
+        enqueue(body.toString())
 
         val page = api.conversationPage("s", limit = 50, offset = 0)
 
