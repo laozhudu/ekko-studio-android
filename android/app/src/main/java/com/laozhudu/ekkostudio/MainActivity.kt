@@ -5840,7 +5840,6 @@ internal fun StudioTabs(state: UiState, viewModel: AppViewModel) {
 }
 
 @Composable
-@Composable
 private fun EmptyNote(message: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
