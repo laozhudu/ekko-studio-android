@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
@@ -124,11 +125,16 @@ private fun RuntimeCard(runtime: AgentRuntimeStatus, viewModel: AppViewModel, st
                 Column(Modifier.weight(1f)) {
                     // Version against what the registry offers: "0.2.1 → 0.25.3" is
                     // the only line that tells you whether checking is worth it.
+                    // Computed into locals: `policy` is nullable, so reaching into it
+                    // from inside a takeIf lambda does not smart-cast.
+                    val currentVersion = policy?.current?.takeIf { it.isNotBlank() }
+                        ?: runtime.version.takeIf { it.isNotBlank() }
+                    val latestVersion = policy?.latest
+                        ?.takeIf { it.isNotBlank() && it != currentVersion }
                     Text(
-                        listOfNotNull(
-                            policy?.current?.takeIf { it.isNotBlank() } ?: runtime.version.takeIf { it.isNotBlank() },
-                            policy?.latest?.takeIf { it.isNotBlank() && it != policy?.current },
-                        ).joinToString(" → ").ifBlank { stringResource(R.string.agent_runtime_unavailable) },
+                        listOfNotNull(currentVersion, latestVersion)
+                            .joinToString(" → ")
+                            .ifBlank { stringResource(R.string.agent_runtime_unavailable) },
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                     )
