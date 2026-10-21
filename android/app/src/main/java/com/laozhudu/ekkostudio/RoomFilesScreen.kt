@@ -94,7 +94,7 @@ fun RoomFilesScreen(state: UiState, viewModel: AppViewModel) {
             initial = entry.name,
             onDismiss = { renaming = null },
             onConfirm = { name ->
-                viewModel.renameRoomFile(entry.path, name)
+                viewModel.renameRoomFile(entry, name)
                 renaming = null
             },
         )
