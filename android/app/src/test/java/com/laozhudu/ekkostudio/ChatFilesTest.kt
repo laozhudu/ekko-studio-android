@@ -41,7 +41,7 @@ class ChatFilesTest {
     @Test
     fun `existing download URLs are unwrapped and decoded once`() {
         val parsed = parseChatMessage(
-            "[تنزيل](/api/hermes/download?path=%2Fhome%2Fagent%2FMy%2520Report.pdf&name=ignored)",
+            "[تنزيل](/api/studio/files/download?path=%2Fhome%2Fagent%2FMy%2520Report.pdf&name=ignored)",
         )
 
         assertEquals("/home/agent/My%20Report.pdf", parsed.files.single().path)

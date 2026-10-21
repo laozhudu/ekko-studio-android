@@ -328,7 +328,7 @@ class HermesApiContractTest {
             "mohamed",
         ).toHttpUrl()
 
-        assertEquals("/api/hermes/download", url.encodedPath)
+        assertEquals("/api/studio/files/download", url.encodedPath)
         assertEquals(
             "/home/agent/.hermes/profiles/mohamed/workspace/My Slides.pptx",
             url.queryParameter("path"),
@@ -356,9 +356,9 @@ class HermesApiContractTest {
         val text = api.transcribe("manager", byteArrayOf(1, 2, 3), "voice.m4a", "audio/mp4")
 
         assertEquals("hello from audio", text)
-        assertEquals("/api/hermes/stt/profile-status?profile=manager", server.takeRequest().path)
+        assertEquals("/api/studio/stt/profile-status?profile=manager", server.takeRequest().path)
         val upload = server.takeRequest()
-        assertEquals("/api/hermes/stt/transcribe?profile=manager", upload.path)
+        assertEquals("/api/studio/stt/transcribe?profile=manager", upload.path)
         val multipart = upload.body.readUtf8()
         assertTrue(multipart.contains("name=\"provider\""))
         assertTrue(multipart.contains("\r\n\r\nopenai\r\n"))
@@ -379,7 +379,7 @@ class HermesApiContractTest {
         assertEquals("hello", history.messages.single().content)
         assertEquals(131_072L, window)
         assertEquals("/api/studio/sessions/conversations/session+1/messages?humanOnly=true", server.takeRequest().path)
-        assertEquals("/api/hermes/sessions/context-length?profile=manager&provider=openai&model=gpt-5", server.takeRequest().path)
+        assertEquals("/api/studio/sessions/context-length?profile=manager&provider=openai&model=gpt-5", server.takeRequest().path)
     }
 
     @Test
@@ -438,7 +438,7 @@ class HermesApiContractTest {
         )
 
         server.takeRequest()
-        assertEquals("/api/hermes/stt/settings?profile=default", server.takeRequest().path)
+        assertEquals("/api/studio/stt/settings?profile=default", server.takeRequest().path)
         val multipart = server.takeRequest().body.readUtf8()
         assertTrue(multipart.contains("name=\"provider\""))
         assertTrue(multipart.contains("\r\n\r\ngroq\r\n"))
@@ -460,7 +460,7 @@ class HermesApiContractTest {
         assertEquals(".wav", audio.extension)
         assertTrue(wav.contentEquals(audio.bytes))
         val request = server.takeRequest()
-        assertEquals("/api/hermes/tts/synthesize", request.path)
+        assertEquals("/api/studio/tts/synthesize", request.path)
         assertEquals("audio/*", request.getHeader("Accept"))
         assertFalse(JSONObject(request.body.readUtf8()).getJSONObject("options").has("format"))
     }
@@ -914,7 +914,7 @@ class HermesApiContractTest {
         // Consume the manifest request before asserting adoption.
         assertEquals("/api/hermes/petdex/manifest", adopt.path)
         val adoptRequest = server.takeRequest()
-        assertEquals("/api/hermes/pets/adopt", adoptRequest.path)
+        assertEquals("/api/studio/pets/adopt", adoptRequest.path)
         assertEquals("luna", JSONObject(adoptRequest.body.readUtf8()).getString("slug"))
 
         enqueue(
@@ -923,7 +923,7 @@ class HermesApiContractTest {
         api.updateActivePet(enabled = false, scale = .8)
         val patch = server.takeRequest()
         assertEquals("PATCH", patch.method)
-        assertEquals("/api/hermes/pets/active", patch.path)
+        assertEquals("/api/studio/pets/active", patch.path)
         assertFalse(JSONObject(patch.body.readUtf8()).getBoolean("enabled"))
     }
 
