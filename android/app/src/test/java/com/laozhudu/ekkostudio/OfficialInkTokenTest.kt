@@ -11,10 +11,14 @@ import java.io.File
  * APK, so the Compose theme cannot silently drift from it.
  *
  * The official stylesheets never hard-code a colour: every one resolves through
- * an `--ink-*` custom property (see docs/reference/apk-1.0.3/README.md). Those
+ * an `--ink-*` custom property (see docs/reference/apk-1.0.8/README.md). Those
  * tokens were extracted verbatim from the APK's `app.css` into
- * `docs/reference/apk-1.0.3/theme-tokens-{light,dark}.json`, which makes the
+ * `docs/reference/apk-1.0.8/theme-tokens-{light,dark}.json`, which makes the
  * palette checkable rather than eyeballed.
+ *
+ * 1.0.8 is the newest vendor release and its palette is identical to 1.0.4 and
+ * 1.0.3, so pointing at the newest file loses nothing and keeps the baseline
+ * current for the next release.
  *
  * This is not hypothetical: it caught `inkSelectedBg`, whose dark value had been
  * copy-pasted from `--ink-focus-ring` (.12) instead of the official .18.
@@ -27,10 +31,10 @@ class OfficialInkTokenTest {
     private val theme = File("src/main/java/com/laozhudu/ekkostudio/Theme.kt").readText()
 
     private fun tokens(name: String): JSONObject {
-        val f = File("../../docs/reference/apk-1.0.3/theme-tokens-$name.json")
+        val f = File("../../docs/reference/apk-1.0.8/theme-tokens-$name.json")
         assertTrue(
             "Official token reference missing at ${f.absolutePath}; " +
-                "it is committed under docs/reference/apk-1.0.3/",
+                "it is committed under docs/reference/apk-1.0.8/",
             f.exists(),
         )
         return JSONObject(f.readText())
