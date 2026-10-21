@@ -29,7 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Cable
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Code
@@ -543,7 +543,7 @@ internal fun McpScreen(state: UiState, viewModel: AppViewModel) {
                                 }
                                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
                                     TextButton(onClick = { viewModel.openMcpTools(server.name) }) {
-                                        Icon(Icons.Filled.List, null, Modifier.size(18.dp))
+                                        Icon(Icons.AutoMirrored.Filled.List, null, Modifier.size(18.dp))
                                         Spacer(Modifier.width(5.dp))
                                         Text(stringResource(R.string.mcp_live_tools))
                                     }
