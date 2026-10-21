@@ -26,8 +26,13 @@ import java.io.File
 class OfficialModuleInventoryTest {
     private val inventory = File("src/test/resources/module-inventory.json")
 
-    /** Modules with no counterpart in our sources at 0.17.x. Shrink only. */
-    private val knownMissing = setOf("network-mode", "drawer", "presets", "inbox", "location")
+    /** Official modules with no counterpart in our sources at 0.17.x. Shrink only. */
+    private val knownMissingOfficial =
+        setOf("network-mode", "drawer", "presets", "inbox", "location")
+
+    /** Screens we have that the official client does not. Pinned so we do not
+     *  pretend to "align" a module the official client never had. */
+    private val knownOursOnly = setOf("journey", "kanban", "webhooks", "insights")
 
     private fun modules(): JSONArray {
         assertTrue("module inventory is missing; run scripts/official_module_inventory.py", inventory.exists())
@@ -46,17 +51,29 @@ class OfficialModuleInventoryTest {
     }
 
     @Test
-    fun `nothing new is missing without being recorded`() {
-        val missing = (0 until modules().length())
-            .map { modules().getJSONObject(it) }
-            .filter { it.getString("status") == "missing" }
+    fun `nothing official is missing without being recorded`() {
+        val rows = (0 until modules().length()).map { modules().getJSONObject(it) }
+        val missing = rows
+            .filter { it.getString("status") == "missing" && it.getBoolean("official") }
             .map { it.getString("module") }
             .toSet()
 
         assertEquals(
-            "a module lost its implementation, or a new one appeared: $missing",
-            knownMissing,
+            "an official module lost its implementation, or a new one appeared: $missing",
+            knownMissingOfficial,
             missing,
+        )
+    }
+
+    @Test
+    fun `screens the official client does not have are marked as ours`() {
+        val rows = (0 until modules().length()).map { modules().getJSONObject(it) }
+        val oursOnly = rows.filterNot { it.getBoolean("official") }.map { it.getString("module") }.toSet()
+
+        assertEquals(
+            "the set of our own, non-official screens changed: $oursOnly",
+            knownOursOnly,
+            oursOnly,
         )
     }
 
@@ -92,13 +109,11 @@ class OfficialModuleInventoryTest {
         rows.forEach { row ->
             assertTrue("${row.getString("module")} has no area", row.getString("area").isNotBlank())
             assertTrue("${row.getString("module")} has no label", row.getString("label").isNotBlank())
+            val classes = row.getInt("official_css_classes")
+            val mentions = row.getInt("official_mentions")
             assertTrue(
-                "${row.getString("module")} claims to exist officially but has no classes",
-                row.getInt("official_css_classes") > 0 || row.getString("module") in setOf(
-                    "login", "devices", "bootstrap", "about", "session-share", "pets", "journey",
-                    "kanban", "channels", "insights", "background", "location", "presets",
-                    "messages", "session", "usage", "search",
-                ),
+                "${row.getString("module")} contradicts itself: official=$classes classes, $mentions mentions",
+                row.getBoolean("official") == (classes > 0 || mentions >= 5),
             )
         }
     }

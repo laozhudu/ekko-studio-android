@@ -20,13 +20,18 @@
 
 - 页面：`about, background-settings, bootstrap, change-password, devices, index, location-picker, login, login-devices, session-share`
 - 权限：`Barcode, Camera, Geolocation, OAuth, Push, Record, Share, Zip`
-- 50 个模块中，我方源码里**没有任何对应物**的：`network-mode, drawer, presets, inbox, location`（脚本判定，CI 会盯住这个集合）
+- 50 个模块分两类：
+
+  **官方有、我方完全没有**（5 个，CI 盯着这个集合只许变小）：`network-mode, drawer, presets, inbox, location`
+  **我方独有、官方 apk 里根本没有**（4 个）：`journey, kanban, webhooks, insights` —— 这四项谈不上"对齐官方"，只能按自家标准维护。
+
+- 注意：脚本的 have/missing 是「源码里有没有提到」的粗判，**本文件矩阵里的 have/partial/missing 才是权威判定**。
 
 ---
 
 ## 二、模块矩阵
 
-状态：**have** 已对齐 · **partial** 有但差距 · **missing** 无 · **cannot** 服务端不支持
+状态：**have** 已对齐 · **partial** 有但差距 · **missing** 无 · **cannot** 服务端不支持 · **ours** 官方没有、我方独有
 
 ### A. 外壳与设备
 
@@ -82,15 +87,16 @@
 | 编码代理 | 配置卡、策略、安装、检查更新 | 策略与安装 | partial | 配置卡（模型/工作区/审批策略） |
 | 辅助模型 | 委派模型、推理强度 | 只读 | partial | 可编辑 |
 | MoA | 聚合器、成员、推理 | 仅接口提及 | **missing** | 判定是否值得（个人使用频率低）→ 放 P6 末 |
-| 宠物 / 旅程 | 宠物、技能旅程图 | 已有 | have | — |
+| 宠物 | 宠物、吉祥物 | 已有 | have | — |
+| 旅程 | **官方无此界面** | 已有 | ours | 非对齐项，保持现状 |
 
 ### F. 自动化
 
 | 模块 | 官方 | 我方 | 状态 | 动作 |
 | --- | --- | --- | --- | --- |
 | 定时任务 | 卡片、表单、历史 | 已有 | have | — |
-| 看板 | 列、拖拽、任务详情、附件 | 已有（列表式） | partial | 看板列视图 |
-| Webhook | 端点、事件流、测试 | 已有 | have | — |
+| 看板 | **官方无此界面** | 已有（列表式） | ours | 非对齐项；按自用需求做列视图 |
+| Webhook | **官方无此界面** | 已有 | ours | 非对齐项，保持现状 |
 | 渠道 | 微信/其他渠道开关、二维码 | 已有 | have | — |
 
 ### G. 模型
@@ -109,7 +115,7 @@
 | 性能 | 面板、仪表、自动刷新 | 已有 | have | — |
 | 日志 | 列表、详情抽屉、复制 | 已有 | have | — |
 | 健康 | 主动检查、按钮 | 部分 | partial | 补主动检查 |
-| 洞察 | 统计 | 已有 | have | — |
+| 洞察 | **官方无此界面** | 已有 | ours | 非对齐项，保持现状 |
 
 ### I. 外观与通知
 
@@ -121,7 +127,7 @@
 | 位置发送 | 位置选择器、附近、发送 | — | **missing** | `Geolocation` 权限 + 地图选点（第三方 SDK 体积大，需决策） |
 | 全局搜索 | 会话/消息/技能统一搜索 | 仅会话内搜索 | partial | 统一搜索页 |
 
-统计：**have 20 / partial 19 / missing 6 / cannot 1**（另有 4 个模块未单列，归入上表行内）。
+统计：**have 20 / partial 19 / missing 5 / cannot 1 / ours 4**（另有 1 个模块归入上表行内）。
 
 ---
 

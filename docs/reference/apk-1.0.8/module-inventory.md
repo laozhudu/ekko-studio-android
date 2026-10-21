@@ -6,57 +6,61 @@ Counts are stylesheet class prefixes and source-file matches; no vendor asset is
 - pages: about, background-settings, bootstrap, change-password, devices, index, location-picker, login, login-devices, session-share
 - permissions: Barcode, Camera, Geolocation, OAuth, Push, Record, Share, UniNView, VideoPlayer, Zip
 
-| area | module | official classes | we have | files |
-| --- | --- | --- | --- | --- |
-| shell | login | 0 | have | HermesApi.kt, MainActivity.kt |
-| shell | devices | 0 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
-| shell | bootstrap | 0 | have | AppViewModel.kt, Intro.kt, MainActivity.kt |
-| shell | about | 0 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
-| shell | network-mode | 175 | missing |  |
-| chat | drawer | 59 | missing |  |
-| chat | session | 175 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
-| chat | new-chat | 54 | have | AppViewModel.kt, MainActivity.kt |
-| chat | composer | 131 | have | AppViewModel.kt, ChatMetrics.kt, ChatWidgets.kt |
-| chat | input-context | 83 | have | MainActivity.kt |
-| chat | messages | 0 | have | MainActivity.kt |
-| chat | markdown | 204 | have | ChatMarkdown.kt, MainActivity.kt |
-| chat | tool | 136 | have | MainActivity.kt, Theme.kt |
-| chat | file-preview | 0 | have | MainActivity.kt |
-| chat | voice | 211 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
-| chat | usage | 117 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
-| chat | session-share | 0 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
-| group | group | 421 | have | MainActivity.kt |
-| group | presets | 0 | missing |  |
-| work | workspace | 268 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
-| work | terminal | 102 | have | AppViewModel.kt, MainActivity.kt, TerminalClient.kt |
-| work | workflow | 235 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
-| work | edge | 39 | have | AgentTools.kt, AppViewModel.kt, ChatMarkdown.kt |
-| agent | agent | 170 | have | AppViewModel.kt, MainActivity.kt |
-| agent | skills | 128 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
-| agent | skill-detail | 0 | have | AgentToolScreens.kt, MainActivity.kt |
-| agent | bundles | 78 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
-| agent | mcp | 125 | have | AgentToolScreens.kt, AppViewModel.kt, EkkoHubScreen.kt |
-| agent | coding | 52 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
-| agent | aux | 88 | have | ChatSocket.kt |
-| agent | moa | 82 | have | HermesApi.kt, SlashCommands.kt |
-| agent | pets | 0 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
-| agent | journey | 0 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
-| auto | jobs | 93 | have | AppViewModel.kt, CronJobs.kt, HermesApi.kt |
-| auto | kanban | 0 | have | AgentTools.kt, AppViewModel.kt, ChatWidgets.kt |
-| auto | webhooks | 0 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
-| auto | channels | 0 | have | AppViewModel.kt, Channels.kt, HermesApi.kt |
-| model | model | 235 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
-| model | provider | 102 | have | AgentToolScreens.kt, AgentTools.kt, AppUpdater.kt |
-| model | api | 0 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
-| model | hermes | 59 | have | HermesApi.kt, ModelSettingsScreen.kt |
-| obs | performance | 66 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
-| obs | logs | 57 | have | MainActivity.kt, StudioWorkspaceScreens.kt |
-| obs | health | 0 | have | Theme.kt |
-| obs | insights | 0 | have | AppViewModel.kt, ChatWidgets.kt, MainActivity.kt |
-| look | theme | 142 | have | AppearanceScreen.kt, DevicesScreen.kt, MainActivity.kt |
-| look | background | 0 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
-| look | inbox | 60 | missing |  |
-| look | location | 0 | missing |  |
-| look | search | 54 | have | AppViewModel.kt, DesignSystem.kt, MainActivity.kt |
+| area | module | official? | official classes | mentions | we have | files |
+| --- | --- | --- | --- | --- | --- | --- |
+| shell | login | yes | 0 | 100 | have | HermesApi.kt, MainActivity.kt |
+| shell | devices | yes | 0 | 235 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
+| shell | bootstrap | yes | 0 | 9 | have | AppViewModel.kt, Intro.kt, MainActivity.kt |
+| shell | about | yes | 0 | 17 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
+| shell | network-mode | yes | 175 | 62 | missing |  |
+| chat | drawer | yes | 59 | 219 | missing |  |
+| chat | session | yes | 175 | 873 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
+| chat | new-chat | yes | 54 | 0 | have | AppViewModel.kt, MainActivity.kt |
+| chat | composer | yes | 131 | 65 | have | AppViewModel.kt, ChatMetrics.kt, ChatWidgets.kt |
+| chat | input-context | yes | 83 | 95 | have | MainActivity.kt |
+| chat | messages | yes | 91 | 826 | have | MainActivity.kt |
+| chat | markdown | yes | 204 | 86 | have | ChatMarkdown.kt, MainActivity.kt |
+| chat | tool | yes | 136 | 733 | have | MainActivity.kt, Theme.kt |
+| chat | file-preview | yes | 118 | 51 | have | MainActivity.kt |
+| chat | voice | yes | 211 | 221 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
+| chat | usage | yes | 117 | 278 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
+| chat | session-share | yes | 0 | 311 | have | AppViewModel.kt, DevicesScreen.kt, HermesApi.kt |
+| group | group | yes | 421 | 970 | have | MainActivity.kt |
+| group | presets | yes | 0 | 164 | missing |  |
+| work | workspace | yes | 268 | 437 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
+| work | terminal | yes | 102 | 198 | have | AppViewModel.kt, MainActivity.kt, TerminalClient.kt |
+| work | workflow | yes | 235 | 490 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
+| work | edge | yes | 39 | 162 | have | AgentTools.kt, AppViewModel.kt, ChatMarkdown.kt |
+| agent | agent | yes | 170 | 1381 | have | AppViewModel.kt, MainActivity.kt |
+| agent | skills | yes | 128 | 368 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
+| agent | skill-detail | yes | 63 | 0 | have | AgentToolScreens.kt, MainActivity.kt |
+| agent | bundles | yes | 78 | 73 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
+| agent | mcp | yes | 125 | 163 | have | AgentToolScreens.kt, AppViewModel.kt, EkkoHubScreen.kt |
+| agent | coding | yes | 52 | 7 | have | AgentTools.kt, AppViewModel.kt, ChatSocket.kt |
+| agent | aux | yes | 88 | 40 | have | ChatSocket.kt |
+| agent | moa | yes | 82 | 103 | have | HermesApi.kt, SlashCommands.kt |
+| agent | pets | yes | 0 | 8 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
+| agent | journey | **no** | 0 | 0 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
+| auto | jobs | yes | 93 | 7 | have | AppViewModel.kt, CronJobs.kt, HermesApi.kt |
+| auto | kanban | **no** | 0 | 1 | have | AgentTools.kt, AppViewModel.kt, ChatWidgets.kt |
+| auto | webhooks | **no** | 0 | 0 | have | AgentTools.kt, AppViewModel.kt, HermesApi.kt |
+| auto | channels | yes | 0 | 22 | have | AppViewModel.kt, Channels.kt, HermesApi.kt |
+| model | model | yes | 235 | 1406 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
+| model | provider | yes | 102 | 741 | have | AgentToolScreens.kt, AgentTools.kt, AppUpdater.kt |
+| model | api | yes | 90 | 9 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
+| model | hermes | yes | 59 | 0 | have | HermesApi.kt, ModelSettingsScreen.kt |
+| obs | performance | yes | 66 | 49 | have | AppViewModel.kt, HermesApi.kt, MainActivity.kt |
+| obs | logs | yes | 57 | 380 | have | MainActivity.kt, StudioWorkspaceScreens.kt |
+| obs | health | yes | 86 | 106 | have | Theme.kt |
+| obs | insights | **no** | 0 | 1 | have | AppViewModel.kt, ChatWidgets.kt, MainActivity.kt |
+| look | theme | yes | 142 | 523 | have | AppearanceScreen.kt, DevicesScreen.kt, MainActivity.kt |
+| look | background | yes | 5 | 146 | have | AgentToolScreens.kt, AgentTools.kt, AppViewModel.kt |
+| look | inbox | yes | 60 | 34 | missing |  |
+| look | location | yes | 0 | 66 | missing |  |
+| look | search | yes | 54 | 113 | have | AppViewModel.kt, DesignSystem.kt, MainActivity.kt |
 
-unaccounted modules: 5 → network-mode, drawer, presets, inbox, location
+no counterpart in our sources: 5 → network-mode, drawer, presets, inbox, location
+
+of those, the official client has them: 5 → network-mode, drawer, presets, inbox, location
+
+modules the official client does NOT have (ours): journey, kanban, webhooks, insights
