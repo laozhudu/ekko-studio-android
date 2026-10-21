@@ -221,18 +221,27 @@ class HermesApiContractTest {
     }
 
     @Test
-    fun `device pairing and peer disconnect use Studio controls`() {
-        enqueue("""{"link":"https://studio/#/hermes/devices?pairing_code=123"}""")
-        assertEquals("https://studio/#/hermes/devices?pairing_code=123", api.devicePairingLink())
-        assertEquals("/api/devices/pairing-link", server.takeRequest().path)
-        enqueue("""{"devices":[]}""")
-        api.manualDeviceRequest("https://remote.example/#/hermes/devices?pairing_code=456")
-        val manual = server.takeRequest()
-        assertEquals("/api/devices/manual-request", manual.path)
-        assertEquals("https://remote.example/#/hermes/devices?pairing_code=456", JSONObject(manual.body.readUtf8()).getString("url"))
-        enqueue("""{"ok":true}""")
-        api.disconnectPeer("peer-1")
-        assertEquals("/api/devices/peer-connections/peer-1/disconnect", server.takeRequest().path)
+    fun `connections and pairing use the endpoints that exist on 0.7 x`() {
+        // /api/devices, /devices/pairing-link, /devices/manual-request and
+        // /devices/peer-connections all return 404 on 0.7.38; the screen is built
+        // on app-connections and the authorization-code routes instead.
+        enqueue("""{"connections":[{"id":3,"device_name":"Pixel","connection_type":"lan","active":true,"online":true}],"access_failure":null}""")
+        val connections = api.appConnections()
+        assertEquals(1, connections.size)
+        assertEquals("Pixel", connections.single().name)
+        assertEquals("/api/app-connections", server.takeRequest().path)
+
+        enqueue("""{"type":"hermes-studio.app-connection","connection_type":"lan","authorization_code":"ABC","expires_at":1792544907,"qr_payload":"qr-body"}""")
+        val auth = api.createAppAuthorization(cloud = false)
+        assertEquals("ABC", auth.code)
+        assertEquals("qr-body", auth.qrPayload)
+        assertEquals("/api/app-connections/authorization-codes/lan", server.takeRequest().path)
+
+        enqueue("""{"relay":{"connected":false,"machineId":"m1","pairingCode":"","pairingExpiresAt":0,"route":"official","relayUrl":"https://api.ekkostudio.xyz"}}""")
+        val relay = api.appRelayStatus()
+        assertFalse(relay.connected)
+        assertEquals("m1", relay.machineId)
+        assertEquals("/api/app-relay/status", server.takeRequest().path)
     }
 
     @Test fun `journey usage and webhooks use v0712 routes`() {
