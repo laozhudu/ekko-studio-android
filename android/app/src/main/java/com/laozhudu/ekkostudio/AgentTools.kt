@@ -197,6 +197,14 @@ data class BackgroundAgentRun(
     val output: String? = null,
 )
 
+/**
+ * One execution of a workflow.
+ *
+ * Field names verified against a real run on a live server: the record has
+ * `started_at` and `finished_at` as epoch millis, not `created_at`/
+ * `completed_at`, and it carries a `node_sessions` array — one entry per node
+ * execution — which is the only way to tell *which* step failed.
+ */
 data class StudioWorkflowRun(
     val id: String,
     val workflowId: String,
@@ -204,7 +212,30 @@ data class StudioWorkflowRun(
     val createdAt: Long,
     val error: String?,
     val pendingNodeId: String?,
-)
+    val startedAt: Long = 0,
+    val finishedAt: Long = 0,
+    val triggerSource: String = "",
+    val nodeSessions: List<WorkflowNodeSession> = emptyList(),
+) {
+    val running: Boolean get() = status == "running" || status == "queued" || status == "accepted"
+    /** Null while the run is still going, or when no timestamps were recorded. */
+    val durationMillis: Long?
+        get() = if (startedAt > 0 && finishedAt > startedAt) finishedAt - startedAt else null
+}
+
+/** One node execution inside a run. `node_id` is the workflow's own node id. */
+data class WorkflowNodeSession(
+    val id: String,
+    val nodeId: String,
+    val status: String,
+    val sessionId: String,
+    val startedAt: Long,
+    val finishedAt: Long,
+    val error: String?,
+) {
+    val durationMillis: Long?
+        get() = if (startedAt > 0 && finishedAt > startedAt) finishedAt - startedAt else null
+}
 
 data class EkkoMemory(val id: String, val title: String, val content: String, val status: String, val revision: Int, val tags: List<String>)
 data class EkkoMcpServer(val name: String, val enabled: Boolean, val transport: String, val config: String)

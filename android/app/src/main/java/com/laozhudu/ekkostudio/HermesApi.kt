@@ -692,9 +692,36 @@ class HermesApi(
 
     private fun parseWorkflowRun(item: JSONObject): StudioWorkflowRun {
         val sessions = item.optJSONArray("node_sessions") ?: JSONArray()
-        val pending = (0 until sessions.length()).mapNotNull { sessions.optJSONObject(it) }.firstOrNull { it.optString("status") == "blocked" }?.optString("node_id")
-        return StudioWorkflowRun(item.optString("id"), item.optString("workflow_id"), item.optString("status"), item.optLong("created_at"), firstNonBlank(item, "error"), pending)
+        val parsedSessions = (0 until sessions.length()).mapNotNull { index ->
+            sessions.optJSONObject(index)?.let { row ->
+                WorkflowNodeSession(
+                    id = row.optString("id"),
+                    nodeId = row.optString("node_id"),
+                    status = row.optString("status"),
+                    sessionId = row.optString("session_id"),
+                    startedAt = row.optLong("started_at"),
+                    finishedAt = row.optLong("finished_at"),
+                    error = firstNonBlank(row, "error"),
+                )
+            }
+        }
+        return StudioWorkflowRun(
+            id = item.optString("id"),
+            workflowId = item.optString("workflow_id"),
+            status = item.optString("status"),
+            createdAt = item.optLong("created_at"),
+            error = firstNonBlank(item, "error"),
+            pendingNodeId = parsedSessions.firstOrNull { it.status == "blocked" }?.nodeId,
+            startedAt = item.optLong("started_at"),
+            finishedAt = item.optLong("finished_at"),
+            triggerSource = item.optString("trigger_source"),
+            nodeSessions = parsedSessions,
+        )
     }
+
+    /** GET /api/studio/workflows/{id}/runs/{runId} — one run with its node sessions. */
+    fun workflowRun(workflowId: String, runId: String): StudioWorkflowRun =
+        parseWorkflowRun(call("/api/studio/workflows/${enc(workflowId)}/runs/${enc(runId)}").optJSONObject("run") ?: JSONObject())
 
     /** GET /api/hermes/available-models — flattened to what the picker needs. */
     fun availableModels(profile: String): List<ModelOption> {

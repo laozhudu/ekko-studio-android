@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles, WorkflowRun,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -306,6 +306,9 @@ data class UiState(
     val sessionLimit: Int = 80,
     val workflows: List<StudioWorkflow> = emptyList(),
     val workflowRuns: Map<String, List<StudioWorkflowRun>> = emptyMap(),
+    /** The run whose detail screen is open, and its id so it can be reloaded. */
+    val openWorkflowRun: StudioWorkflowRun? = null,
+    val openWorkflowRunId: String? = null,
     val workflowSchedules: Map<String, List<WorkflowSchedule>> = emptyMap(),
     val loadingWorkflows: Boolean = false,
     val ekkoMemories: List<EkkoMemory> = emptyList(),
@@ -1548,6 +1551,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun runWorkflow(workflow: StudioWorkflow, input: String?) = launchWork(
         work = { api.runWorkflow(workflow.id, input) },
         onSuccess = { openWorkflows() },
+    )
+
+    /** Opens one run's detail; the node sessions are what make it useful. */
+    fun openWorkflowRun(run: StudioWorkflowRun) {
+        _state.update { it.copy(screen = Screen.WorkflowRun, openWorkflowRun = run, openWorkflowRunId = run.id, error = null) }
+        reloadWorkflowRun()
+    }
+
+    fun reloadWorkflowRun() {
+        val runId = _state.value.openWorkflowRunId ?: return
+        val workflowId = _state.value.openWorkflowRun?.workflowId
+            ?: _state.value.workflows.firstOrNull { flow -> _state.value.workflowRuns[flow.id]?.any { it.id == runId } == true }?.id
+            ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.workflowRun(workflowId, runId) } }
+                .onSuccess { fresh -> _state.update { it.copy(openWorkflowRun = fresh) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
+        }
+    }
+
+    /** Node-level approval: the run detail knows which node is blocked. */
+    fun approveWorkflowNode(workflowId: String, runId: String, nodeId: String, approved: Boolean) = launchWork(
+        work = { api.approveWorkflowNode(workflowId, runId, nodeId, approved) },
+        onSuccess = { reloadWorkflowRun() },
+    )
+
+    fun stopWorkflowRun(workflowId: String, runId: String) = launchWork(
+        work = { api.stopWorkflowRun(workflowId, runId) },
+        onSuccess = {
+            reloadWorkflowRun()
+            openWorkflows()
+        },
     )
 
     fun stopWorkflowRun(run: StudioWorkflowRun) = launchWork(
@@ -5151,6 +5186,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // Room settings are part of the room; back goes to the conversation.
             Screen.RoomSettings -> _state.update { it.copy(screen = Screen.Room) }
             Screen.RoomFiles -> _state.update { it.copy(screen = Screen.RoomSettings) }
+            Screen.WorkflowRun -> _state.update { it.copy(screen = Screen.AgentHub, openWorkflowRun = null, openWorkflowRunId = null) }
             else -> Unit
         }
         _state.update { state ->

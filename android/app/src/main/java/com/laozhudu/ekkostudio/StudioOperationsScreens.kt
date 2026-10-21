@@ -80,14 +80,14 @@ fun WorkflowsScreen(state: UiState, viewModel: AppViewModel) {
             state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
             if (!state.loadingWorkflows && state.workflows.isEmpty()) item { Text(stringResource(R.string.workflows_empty)) }
             items(state.workflows, key = { it.id }) { workflow ->
-                WorkflowCard(workflow, state.workflowRuns[workflow.id].orEmpty(), state.workflowSchedules[workflow.id].orEmpty(), onRun = { inputFor = workflow; runInput = "" }, onStop = viewModel::stopWorkflowRun, onApproval = viewModel::approveWorkflowNode, onEdit = { editing = workflow }, onDelete = { viewModel.deleteWorkflow(workflow) }, onExport = { viewModel.exportWorkflow(workflow) }, onSchedule = { scheduling = workflow }, onToggleSchedule = viewModel::toggleWorkflowSchedule, onDeleteSchedule = viewModel::deleteWorkflowSchedule, onDeleteRun = viewModel::deleteWorkflowRun, onRerun = viewModel::rerunWorkflow)
+                WorkflowCard(workflow, state.workflowRuns[workflow.id].orEmpty(), state.workflowSchedules[workflow.id].orEmpty(), onRun = { inputFor = workflow; runInput = "" }, onStop = viewModel::stopWorkflowRun, onApproval = viewModel::approveWorkflowNode, onEdit = { editing = workflow }, onDelete = { viewModel.deleteWorkflow(workflow) }, onExport = { viewModel.exportWorkflow(workflow) }, onSchedule = { scheduling = workflow }, onToggleSchedule = viewModel::toggleWorkflowSchedule, onDeleteSchedule = viewModel::deleteWorkflowSchedule, onDeleteRun = viewModel::deleteWorkflowRun, onRerun = viewModel::rerunWorkflow, onOpenRun = viewModel::openWorkflowRun)
             }
         }
     }
 }
 
 @Composable
-private fun WorkflowCard(workflow: StudioWorkflow, runs: List<StudioWorkflowRun>, schedules: List<WorkflowSchedule>, onRun: () -> Unit, onStop: (StudioWorkflowRun) -> Unit, onApproval: (StudioWorkflowRun, Boolean) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onExport: () -> Unit, onSchedule: () -> Unit, onToggleSchedule: (WorkflowSchedule) -> Unit, onDeleteSchedule: (WorkflowSchedule) -> Unit, onDeleteRun: (StudioWorkflowRun) -> Unit, onRerun: (StudioWorkflowRun) -> Unit) {
+private fun WorkflowCard(workflow: StudioWorkflow, runs: List<StudioWorkflowRun>, schedules: List<WorkflowSchedule>, onRun: () -> Unit, onStop: (StudioWorkflowRun) -> Unit, onApproval: (StudioWorkflowRun, Boolean) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onExport: () -> Unit, onSchedule: () -> Unit, onToggleSchedule: (WorkflowSchedule) -> Unit, onDeleteSchedule: (WorkflowSchedule) -> Unit, onDeleteRun: (StudioWorkflowRun) -> Unit, onRerun: (StudioWorkflowRun) -> Unit, onOpenRun: (StudioWorkflowRun) -> Unit) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(workflow.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -97,8 +97,24 @@ private fun WorkflowCard(workflow: StudioWorkflow, runs: List<StudioWorkflowRun>
             TextButton(onClick = onSchedule) { Text(stringResource(R.string.workflow_schedule_add)) }
             schedules.forEach { schedule -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("${schedule.schedule} · ${schedule.timezone}", Modifier.weight(1f)); TextButton(onClick = { onToggleSchedule(schedule) }) { Text(if (schedule.enabled) "ON" else "OFF") }; TextButton(onClick = { onDeleteSchedule(schedule) }) { Text(stringResource(R.string.action_delete)) } } }
             runs.take(5).forEach { run ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Column(Modifier.weight(1f)) { Text(run.status, fontWeight = FontWeight.SemiBold); Text(run.id.take(10), style = MaterialTheme.typography.labelSmall) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { onOpenRun(run) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(run.status, fontWeight = FontWeight.SemiBold)
+                        // Duration and node count are what tell two runs of the same
+                        // workflow apart; the id alone never did.
+                        Text(
+                            listOfNotNull(
+                                run.id.take(8),
+                                run.durationMillis?.let { formatDuration(it) },
+                                if (run.nodeSessions.isNotEmpty()) "${run.nodeSessions.size} nodes" else null,
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
                     if (run.status == "running" || run.status == "queued") OutlinedButton(onClick = { onStop(run) }) { Icon(Icons.Filled.Stop, null); Text(stringResource(R.string.action_stop)) }
                     if (run.pendingNodeId != null) {
                         TextButton(onClick = { onApproval(run, true) }) { Text(stringResource(R.string.action_approve)) }

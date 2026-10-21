@@ -1121,4 +1121,9 @@
     <string name="room_remote_empty">No remote machine has offered an agent to this room. A Studio on the LAN can pair here; a self-hosted server has no relay hub of its own.</string>
     <string name="room_remote_agent_count">%1$d agents</string>
     <string name="room_remote_disconnect">Disconnect</string>
+    <string name="workflow_run_loading">Loading run…</string>
+    <string name="workflow_run_stop">Stop</string>
+    <string name="workflow_run_nodes">Nodes (%1$d)</string>
+    <string name="workflow_run_approve">Approve</string>
+    <string name="workflow_graph_hint">Read-only. Node layout is edited on the desktop.</string>
 </resources>
