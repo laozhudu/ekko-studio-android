@@ -69,6 +69,22 @@ internal sealed interface ChatMarkdownBlock {
         override val text: String get() = ""
     }
 
+    /**
+     * A line that is nothing but `![alt](url)`.
+     *
+     * Images used to fall through to the paragraph parser, so a pasted screenshot
+     * rendered as the literal text `![image](...)` — the single most visible
+     * markdown gap in the transcript.
+     */
+    data class Image(val alt: String, val url: String) : ChatMarkdownBlock {
+        override val text: String get() = ""
+    }
+
+    /** A line that is nothing but a bare URL, rendered as a card. */
+    data class LinkCard(val url: String) : ChatMarkdownBlock {
+        override val text: String get() = ""
+    }
+
     /** --- / *** / ___ */
     data object Rule : ChatMarkdownBlock {
         override val text: String get() = ""
@@ -76,6 +92,12 @@ internal sealed interface ChatMarkdownBlock {
 }
 
 private val TABLE_DELIMITER = Regex("^:?-{1,}:?$")
+
+/** `![alt](url)` on a line of its own. The alt may be empty. */
+private val IMAGE_ONLY = Regex("""^!\[([^\]]*)]\((\S+?)\)$""")
+
+/** A line that is exactly one URL — a bare link, not a sentence containing one. */
+private val BARE_URL_ONLY = Regex("""^https?://\S+$""")
 private val BARE_URL = Regex("""https?://[^\s<>()\[\]{}"'`]+""")
 private val FENCE_LANGUAGES = mapOf(
     "kt" to "kotlin", "kts" to "kotlin", "js" to "javascript", "ts" to "typescript",
@@ -187,6 +209,23 @@ internal fun parseChatMarkdown(source: String): List<ChatMarkdownBlock> {
         ) {
             flushParagraph()
             blocks += ChatMarkdownBlock.Rule
+            index++
+            continue
+        }
+
+        // A standalone image, before any inline parsing can eat it.
+        val imageMatch = IMAGE_ONLY.matchEntire(trimmed)
+        if (imageMatch != null) {
+            flushParagraph()
+            blocks += ChatMarkdownBlock.Image(imageMatch.groupValues[1], imageMatch.groupValues[2])
+            index++
+            continue
+        }
+
+        // A line that is only a URL becomes a card instead of a wall of text.
+        if (BARE_URL_ONLY.matches(trimmed)) {
+            flushParagraph()
+            blocks += ChatMarkdownBlock.LinkCard(trimmed)
             index++
             continue
         }
@@ -438,7 +477,15 @@ internal fun chatTextDirection(text: String): TextDirection {
 }
 
 @Composable
-internal fun ChatMarkdownText(text: String, modifier: Modifier = Modifier) {
+internal fun ChatMarkdownText(
+    text: String,
+    modifier: Modifier = Modifier,
+    /**
+     * Opening a link is the caller's job: a chat bubble has no Context of its own
+     * worth trusting, and tests need to see the URL without starting a browser.
+     */
+    onOpenLink: (String) -> Unit = {},
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -466,6 +513,8 @@ internal fun ChatMarkdownText(text: String, modifier: Modifier = Modifier) {
                 is ChatMarkdownBlock.Quote -> MarkdownQuoteRow(block.text)
                 is ChatMarkdownBlock.Code -> MarkdownCodeBlock(block)
                 is ChatMarkdownBlock.Table -> MarkdownTable(block)
+                is ChatMarkdownBlock.Image -> MarkdownImage(block.alt, block.url)
+                is ChatMarkdownBlock.LinkCard -> MarkdownLinkCard(block.url, onOpenLink)
                 ChatMarkdownBlock.Rule -> HorizontalDivider(
                     modifier = Modifier.padding(vertical = 5.dp),
                     color = MaterialTheme.colorScheme.outlineVariant,

@@ -1049,4 +1049,12 @@
     <string name="drawer_signed_in_as">登录为 %1$s</string>
     <string name="drawer_switch_profile">切换档案（%1$d 个）</string>
     <string name="drawer_sign_out">退出登录</string>
+    <string name="message_speak">朗读</string>
+    <string name="message_copied">已复制</string>
+    <string name="file_preview_unknown">文件</string>
+    <string name="file_preview_failed">读取失败。</string>
+    <string name="file_preview_download_only">这个类型无法在应用内预览。</string>
+    <string name="usage_cache_hit">缓存命中</string>
+    <string name="usage_fresh_input">新增输入 %1$s</string>
+    <string name="usage_all_accounts">全部账号</string>
 </resources>

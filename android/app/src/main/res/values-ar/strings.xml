@@ -1049,4 +1049,12 @@
     <string name="drawer_signed_in_as">مسجل الدخول باسم %1$s</string>
     <string name="drawer_switch_profile">تبديل الملف (%1$d)</string>
     <string name="drawer_sign_out">تسجيل الخروج</string>
+    <string name="message_speak">اقرأ بصوت عالٍ</string>
+    <string name="message_copied">تم النسخ</string>
+    <string name="file_preview_unknown">ملف</string>
+    <string name="file_preview_failed">تعذرت قراءة الملف.</string>
+    <string name="file_preview_download_only">لا يمكن عرض هذا النوع هنا.</string>
+    <string name="usage_cache_hit">إصابة الذاكرة</string>
+    <string name="usage_fresh_input">إدخال جديد %1$s</string>
+    <string name="usage_all_accounts">كل الحسابات</string>
 </resources>

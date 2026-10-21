@@ -131,6 +131,12 @@ data class UiState(
     /** The next submitted draft came from STT and should receive a spoken reply. */
     val voiceReplyPending: Boolean = false,
     val speaking: Boolean = false,
+    /**
+     * Which message the speech player is on. The official client tracks this so
+     * the button on *that* bubble turns into a pause icon; a single app-wide flag
+     * made every bubble look like it was playing.
+     */
+    val speakingMessageId: String? = null,
     val models: List<ModelOption> = emptyList(),
     /** Profile whose entries are currently in [models]. */
     val modelsProfile: String? = null,
@@ -264,6 +270,8 @@ data class UiState(
     val mcpUi: McpUiState = McpUiState(),
     val petsUi: PetsUiState = PetsUiState(),
     val usageStats: UsageStats? = null,
+    /** Null means "all accounts"; otherwise the server-side filter id. */
+    val usageAccount: String? = null,
     val usageDays: Int = 30,
     val runtimePerformance: RuntimePerformance? = null,
     val loadingInsights: Boolean = false,
@@ -2882,11 +2890,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumeTranscript() = _state.update { it.copy(transcript = null) }
 
+    /**
+     * Reads a chat attachment as text for the previewer.
+     *
+     * The server route is the same one images use; only the decoding differs, so
+     * there is no second endpoint to keep in step.
+     */
+    suspend fun readChatFileText(path: String): String? = withContext(Dispatchers.IO) {
+        runCatching { api.fetchImageBytes(path)?.toString(Charsets.UTF_8) }.getOrNull()
+    }
+
+    /** Installed into [LocalImageFetcher] so markdown images can authenticate. */
+    suspend fun fetchImage(url: String): ByteArray? =
+        withContext(Dispatchers.IO) { runCatching { api.fetchImageBytes(url) }.getOrNull() }
+
+    /** A short confirmation after a copy; the clipboard gives no feedback itself. */
+    fun notifyCopied() = _state.update { it.copy(notice = str(R.string.message_copied)) }
+
     fun stopSpeaking() {
         runCatching { speechPlayer?.stop() }
         runCatching { speechPlayer?.release() }
         speechPlayer = null
-        _state.update { it.copy(speaking = false) }
+        _state.update { it.copy(speaking = false, speakingMessageId = null) }
+    }
+
+    /**
+     * Reads one message aloud, or stops it if it is already playing.
+     *
+     * Tapping the same bubble twice is the natural "stop", so it is handled here
+     * instead of needing a separate control.
+     */
+    fun speakLine(line: ChatLine) {
+        val id = line.messageId
+        if (_state.value.speaking && id != null && _state.value.speakingMessageId == id) {
+            stopSpeaking()
+            return
+        }
+        if (line.text.isBlank()) return
+        val profile = _state.value.openSession?.profile?.ifBlank { null }
+            ?: _state.value.activeProfile.ifBlank { "default" }
+        _state.update { it.copy(speakingMessageId = id) }
+        speak(line.text, profile)
     }
 
     private fun speak(text: String, profile: String) {
@@ -2913,13 +2957,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             runCatching { finished.release() }
                             if (speechPlayer === finished) speechPlayer = null
                             file.delete()
-                            _state.update { it.copy(speaking = false) }
+                            _state.update { it.copy(speaking = false, speakingMessageId = null) }
                         }
                         player.setOnErrorListener { failed, _, _ ->
                             runCatching { failed.release() }
                             if (speechPlayer === failed) speechPlayer = null
                             file.delete()
-                            _state.update { it.copy(speaking = false, error = str(R.string.voice_playback_failed)) }
+                            _state.update { it.copy(speaking = false, speakingMessageId = null, error = str(R.string.voice_playback_failed)) }
                             true
                         }
                         player.prepareAsync()
@@ -2929,7 +2973,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     file.delete()
                     _state.update { state -> state.copy(error = str(R.string.voice_playback_failed)) }
                 }
-            }.onFailure { failure -> _state.update { it.copy(speaking = false, error = failure.readableMessage(localized)) } }
+            }.onFailure { failure ->
+                _state.update { it.copy(speaking = false, speakingMessageId = null, error = failure.readableMessage(localized)) }
+            }
         }
     }
 
@@ -3638,11 +3684,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refreshInsights(days)
     }
 
+    /** Switching accounts re-reads the same window for that account only. */
+    fun selectUsageAccount(account: String?) {
+        _state.update { it.copy(usageAccount = account) }
+        refreshInsights(_state.value.usageDays)
+    }
+
     fun refreshInsights(days: Int = _state.value.usageDays) {
         _state.update { it.copy(usageDays = days, loadingInsights = true, error = null) }
+        val account = _state.value.usageAccount
         viewModelScope.launch {
             val result = runCatching {
-                withContext(Dispatchers.IO) { api.usageStats(days) to api.runtimePerformance() }
+                withContext(Dispatchers.IO) { api.usageStats(days, account) to api.runtimePerformance() }
             }
             result.onSuccess { (usage, performance) ->
                 _state.update { it.copy(usageStats = usage, runtimePerformance = performance, loadingInsights = false) }

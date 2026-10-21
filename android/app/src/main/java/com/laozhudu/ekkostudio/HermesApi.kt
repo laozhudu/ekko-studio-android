@@ -560,6 +560,27 @@ class HermesApi(
         call("/api/hermes/config?profile=${enc(profile)}", "PUT", body)
     }
 
+    /**
+     * GET any image the transcript points at, with the bearer token attached.
+     *
+     * A markdown image in a message is a Studio URL
+     * (`/api/studio/files/download?path=...`), which the platform cannot fetch by
+     * itself: the token lives in this class, not in the URL.
+     */
+    fun fetchImageBytes(pathOrUrl: String): ByteArray? {
+        val target = if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+            pathOrUrl
+        } else {
+            url(pathOrUrl)
+        }
+        val builder = Request.Builder().url(target).header("Accept", "image/*")
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        client.newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) return null
+            return response.body?.bytes()
+        }
+    }
+
     /** GET /api/studio/sessions — most recent conversations for a profile. */
     fun sessions(profile: String?, limit: Int = 80): List<SessionSummary> {
         val canonical = if (profile.isNullOrBlank()) {
@@ -1251,8 +1272,18 @@ class HermesApi(
             ?: throw HermesException("Studio returned no context length")
     }
 
-    fun usageStats(days: Int): UsageStats {
-        val root = call("/api/studio/usage/stats?days=${days.coerceIn(1, 365)}")
+    /**
+     * GET /api/studio/usage/stats
+     *
+     * `account` is the verified filter parameter: sending an unknown id returns
+     * zeroes rather than being ignored, which is how it was confirmed.
+     */
+    fun usageStats(days: Int, account: String? = null): UsageStats {
+        val query = buildString {
+            append("/api/studio/usage/stats?days=${days.coerceIn(1, 365)}")
+            account?.takeIf { it.isNotBlank() }?.let { append("&account=${enc(it)}") }
+        }
+        val root = call(query)
         fun entries(key: String, nameKey: String) = root.optJSONArray(key).objects().map { item ->
             UsageBreakdown(
                 name = item.optString(nameKey).ifBlank { "unknown" },
@@ -1284,6 +1315,13 @@ class HermesApi(
             models = entries("model_usage", "model"),
             agents = entries("agent_usage", "agent"),
             daily = daily,
+            accounts = root.optJSONObject("filter_options")?.optJSONArray("accounts").objects().map { item ->
+                UsageAccount(
+                    id = item.optString("id"),
+                    username = item.optString("username").ifBlank { item.optString("id") },
+                )
+            }.orEmpty(),
+            accountAttribution = root.optBoolean("account_attribution_available", false),
         )
     }
 
@@ -2670,7 +2708,25 @@ data class UsageStats(
     val models: List<UsageBreakdown>,
     val agents: List<UsageBreakdown>,
     val daily: List<DailyUsage>,
-)
+    /** Accounts this server can attribute usage to; empty when it cannot. */
+    val accounts: List<UsageAccount> = emptyList(),
+    val accountAttribution: Boolean = false,
+) {
+    /**
+     * Share of the prompt that came from cache.
+     *
+     * Cache reads dominate a long conversation — a measured month here was 4.35B
+     * cache tokens against 96M fresh input — so this number is the honest summary
+     * of "how much of the context was reused", not a vanity metric.
+     */
+    val cacheHitRate: Double?
+        get() {
+            val total = inputTokens + cacheReadTokens
+            return if (total <= 0) null else cacheReadTokens.toDouble() / total
+        }
+}
+
+data class UsageAccount(val id: String, val username: String)
 
 data class UsageBreakdown(
     val name: String,

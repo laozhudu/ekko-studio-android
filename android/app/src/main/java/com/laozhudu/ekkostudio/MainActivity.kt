@@ -86,6 +86,9 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -172,6 +175,7 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -296,7 +300,10 @@ private fun App(viewModel: AppViewModel = viewModel()) {
         }
     }
 
-    HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
+    // One installation for the whole tree: markdown images need the bearer token,
+    // which only the view model has.
+    CompositionLocalProvider(LocalImageFetcher provides { url -> viewModel.fetchImage(url) }) {
+        HermesTheme(appearance = state.appearance, fontScale = state.textScale) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AppContent(state, viewModel)
@@ -415,6 +422,7 @@ private fun App(viewModel: AppViewModel = viewModel()) {
                     }
                 },
             )
+        }
         }
     }
 }
@@ -1976,6 +1984,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     var actionLine by remember { mutableStateOf<ChatLine?>(null) }
+    var previewFile by remember { mutableStateOf<ChatFileLink?>(null) }
     var replyingTo by remember { mutableStateOf<ChatLine?>(null) }
     var selectingText by remember { mutableStateOf<ChatLine?>(null) }
     var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
@@ -2078,6 +2087,18 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
             ) { Text(stringResource(R.string.message_fork), modifier = Modifier.fillMaxWidth()) }
             Spacer(Modifier.height(18.dp))
         }
+    }
+    previewFile?.let { file ->
+        FilePreviewDialog(
+            file = file,
+            loadText = { path -> viewModel.readChatFileText(path) },
+            loadImage = { path -> viewModel.fetchImage(path) },
+            onDownload = {
+                viewModel.downloadChatFile(file, state.openSession?.profile?.ifBlank { null } ?: state.activeProfile.ifBlank { "default" })
+                previewFile = null
+            },
+            onDismiss = { previewFile = null },
+        )
     }
     selectingText?.let { line ->
         AlertDialog(
@@ -2190,9 +2211,17 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                                     dayKeyOf(next?.timestamp) != dayKeyOf(line.timestamp),
                                 notices = if (line.streaming) state.runNotices else emptyList(),
                                 onActions = { actionLine = line },
-                                onDownload = { file ->
-                                    viewModel.downloadChatFile(file, profile.ifBlank { "default" })
+                                onSpeak = if (!line.fromUser && line.text.isNotBlank()) {
+                                    { viewModel.speakLine(line) }
+                                } else null,
+                                onCopy = {
+                                    clipboard.setText(AnnotatedString(line.text))
+                                    viewModel.notifyCopied()
                                 },
+                                onQuote = { replyingTo = line },
+                                speakingHere = state.speakingMessageId != null &&
+                                    state.speakingMessageId == line.messageId,
+                                onDownload = { file -> previewFile = file },
                             )
                             }
                         }
@@ -2409,12 +2438,20 @@ private fun MessageBubble(
     notices: List<String> = emptyList(),
     onActions: (() -> Unit)? = null,
     onDownload: ((ChatFileLink) -> Unit)? = null,
+    /** `.message-meta-button` actions; null hides the button. */
+    onSpeak: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null,
+    onQuote: (() -> Unit)? = null,
+    /** True while this exact message is being read aloud. */
+    speakingHere: Boolean = false,
 ) {
     val parsed = remember(line.text, onDownload != null) {
         if (onDownload == null) ParsedChatMessage(line.text, emptyList()) else parseChatMessage(line.text)
     }
     // HStudio msg-content: user → align-items:flex-end (right), assistant → left
     val isUser = line.fromUser
+    // Needed to hand a link card to the system browser.
+    val context = LocalContext.current
     val hasThinking = !isUser && (
         line.streaming || line.reasoning?.isNotBlank() == true || line.tools.isNotEmpty()
     )
@@ -2534,7 +2571,10 @@ private fun MessageBubble(
                             if (isUser) {
                                 Text(text = parsed.text, color = onBubble)
                             } else {
-                                ChatMarkdownText(text = parsed.text)
+                                ChatMarkdownText(
+                                    text = parsed.text,
+                                    onOpenLink = { target -> openExternalLink(context, target) },
+                                )
                             }
                         }
                     }
@@ -2556,6 +2596,24 @@ private fun MessageBubble(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(ChatMetrics.metaRowGap),
                 ) {
+                    // Buttons before the clock, in the official order:
+                    // speech (assistant only), copy, reference.
+                    onSpeak?.let { speak ->
+                        MetaButton(
+                            icon = if (speakingHere) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            description = stringResource(
+                                if (speakingHere) R.string.voice_stop_reply else R.string.message_speak,
+                            ),
+                            active = speakingHere,
+                            onClick = speak,
+                        )
+                    }
+                    onCopy?.let { copy ->
+                        MetaButton(Icons.Filled.ContentCopy, stringResource(R.string.message_copy), false, copy)
+                    }
+                    onQuote?.let { quote ->
+                        MetaButton(Icons.Filled.FormatQuote, stringResource(R.string.message_reply), false, quote)
+                    }
                     Text(
                         stamp,
                         fontSize = ChatMetrics.metaTimeSize,
@@ -2630,6 +2688,39 @@ private fun ChatFileCard(file: ChatFileLink, onDownload: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * `.message-meta-button` — a 24dp tap target around a 14dp icon, 6dp radius,
+ * `inkPressed` while held and `inkSelectedBg` while active.
+ *
+ * A 24dp target is small for a thumb, which is why the official row puts these
+ * under the bubble rather than on it: they are secondary actions, and the
+ * long-press sheet remains the primary way in.
+ */
+@Composable
+private fun MetaButton(
+    icon: ImageVector,
+    description: String,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    Box(
+        modifier = Modifier
+            .size(ChatMetrics.metaButton)
+            .clip(RoundedCornerShape(ChatMetrics.metaButtonRadius))
+            .background(if (active) inkSelectedBg(inkDark) else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = description,
+            modifier = Modifier.size(14.dp),
+            tint = if (active) inkTextPrimary(inkDark) else inkTextMuted(inkDark),
+        )
     }
 }
 
@@ -5034,7 +5125,24 @@ private fun InsightsScreen(state: UiState, viewModel: AppViewModel) {
                 }
             }
             usage?.let { stats ->
+                // Accounts first: every number below it is scoped to the choice.
+                if (stats.accounts.size > 1) {
+                    item {
+                        UsageAccountRow(
+                            accounts = stats.accounts,
+                            selected = state.usageAccount,
+                            onSelect = viewModel::selectUsageAccount,
+                        )
+                    }
+                }
                 item { StudioSectionTitle(stringResource(R.string.insights_usage)) }
+                item {
+                    CacheHitRing(
+                        rate = stats.cacheHitRate,
+                        cacheTokens = stats.cacheReadTokens,
+                        inputTokens = stats.inputTokens,
+                    )
+                }
                 item {
                     StudioGroupedCard {
                         InsightMetric(stringResource(R.string.insights_tokens), compactNumber(stats.inputTokens + stats.outputTokens))
@@ -6085,4 +6193,16 @@ internal fun ErrorNote(message: String, onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_dismiss)) }
         }
     }
+}
+
+/**
+ * Opens a link from a chat message in whatever handles it.
+ *
+ * `runCatching` because a device with no browser (or a locked-down work profile)
+ * throws ActivityNotFoundException, and a chat message must not crash the app.
+ */
+internal fun openExternalLink(context: android.content.Context, url: String) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

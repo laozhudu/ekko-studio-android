@@ -1050,4 +1050,12 @@
     <string name="drawer_signed_in_as">Signed in as %1$s</string>
     <string name="drawer_switch_profile">Switch profile (%1$d)</string>
     <string name="drawer_sign_out">Sign out</string>
+    <string name="message_speak">Read aloud</string>
+    <string name="message_copied">Copied</string>
+    <string name="file_preview_unknown">file</string>
+    <string name="file_preview_failed">Could not read this file.</string>
+    <string name="file_preview_download_only">This file type cannot be shown here.</string>
+    <string name="usage_cache_hit">cache hit</string>
+    <string name="usage_fresh_input">fresh input %1$s</string>
+    <string name="usage_all_accounts">All accounts</string>
 </resources>
