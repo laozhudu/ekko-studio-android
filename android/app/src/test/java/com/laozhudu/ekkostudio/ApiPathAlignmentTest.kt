@@ -10,7 +10,7 @@ import java.io.File
  * `src/test/resources/openapi-paths.txt` is the path list exported from a live
  * `/api/openapi.json` (Ekko Studio 0.7.38, 529 operations). Every `/api/...`
  * literal in the network layer must appear there, or be listed in [allowed] with
- * a reason. This is the check that would have caught the six `/api/devices/*`
+ * a reason. This is the check that would have caught the six `/api/devices/…`
  * routes that had been 404 for months, and the `/api/chat-run/runs` fallback
  * that never worked.
  *
@@ -90,6 +90,31 @@ class ApiPathAlignmentTest {
         assertTrue(
             "not in the published OpenAPI list and not whitelisted:\n" +
                 offenders.distinct().joinToString("\n"),
+            offenders.isEmpty(),
+        )
+    }
+
+    /**
+     * Kotlin block comments nest, so a slash-star sequence inside a doc comment
+     * opens a second comment that never closes and swallows the rest of the file.
+     * That mistake cost three red CI runs, so it is now a test.
+     */
+    @Test
+    fun noCommentLineOpensANestedBlockComment() {
+        val roots = listOf("src/main/java/com/laozhudu/ekkostudio", "src/test/java/com/laozhudu/ekkostudio")
+        val offenders = roots.flatMap { root ->
+            (File(root).listFiles() ?: emptyArray())
+                .filter { it.extension == "kt" }
+                .flatMap { file ->
+                    file.readLines().mapIndexedNotNull { index, line ->
+                        val trimmed = line.trim()
+                        val isCommentBody = trimmed.startsWith("*") || trimmed.startsWith("//")
+                        if (isCommentBody && trimmed.contains("/*")) "${file.name}:${index + 1}" else null
+                    }
+                }
+        }
+        assertTrue(
+            "a '/*' inside a comment opens a nested block comment:\n" + offenders.joinToString("\n"),
             offenders.isEmpty(),
         )
     }
