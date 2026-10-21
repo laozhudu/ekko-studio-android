@@ -1040,4 +1040,13 @@
     <string name="intro_background_battery">أوقف تحسين البطارية</string>
     <string name="intro_background_autostart">اسمح بالتشغيل التلقائي</string>
     <string name="intro_background_open">افتح إعدادات التطبيق</string>
+    <string name="session_group_pinned">مثبتة</string>
+    <string name="session_group_recent">الأحدث</string>
+    <string name="session_group_uncategorised">بلا تصنيف</string>
+    <string name="session_new_choose_category">التصنيف</string>
+    <string name="session_new_choose_workspace">مساحة العمل</string>
+    <string name="session_new_none">بلا</string>
+    <string name="drawer_signed_in_as">مسجل الدخول باسم %1$s</string>
+    <string name="drawer_switch_profile">تبديل الملف (%1$d)</string>
+    <string name="drawer_sign_out">تسجيل الخروج</string>
 </resources>

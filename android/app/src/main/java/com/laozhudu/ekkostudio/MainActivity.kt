@@ -142,6 +142,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -1096,11 +1099,21 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
     var deleteCategory by remember { mutableStateOf<SessionCategory?>(null) }
     var workspaceFor by remember { mutableStateOf<SessionSummary?>(null) }
     var deleteVisible by remember { mutableStateOf(false) }
+    var expandedGroups by remember(state.sessionCategories) {
+        mutableStateOf(defaultExpandedGroupKeys(officialSessionGroups(state.sessionCategories)))
+    }
+    val searching = query.isNotBlank()
     val visibleSessions = remember(state.sessions, state.sessionSearchResults, query) {
         val clean = query.trim()
-        val base = if (clean.isBlank()) state.sessions else state.sessionSearchResults.orEmpty()
-        // Stable sort: pinned conversations float to the top, everything else keeps server order.
-        base.sortedByDescending { it.pinned }
+        if (clean.isBlank()) {
+            state.sessions
+        } else {
+            // Server-ranked results: keep their order, it is relevance, not recency.
+            state.sessionSearchResults.orEmpty()
+        }
+    }
+    val groupedSessions = remember(state.sessions, state.sessionCategories) {
+        populatedSessionGroups(state.sessions, state.sessionCategories)
     }
     LaunchedEffect(query) { viewModel.searchSessions(query) }
     LaunchedEffect(Unit) { viewModel.loadSessionCategories() }
@@ -1159,6 +1172,21 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
             onDismiss = { rename = null },
         )
     }
+    if (state.newChatSheetOpen) {
+        // The favourites list is only loaded when the workspace screen opens, so a
+        // cold start would show no shortcuts at all without this.
+        LaunchedEffect(Unit) { viewModel.loadWorkspaceDirectories() }
+        NewChatSheet(
+            categories = state.sessionCategories,
+            selectedCategoryId = state.newChatCategoryId,
+            workspace = state.newChatWorkspace,
+            favouriteDirectories = state.workspaceDirectories.filter { it.favorite }.map { it.path },
+            onSelectCategory = viewModel::setNewChatCategory,
+            onWorkspaceChange = viewModel::setNewChatWorkspace,
+            onStart = viewModel::startNewConversationWithChoices,
+            onDismiss = viewModel::closeNewChatSheet,
+        )
+    }
     confirmDelete?.let { session ->
         ConfirmDialog(
             title = stringResource(R.string.chats_delete_title),
@@ -1170,12 +1198,35 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
         )
     }
 
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        // Edge swipe is off: the list is vertically scrollable and a horizontal
+        // drag at the left edge competes with the swipe-to-reply gesture.
+        gesturesEnabled = drawerState.isOpen,
+        drawerContent = {
+            AccountDrawerContent(
+                profile = state.activeProfile,
+                avatar = state.avatarOf(state.activeProfile),
+                serverHost = serverHostOf(state.baseUrl),
+                model = state.sessionModel ?: state.defaultModel,
+                profileCount = state.profiles.size,
+                onSwitchProfile = { scope.launch { drawerState.close() }; viewModel.openProfiles() },
+                onDevices = { scope.launch { drawerState.close() }; viewModel.openDevices() },
+                onSettings = { scope.launch { drawerState.close() }; viewModel.openSettings() },
+                onAppearance = { scope.launch { drawerState.close() }; viewModel.openAppearance() },
+                onAbout = { scope.launch { drawerState.close() }; viewModel.openAboutFromDevices() },
+                onSignOut = { scope.launch { drawerState.close() }; viewModel.signOut() },
+            )
+        },
+    ) {
     Scaffold(
         topBar = {
             StudioLargeTopBar(
                 title = stringResource(R.string.chats_title),
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.openProfiles() }) {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
                         ProfileAvatar(
                             name = state.activeProfile.ifBlank { "default" },
                             spec = state.avatarOf(state.activeProfile),
@@ -1191,7 +1242,7 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh), tint = MaterialTheme.colorScheme.primary)
                     }
-                    IconButton(onClick = { viewModel.startNewConversation() }) {
+                    IconButton(onClick = viewModel::openNewChatSheet) {
                         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_new_chat), tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { viewModel.openDevices() }) {
@@ -1226,24 +1277,66 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                 state.error?.let { message -> item { ErrorNote(message) { viewModel.dismissError() } } }
                 if (!state.busy && visibleSessions.isEmpty()) {
                     item { EmptyNote(stringResource(R.string.chats_empty)) }
-                } else if (visibleSessions.isNotEmpty()) {
-                    item {
-                        StudioGroupedCard {
-                            visibleSessions.forEachIndexed { index, session ->
+                } else if (searching) {
+                    // A search is a flat answer list: the official client drops the
+                    // groups entirely and shows the matched text under each title.
+                    items(visibleSessions, key = { "hit-${it.id}" }) { session ->
+                        SessionRow(
+                            session = session,
+                            avatar = state.avatarOf(session.profile),
+                            isActive = state.openSession?.id == session.id,
+                            isRunningHere = state.runSessionId == session.id && state.runStatus == "running",
+                            isRunningElsewhere = session.id in state.remoteRunningSessions,
+                            showPreview = true,
+                            onClick = { viewModel.openSession(session) },
+                            onLongClick = { manage = session },
+                        )
+                    }
+                } else {
+                    // 置顶 / 最近 / 每个分类 / 未分类, in the official order, with the
+                    // official collapse rule: everything but the first group starts
+                    // closed the first time the category set is seen.
+                    groupedSessions.forEach { (spec, members) ->
+                        val open = spec.key in expandedGroups
+                        item(key = "group-${spec.key}") {
+                            SessionGroupHeading(
+                                label = if (spec.key == GROUP_NO_CATEGORY) {
+                                    stringResource(R.string.session_group_uncategorised)
+                                } else if (spec.key == GROUP_PINNED) {
+                                    stringResource(R.string.session_group_pinned)
+                                } else if (spec.key == GROUP_RECENT) {
+                                    stringResource(R.string.session_group_recent)
+                                } else {
+                                    spec.label
+                                },
+                                count = members.size,
+                                collapsible = spec.collapsible,
+                                expanded = open,
+                                onToggle = {
+                                    expandedGroups = if (open) expandedGroups - spec.key else expandedGroups + spec.key
+                                },
+                            )
+                        }
+                        if (open || !spec.collapsible) {
+                            items(members, key = { "${spec.key}-${it.id}" }) { session ->
                                 SessionRow(
                                     session = session,
                                     avatar = state.avatarOf(session.profile),
                                     isActive = state.openSession?.id == session.id,
                                     isRunningHere = state.runSessionId == session.id && state.runStatus == "running",
                                     isRunningElsewhere = session.id in state.remoteRunningSessions,
+                                    showPreview = false,
                                     onClick = { viewModel.openSession(session) },
                                     onLongClick = { manage = session },
                                 )
-                                if (index != visibleSessions.lastIndex) StudioCardDivider(startIndent = 76)
                             }
                         }
                     }
-                    if (query.isBlank()) item { TextButton(onClick = viewModel::loadMoreSessions, Modifier.fillMaxWidth()) { Text(stringResource(R.string.load_more)) } }
+                    item {
+                        TextButton(onClick = viewModel::loadMoreSessions, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.load_more))
+                        }
+                    }
                 }
             }
             PullRefreshIndicator(
@@ -1254,6 +1347,7 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                 contentColor = MaterialTheme.colorScheme.primary,
             )
         }
+    }
     }
 }
 
@@ -1351,6 +1445,62 @@ private fun InstanceRow(
     }
 }
 
+/**
+ * `.session-group-heading` — 10sp at weight 600 with .5s letter spacing, muted,
+ * 16/10/4 padding, a 10dp chevron that rotates to -90° when collapsed, and the
+ * member count at normal weight beside the label.
+ *
+ * The official header is only tappable when the group is collapsible; 置顶 is
+ * not, because a pinned list you cannot collapse is a list you cannot hide.
+ */
+@Composable
+private fun SessionGroupHeading(
+    label: String,
+    count: Int,
+    collapsible: Boolean,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 0f else -90f,
+        animationSpec = tween(150),
+        label = "groupChevron",
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (collapsible) Modifier.clickable(onClick = onToggle) else Modifier)
+            .padding(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (collapsible) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp).rotate(rotation).alpha(0.75f),
+                tint = inkTextMuted(inkDark),
+            )
+        }
+        Text(
+            label,
+            fontSize = 10.sp,
+            lineHeight = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.5.sp,
+            color = inkTextMuted(inkDark),
+        )
+        Text(
+            count.toString(),
+            fontSize = 10.sp,
+            lineHeight = 14.sp,
+            letterSpacing = 0.sp,
+            color = inkTextMuted(inkDark),
+        )
+    }
+}
+
 @Composable
 private fun SessionRow(
     session: SessionSummary,
@@ -1359,6 +1509,8 @@ private fun SessionRow(
     isRunningHere: Boolean = false,
     /** Server says this session is working, even if another device started it. */
     isRunningElsewhere: Boolean = false,
+    /** True only while searching: the official list shows the preview then. */
+    showPreview: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -1407,6 +1559,12 @@ private fun SessionRow(
                         // stays 550 in both states, exactly as the stylesheet has it.
                         color = if (isActive) inkTextPrimary(inkDark) else inkTextSecondary(inkDark),
                     )
+                    // `.session-running-track` sits inside the title row, immediately
+                    // after the title — not under the whole row. It is 2dp and grows
+                    // to fill whatever space the title leaves.
+                    if (running) {
+                        Box(Modifier.weight(0.6f)) { SessionRunningBar() }
+                    }
                     if (session.pinned) {
                         Icon(
                             Icons.Filled.PushPin,
@@ -1423,17 +1581,14 @@ private fun SessionRow(
                         maxLines = 1,
                     )
                 }
-                // `.session-preview`: 10sp/14sp, muted, one line. This build has no
-                // last-message preview from the list route, so the slot carries the
-                // facts it does have instead of inventing a preview.
-                val secondary = listOfNotNull(
-                    session.source.takeIf { it != "cli" },
-                    session.profile,
-                    session.model,
-                ).joinToString(" · ")
-                if (secondary.isNotBlank()) {
+                // `.session-preview`: 10sp/14sp, muted, one line, and — per the
+                // official bundle — rendered **only while a search is active**, where
+                // it shows the matched text. Showing it in the normal list would
+                // repeat the opening message on every row forever.
+                val preview = (session.snippet ?: session.preview).orEmpty().trim()
+                if (showPreview && preview.isNotBlank()) {
                     Text(
-                        text = secondary,
+                        text = preview,
                         modifier = Modifier.padding(top = ChatMetrics.sessionPreviewGap),
                         fontSize = ChatMetrics.sessionPreviewSize,
                         lineHeight = ChatMetrics.sessionPreviewLineHeight,
@@ -1441,9 +1596,6 @@ private fun SessionRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                }
-                if (running) {
-                    SessionRunningBar()
                 }
             }
         }
@@ -1849,6 +2001,24 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // A search hit carries the id of the message it matched. Landing on the newest
+    // message instead would make the result look wrong: the matched text is not
+    // on screen.
+    LaunchedEffect(conversationKey, state.loadingHistory, state.lines.size, state.focusMessageId) {
+        val target = state.focusMessageId
+        if (!state.loadingHistory && target != null && state.lines.isNotEmpty()) {
+            val index = state.lines.indexOfFirst { it.messageId == target }
+            if (index >= 0) {
+                listState.scrollToItem(index, -120)
+                reachedInitialBottom = true
+                viewModel.consumeFocusMessage()
+                return@LaunchedEffect
+            }
+            // The hit is older than the page that was loaded: keep the target and
+            // let the user pull older pages, rather than silently forgetting it.
+        }
     }
 
     LaunchedEffect(conversationKey, state.loadingHistory, state.lines.size) {

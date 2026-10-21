@@ -161,12 +161,24 @@ class ChatSocket(
         provider: String?,
         runtime: AgentRuntimeSelection = AgentRuntimeSelection(),
         cachedPageId: String? = null,
+        /**
+         * Group the new conversation into this category as it is created.
+         *
+         * The server's run handler reads `category_id` off the payload, which is
+         * the only way to file the first message of a conversation — a session
+         * does not exist until a run creates it, so there is nothing to PATCH.
+         */
+        categoryId: Int? = null,
+        /** Starting workspace for a brand-new conversation; same reasoning. */
+        workspace: String? = null,
     ): Flow<RunEvent> = callbackFlow {
         val payload = JSONObject()
             .put("input", contentFor(input, attachments))
             .put("profile", profile)
             .put("session_id", sessionId)
         if (!reasoningEffort.isNullOrBlank()) payload.put("reasoning_effort", reasoningEffort)
+        if (categoryId != null && categoryId > 0) payload.put("category_id", categoryId)
+        if (!workspace.isNullOrBlank()) payload.put("workspace", workspace)
         if (!model.isNullOrBlank()) payload.put("model", model)
         if (!provider.isNullOrBlank()) payload.put("provider", provider)
         if (!runtime.isHermes) {

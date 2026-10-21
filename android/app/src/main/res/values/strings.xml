@@ -1041,4 +1041,13 @@
     <string name="intro_background_battery">Turn off battery optimisation for this app</string>
     <string name="intro_background_autostart">On MIUI / ColorOS / EMUI, also allow autostart</string>
     <string name="intro_background_open">Open app settings</string>
+    <string name="session_group_pinned">Pinned</string>
+    <string name="session_group_recent">Recent</string>
+    <string name="session_group_uncategorised">Uncategorised</string>
+    <string name="session_new_choose_category">Category</string>
+    <string name="session_new_choose_workspace">Starting workspace</string>
+    <string name="session_new_none">None</string>
+    <string name="drawer_signed_in_as">Signed in as %1$s</string>
+    <string name="drawer_switch_profile">Switch profile (%1$d)</string>
+    <string name="drawer_sign_out">Sign out</string>
 </resources>

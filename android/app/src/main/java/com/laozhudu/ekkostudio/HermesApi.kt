@@ -601,6 +601,12 @@ class HermesApi(
                 running = item.optBoolean("running", false) || item.optString("status", "") == "running" || item.optString("kanban_status", "") == "running",
                 activity = firstNonBlank(item, "activity", "live_activity", "current_step"),
                 pinned = item.optBoolean("is_pinned", false) || item.optInt("is_pinned", 0) != 0,
+                // The list route does return these; an earlier build assumed it did
+                // not and showed invented placeholder text instead.
+                preview = firstNonBlank(item, "preview"),
+                snippet = firstNonBlank(item, "snippet"),
+                messageCount = item.optInt("message_count", 0),
+                matchedMessageId = firstNonBlank(item, "matched_message_id"),
             )
         }
 
@@ -2561,6 +2567,17 @@ data class SessionSummary(
     val running: Boolean = false,
     /** Last activity hint shown as a live status line (HStudio's `live-reasoning-detail`). */
     val activity: String? = null,
+    /** The opening message. Shown as `.session-preview`, but only while searching. */
+    val preview: String? = null,
+    /** The matched text around a search hit; falls back to [preview]. */
+    val snippet: String? = null,
+    val messageCount: Int = 0,
+    /**
+     * Which message the search matched. Opening the conversation can then land on
+     * the hit instead of the newest message, which is the whole point of a
+     * message-level search result.
+     */
+    val matchedMessageId: String? = null,
 )
 
 data class ModelOption(

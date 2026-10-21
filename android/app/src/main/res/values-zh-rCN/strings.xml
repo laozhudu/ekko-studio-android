@@ -1040,4 +1040,13 @@
     <string name="intro_background_battery">关掉这个应用的电池优化</string>
     <string name="intro_background_autostart">小米/OPPO/华为等机型还要允许自启动</string>
     <string name="intro_background_open">打开应用设置</string>
+    <string name="session_group_pinned">置顶</string>
+    <string name="session_group_recent">最近</string>
+    <string name="session_group_uncategorised">未分类</string>
+    <string name="session_new_choose_category">分类</string>
+    <string name="session_new_choose_workspace">初始工作区</string>
+    <string name="session_new_none">无</string>
+    <string name="drawer_signed_in_as">登录为 %1$s</string>
+    <string name="drawer_switch_profile">切换档案（%1$d 个）</string>
+    <string name="drawer_sign_out">退出登录</string>
 </resources>

@@ -327,6 +327,12 @@ data class UiState(
     val createdApiKeySecret: String? = null,
     /** Opened by tapping the context readout; null when the sheet is closed. */
     val sessionUsage: SessionUsage? = null,
+    /** Chosen in the new-chat sheet, applied to the run that creates the session. */
+    val newChatCategoryId: Int? = null,
+    val newChatWorkspace: String? = null,
+    val newChatSheetOpen: Boolean = false,
+    /** Set by a search hit; the conversation scrolls to that message once loaded. */
+    val focusMessageId: String? = null,
     val themeSettings: ThemeSettings? = null,
     val kanbanDiagnostics: List<String> = emptyList(),
     val kanbanStats: String = "",
@@ -1829,7 +1835,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ── conversation ──────────────────────────────────────────────────────
 
     /** Open an existing Studio conversation and load its history. */
-    fun openSession(session: SessionSummary) {
+    fun openSession(session: SessionSummary, focusMessageId: String? = session.matchedMessageId) {
         // Only one run is tracked at a time. If it belongs to the session being
         // opened, re-attach the live view; if it belongs to another session, leave
         // it running (cancelling the socket here is what killed both the stream
@@ -1873,6 +1879,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 notice = null,
                 selectedRuntime = runtime,
                 pendingRunAction = null,
+                focusMessageId = focusMessageId,
             )
         }
 
@@ -2055,6 +2062,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The "+" on the chat list: category and starting workspace for the new chat. */
+    fun openNewChatSheet() = _state.update { it.copy(newChatSheetOpen = true, error = null) }
+
+    fun closeNewChatSheet() = _state.update { it.copy(newChatSheetOpen = false) }
+
+    fun setNewChatCategory(id: Int?) = _state.update { it.copy(newChatCategoryId = id) }
+
+    fun setNewChatWorkspace(path: String?) =
+        _state.update { it.copy(newChatWorkspace = path?.trim()?.ifBlank { null }) }
+
+    /** Closes the sheet and starts the conversation; the choices ride along. */
+    fun startNewConversationWithChoices() {
+        _state.update { it.copy(newChatSheetOpen = false) }
+        startNewConversation()
+    }
+
     fun openAgentRuntimes() {
         _state.update { it.copy(screen = Screen.AgentRuntimes, loadingAgentRuntimes = true, error = null) }
         viewModelScope.launch {
@@ -2206,12 +2229,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     runtime = _state.value.selectedRuntime,
                     cachedPageId = resumePageIds[sessionId]
                         ?: store.getResumePageId(profile.ifBlank { "default" }, sessionId),
+                    // Only for a conversation that does not exist yet: the server's
+                    // run handler reads category_id and workspace off the payload,
+                    // which is the only way to file the very first message.
+                    categoryId = _state.value.newChatCategoryId.takeIf { openId == null },
+                    workspace = _state.value.newChatWorkspace.takeIf { openId == null },
                 )
                     .collect { event ->
                         when (event) {
                             is RunEvent.Started -> {
                                 if (onScreen()) _state.update {
                                     it.copy(runStatus = "running", runStartedAtMillis = event.occurredAtMillis)
+                                }
+                                // The session exists now, so the server has applied the
+                                // choices. Clearing them stops the *next* new chat from
+                                // silently inheriting this one's category.
+                                if (openId == null && _state.value.newChatCategoryId != null) {
+                                    _state.update { it.copy(newChatCategoryId = null) }
+                                }
+                                if (openId == null && _state.value.newChatWorkspace != null) {
+                                    _state.update { it.copy(newChatWorkspace = null) }
                                 }
                                 ensureStreamingReply(event.occurredAtMillis)
                             }
@@ -2839,6 +2876,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    /** The transcript has been scrolled to the search hit; forget the target. */
+    fun consumeFocusMessage() = _state.update { it.copy(focusMessageId = null) }
 
     fun consumeTranscript() = _state.update { it.copy(transcript = null) }
 
