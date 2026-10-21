@@ -39,6 +39,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Switch
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +68,7 @@ fun AgentRuntimeScreen(state: UiState, viewModel: AppViewModel) {
                 val runtimes = state.agentRuntimes.filter { it.family == family }
                 if (runtimes.isNotEmpty()) {
                     item { Text(familyTitle(family), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                    items(runtimes, key = { it.id }) { runtime -> RuntimeCard(runtime, viewModel) }
+                    items(runtimes, key = { it.id }) { runtime -> RuntimeCard(runtime, viewModel, state) }
                 }
             }
         }
@@ -78,7 +83,12 @@ private fun familyTitle(family: String) = stringResource(when (family) {
 })
 
 @Composable
-private fun RuntimeCard(runtime: AgentRuntimeStatus, viewModel: AppViewModel) {
+private fun RuntimeCard(runtime: AgentRuntimeStatus, viewModel: AppViewModel, state: UiState) {
+    // Coding agents carry an update policy and a model list that the other
+    // families do not; those rows come from /coding-agents/update-policies and
+    // /coding-agents/models.
+    val policy = state.agentPolicies.firstOrNull { it.id == runtime.id }
+    val models = state.codingAgentModels.firstOrNull { it.agentId == runtime.id }
     Card(
         modifier = Modifier.fillMaxWidth().clickable(enabled = runtime.installed) { viewModel.startRuntimeConversation(runtime) },
         shape = RoundedCornerShape(22.dp),
@@ -106,6 +116,54 @@ private fun RuntimeCard(runtime: AgentRuntimeStatus, viewModel: AppViewModel) {
                     style = MaterialTheme.typography.labelSmall,
                     color = if (runtime.installed) Color(0xFF27995A) else MaterialTheme.colorScheme.onErrorContainer,
                 )
+            }
+        }
+        if (runtime.family == "coding") {
+            HorizontalDivider(Modifier.padding(vertical = 10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    // Version against what the registry offers: "0.2.1 → 0.25.3" is
+                    // the only line that tells you whether checking is worth it.
+                    Text(
+                        listOfNotNull(
+                            policy?.current?.takeIf { it.isNotBlank() } ?: runtime.version.takeIf { it.isNotBlank() },
+                            policy?.latest?.takeIf { it.isNotBlank() && it != policy?.current },
+                        ).joinToString(" → ").ifBlank { stringResource(R.string.agent_runtime_unavailable) },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    models?.models?.takeIf { it.isNotEmpty() }?.let { list ->
+                        Text(
+                            stringResource(R.string.coding_agent_models, list.size, list.take(2).joinToString(", ")),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (policy?.autoUpdateSupported == true) {
+                    Text(stringResource(R.string.coding_agent_auto_update), style = MaterialTheme.typography.labelSmall)
+                    Switch(
+                        checked = policy.autoUpdate,
+                        onCheckedChange = { viewModel.setCodingAgentAutoUpdate(runtime.id, it) },
+                        modifier = Modifier.padding(start = 6.dp).scale(0.8f),
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (runtime.installed) {
+                    TextButton(onClick = { viewModel.checkCodingAgentUpdate(runtime.id) }) {
+                        Text(stringResource(R.string.coding_agent_check_update), fontSize = 12.sp)
+                    }
+                }
+                TextButton(onClick = { viewModel.updateCodingAgent(runtime.id) }) {
+                    Text(
+                        stringResource(
+                            if (runtime.installed) R.string.coding_agent_update else R.string.coding_agent_install,
+                        ),
+                        fontSize = 12.sp,
+                    )
+                }
             }
         }
     }

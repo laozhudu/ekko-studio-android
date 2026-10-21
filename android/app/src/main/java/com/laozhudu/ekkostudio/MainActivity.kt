@@ -547,7 +547,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
     // The system back gesture belongs to the app while there is somewhere to go
     // back to. Only the two root lists let it fall through and close the app.
     when (state.screen) {
-        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.RoomFiles, Screen.WorkflowRun, Screen.Profiles, Screen.Settings,
+        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.RoomFiles, Screen.WorkflowRun, Screen.AuxiliaryModels, Screen.Profiles, Screen.Settings,
         Screen.MoreSettings, Screen.SettingsGroup, Screen.Channels, Screen.Channel, Screen.CronJobs,
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
@@ -613,6 +613,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.RoomSettings -> RoomSettingsScreen(state, viewModel)
         Screen.RoomFiles -> RoomFilesScreen(state, viewModel)
         Screen.WorkflowRun -> WorkflowRunScreen(state, viewModel)
+        Screen.AuxiliaryModels -> AuxiliaryModelsScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
         Screen.Terminal -> TerminalScreen(
@@ -4677,6 +4678,14 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                         title = stringResource(R.string.model_settings_title),
                         subtitle = stringResource(R.string.model_hub_note),
                         onClick = { viewModel.openModelSettings() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.Tune,
+                        color = Color(0xFF007AFF),
+                        title = stringResource(R.string.auxiliary_title),
+                        subtitle = stringResource(R.string.auxiliary_hub_note),
+                        onClick = { viewModel.openAuxiliaryModels() },
                     )
                     StudioCardDivider()
                     StudioDestinationRow(

@@ -1488,6 +1488,11 @@ class HermesApi(
                     current = item.optString("currentVersion"),
                     latest = item.optString("latestVersion"),
                     status = item.optString("status"),
+                    // Already in the response and previously dropped, so there was
+                    // no way to see or change the auto-update setting.
+                    autoUpdate = item.optBoolean("autoUpdate", false),
+                    autoUpdateSupported = item.optBoolean("autoUpdateSupported", false),
+                    checkedAt = item.optString("checkedAt"),
                 )
             }
         }.sortedBy { it.id }.toList()
@@ -1496,6 +1501,135 @@ class HermesApi(
     /** Ask the server to update Studio itself. May restart it. */
     fun triggerStudioUpdate() {
         call("/api/studio/update", "POST", JSONObject())
+    }
+
+    /** PUT /api/coding-agents/{id}/update-policy — one flag, nothing else. */
+    fun setCodingAgentUpdatePolicy(agentId: String, autoUpdate: Boolean) {
+        call(
+            "/api/coding-agents/${enc(agentId)}/update-policy",
+            "PUT",
+            JSONObject().put("autoUpdate", autoUpdate),
+        )
+    }
+
+    /** POST /api/coding-agents/{id}/check-update */
+    fun checkCodingAgentUpdate(agentId: String) {
+        call("/api/coding-agents/${enc(agentId)}/check-update", "POST", JSONObject())
+    }
+
+    /**
+     * GET /api/coding-agents/models
+     *
+     * One entry per agent with the models that agent would actually run. It is
+     * empty for an agent that is not installed, which is why the models list is
+     * only shown once there is something in it.
+     */
+    fun codingAgentModels(): List<CodingAgentModels> {
+        val array = call("/api/coding-agents/models").optJSONArray("agents") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let { item ->
+                val id = item.optString("agentId")
+                if (id.isBlank()) return@mapNotNull null
+                CodingAgentModels(
+                    agentId = id,
+                    name = item.optString("name").ifBlank { id },
+                    status = item.optString("status"),
+                    models = (0 until (item.optJSONArray("models")?.length() ?: 0)).mapNotNull { i ->
+                        item.optJSONArray("models")?.optJSONObject(i)?.let { model ->
+                            model.optString("id").ifBlank { model.optString("name") }
+                        }?.takeIf { it.isNotBlank() }
+                    },
+                    cached = item.optBoolean("cached"),
+                )
+            }
+        }
+    }
+
+    // ── auxiliary models ─────────────────────────────────────────────────
+
+    /**
+     * GET /api/hermes/config/auxiliary-models
+     *
+     * Fifteen per-task slots (vision, compression, chat titles, …). Each may point
+     * at its own provider/model, or say `auto` and inherit. The server's own
+     * normaliser accepts only `provider`, `model`, `base_url`, `api_key`,
+     * `timeout`, `download_timeout` and `extra_body`, so nothing else is offered.
+     */
+    fun auxiliaryConfig(profile: String): AuxiliaryConfig {
+        val root = call("/api/hermes/config/auxiliary-models?profile=${enc(profile)}", profile = profile)
+        val tasks = (0 until (root.optJSONArray("tasks")?.length() ?: 0)).mapNotNull { index ->
+            root.optJSONArray("tasks")?.optJSONObject(index)?.let { item ->
+                val key = item.optString("key")
+                if (key.isBlank()) return@mapNotNull null
+                AuxiliaryTask(
+                    key = key,
+                    label = item.optString("label").ifBlank { key },
+                    defaultTimeout = item.optInt("default_timeout", 0),
+                    defaultDownloadTimeout = item.optInt("default_download_timeout", 0),
+                )
+            }
+        }
+        val assigned = root.optJSONObject("auxiliary") ?: JSONObject()
+        val assignments = mutableMapOf<String, AuxiliaryAssignment>()
+        assigned.keys().asSequence().forEach { key ->
+            assigned.optJSONObject(key)?.let { item ->
+                assignments[key] = AuxiliaryAssignment(
+                    provider = item.optString("provider"),
+                    model = item.optString("model"),
+                    baseUrl = item.optString("base_url"),
+                    timeout = item.optInt("timeout", 0),
+                    downloadTimeout = item.optInt("download_timeout", 0),
+                )
+            }
+        }
+        return AuxiliaryConfig(tasks = tasks, assignments = assignments)
+    }
+
+    /** PUT /api/hermes/config/auxiliary-models — replaces the whole map. */
+    fun saveAuxiliaryConfig(profile: String, assignments: Map<String, AuxiliaryAssignment>) {
+        val body = JSONObject()
+        assignments.forEach { (key, value) ->
+            val entry = JSONObject()
+            value.provider.takeIf { it.isNotBlank() }?.let { entry.put("provider", it) }
+            value.model.takeIf { it.isNotBlank() }?.let { entry.put("model", it) }
+            value.baseUrl.takeIf { it.isNotBlank() }?.let { entry.put("base_url", it) }
+            if (value.timeout > 0) entry.put("timeout", value.timeout)
+            if (value.downloadTimeout > 0) entry.put("download_timeout", value.downloadTimeout)
+            // An entry with nothing in it must be omitted, not sent empty: the
+            // server drops empty objects but would still overwrite the key.
+            if (entry.length() > 0) body.put(key, entry)
+        }
+        call(
+            "/api/hermes/config/auxiliary-models",
+            "PUT",
+            JSONObject().put("auxiliary", body),
+            profile = profile,
+        )
+    }
+
+    /** GET /api/hermes/config/delegation-model — the subagent default. */
+    fun delegationConfig(profile: String): DelegationConfig {
+        val item = call("/api/hermes/config/delegation-model?profile=${enc(profile)}", profile = profile)
+            .optJSONObject("delegation") ?: JSONObject()
+        return DelegationConfig(
+            provider = item.optString("provider"),
+            model = item.optString("model"),
+            reasoningEffort = item.optString("reasoning_effort"),
+        )
+    }
+
+    /** PUT /api/hermes/config/delegation-model */
+    fun saveDelegationConfig(profile: String, config: DelegationConfig) {
+        val body = JSONObject()
+        body.put("provider", config.provider)
+        body.put("model", config.model)
+        config.reasoningEffort.takeIf { it.isNotBlank() }?.let { body.put("reasoning_effort", it) }
+        call(
+            "/api/hermes/config/delegation-model",
+            "PUT",
+            JSONObject().put("delegation", body),
+            profile = profile,
+        )
     }
 
     /** Install or update one coding agent (npm-based, server-side). */
@@ -2862,11 +2996,54 @@ data class SlashCommand(
 
 data class RemoteVersions(val studio: String, val hermes: List<String>)
 
+data class CodingAgentModels(
+    val agentId: String,
+    val name: String,
+    val status: String,
+    val models: List<String>,
+    val cached: Boolean,
+)
+
+/** One `auxiliary` task slot: what it is, and how long it may take. */
+data class AuxiliaryTask(
+    val key: String,
+    val label: String,
+    val defaultTimeout: Int,
+    val defaultDownloadTimeout: Int,
+)
+
+/** A task's own model, or empty fields meaning "inherit from the main model". */
+data class AuxiliaryAssignment(
+    val provider: String = "",
+    val model: String = "",
+    val baseUrl: String = "",
+    val timeout: Int = 0,
+    val downloadTimeout: Int = 0,
+) {
+    val isInherited: Boolean get() = provider.isBlank() && model.isBlank()
+}
+
+data class AuxiliaryConfig(
+    val tasks: List<AuxiliaryTask>,
+    val assignments: Map<String, AuxiliaryAssignment>,
+) {
+    fun assignmentFor(key: String): AuxiliaryAssignment = assignments[key] ?: AuxiliaryAssignment()
+}
+
+data class DelegationConfig(
+    val provider: String = "",
+    val model: String = "",
+    val reasoningEffort: String = "",
+)
+
 data class AgentPolicy(
     val id: String,
     val current: String,
     val latest: String,
     val status: String,
+    val autoUpdate: Boolean = false,
+    val autoUpdateSupported: Boolean = false,
+    val checkedAt: String = "",
 )
 
 data class StudioUpdatePreview(

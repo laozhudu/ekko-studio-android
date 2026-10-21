@@ -1140,4 +1140,26 @@
     <string name="inbox_add_failed">%1$d 个文件添加失败，已保留</string>
     <string name="inbox_cleared">已清空待添加文件</string>
     <string name="inbox_trigger">待添加</string>
+    <string name="auxiliary_title">辅助模型</string>
+    <string name="auxiliary_hub_note">按任务覆盖模型，以及子智能体默认模型。</string>
+    <string name="auxiliary_note">未单独指定时，各任务槽继承主模型。压缩与标题生成用便宜模型最省。</string>
+    <string name="auxiliary_delegation">子智能体默认</string>
+    <string name="auxiliary_delegation_note">委派出去的任务用这个模型跑。</string>
+    <string name="auxiliary_provider">服务商</string>
+    <string name="auxiliary_provider_hint">留空或 auto 表示继承</string>
+    <string name="auxiliary_model">模型</string>
+    <string name="auxiliary_base_url">接口地址</string>
+    <string name="auxiliary_timeout">超时（秒）</string>
+    <string name="auxiliary_timeout_hint">默认 %1$d 秒</string>
+    <string name="auxiliary_effort_default">继承</string>
+    <string name="auxiliary_inherit">继承主模型</string>
+    <string name="auxiliary_clear">清除</string>
+    <string name="auxiliary_clear_hint">全部留空即恢复继承主模型。</string>
+    <string name="auxiliary_reset">全部继承</string>
+    <string name="auxiliary_saved">已保存</string>
+    <string name="coding_agent_auto_update">自动</string>
+    <string name="coding_agent_check_update">检查</string>
+    <string name="coding_agent_install">安装</string>
+    <string name="coding_agent_update">更新</string>
+    <string name="coding_agent_models">%1$d 个模型 · %2$s</string>
 </resources>

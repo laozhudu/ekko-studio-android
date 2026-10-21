@@ -1140,4 +1140,26 @@
     <string name="inbox_add_failed">تعذرت إضافة %1$d ملفات</string>
     <string name="inbox_cleared">تم مسح القائمة</string>
     <string name="inbox_trigger">ملفات معلقة</string>
+    <string name="auxiliary_title">الطرازات المساعدة</string>
+    <string name="auxiliary_hub_note">تجاوزات لكل مهمة.</string>
+    <string name="auxiliary_note">ترث المهام الطراز الرئيسي ما لم تحدد غير ذلك.</string>
+    <string name="auxiliary_delegation">الافتراضي للوكلاء الفرعيين</string>
+    <string name="auxiliary_delegation_note">الطراز المستخدم للمهام المفوّضة.</string>
+    <string name="auxiliary_provider">المزوّد</string>
+    <string name="auxiliary_provider_hint">فارغ أو auto للوراثة</string>
+    <string name="auxiliary_model">الطراز</string>
+    <string name="auxiliary_base_url">عنوان الخدمة</string>
+    <string name="auxiliary_timeout">المهلة (ث)</string>
+    <string name="auxiliary_timeout_hint">الافتراضي %1$d ث</string>
+    <string name="auxiliary_effort_default">وراثة</string>
+    <string name="auxiliary_inherit">يرث الطراز الرئيسي</string>
+    <string name="auxiliary_clear">مسح</string>
+    <string name="auxiliary_clear_hint">مسح الحقول يعيد الوراثة.</string>
+    <string name="auxiliary_reset">وراثة الكل</string>
+    <string name="auxiliary_saved">تم الحفظ</string>
+    <string name="coding_agent_auto_update">تلقائي</string>
+    <string name="coding_agent_check_update">تحقق</string>
+    <string name="coding_agent_install">تثبيت</string>
+    <string name="coding_agent_update">تحديث</string>
+    <string name="coding_agent_models">%1$d طرازات · %2$s</string>
 </resources>

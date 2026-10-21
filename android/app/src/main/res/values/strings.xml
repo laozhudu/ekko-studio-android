@@ -1141,4 +1141,26 @@
     <string name="inbox_add_failed">%1$d files could not be added and were kept</string>
     <string name="inbox_cleared">Cleared the queue</string>
     <string name="inbox_trigger">Pending files</string>
+    <string name="auxiliary_title">Auxiliary models</string>
+    <string name="auxiliary_hub_note">Per-task model overrides and the subagent default.</string>
+    <string name="auxiliary_note">Task slots inherit the main model unless you give them one of their own. A cheap model for compression and titles saves the most.</string>
+    <string name="auxiliary_delegation">Subagent default</string>
+    <string name="auxiliary_delegation_note">The model delegated work runs on.</string>
+    <string name="auxiliary_provider">Provider</string>
+    <string name="auxiliary_provider_hint">Blank, or "auto" to inherit</string>
+    <string name="auxiliary_model">Model</string>
+    <string name="auxiliary_base_url">Base URL</string>
+    <string name="auxiliary_timeout">Timeout (s)</string>
+    <string name="auxiliary_timeout_hint">Default %1$d s</string>
+    <string name="auxiliary_effort_default">inherit</string>
+    <string name="auxiliary_inherit">Inherits the main model</string>
+    <string name="auxiliary_clear">Clear</string>
+    <string name="auxiliary_clear_hint">Clearing every field makes this task inherit the main model again.</string>
+    <string name="auxiliary_reset">Inherit all</string>
+    <string name="auxiliary_saved">Saved</string>
+    <string name="coding_agent_auto_update">Auto</string>
+    <string name="coding_agent_check_update">Check</string>
+    <string name="coding_agent_install">Install</string>
+    <string name="coding_agent_update">Update</string>
+    <string name="coding_agent_models">%1$d models · %2$s</string>
 </resources>

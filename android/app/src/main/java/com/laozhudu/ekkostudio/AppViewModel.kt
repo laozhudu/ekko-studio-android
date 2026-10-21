@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles, WorkflowRun,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles, WorkflowRun, AuxiliaryModels,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -260,6 +260,12 @@ data class UiState(
     /** 0..100, or -1 when the update reports no progress of its own. */
     val updateProgress: Int = -1,
     val agentPolicies: List<AgentPolicy> = emptyList(),
+    /** Models each coding agent would run; empty for an agent that is not installed. */
+    val codingAgentModels: List<CodingAgentModels> = emptyList(),
+    /** Per-task model overrides and the subagent default. */
+    val auxiliaryConfig: AuxiliaryConfig = AuxiliaryConfig(emptyList(), emptyMap()),
+    val delegation: DelegationConfig = DelegationConfig(),
+    val loadingAuxiliary: Boolean = false,
     /** Server whose live tool inventory is open in a dialog, plus the data. */
     val mcpToolsFor: String? = null,
     val mcpLiveTools: List<McpServerTools> = emptyList(),
@@ -830,6 +836,84 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
     }
+
+    /** Reads the per-task overrides and the delegation default together. */
+    fun loadAuxiliaryConfig() {
+        val profile = currentProfile()
+        _state.update { it.copy(loadingAuxiliary = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Triple(
+                        api.auxiliaryConfig(profile),
+                        api.delegationConfig(profile),
+                        api.codingAgentModels(),
+                    )
+                }
+            }.onSuccess { (config, delegation, models) ->
+                _state.update {
+                    it.copy(
+                        auxiliaryConfig = config,
+                        delegation = delegation,
+                        codingAgentModels = models,
+                        loadingAuxiliary = false,
+                    )
+                }
+            }.onFailure { failure ->
+                _state.update { it.copy(loadingAuxiliary = false, error = failure.readableMessage(localized)) }
+            }
+        }
+    }
+
+    fun openAuxiliaryModels() {
+        _state.update { it.copy(screen = Screen.AuxiliaryModels, error = null, notice = null) }
+        loadAuxiliaryConfig()
+    }
+
+    /**
+     * One save for both maps: the auxiliary route replaces its whole map and the
+     * delegation route replaces its own fields, so sending them together keeps the
+     * screen from ending up half-saved.
+     */
+    fun saveAuxiliaryConfig(
+        assignments: Map<String, AuxiliaryAssignment>,
+        delegation: DelegationConfig,
+    ) {
+        val profile = currentProfile()
+        _state.update { it.copy(loadingAuxiliary = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    api.saveAuxiliaryConfig(profile, assignments)
+                    if (delegation.provider.isNotBlank() && delegation.model.isNotBlank()) {
+                        api.saveDelegationConfig(profile, delegation)
+                    }
+                }
+            }.onSuccess {
+                _state.update {
+                    it.copy(
+                        loadingAuxiliary = false,
+                        notice = str(R.string.auxiliary_saved),
+                        auxiliaryConfig = it.auxiliaryConfig.copy(assignments = assignments),
+                        delegation = delegation,
+                    )
+                }
+            }.onFailure { failure ->
+                _state.update { it.copy(loadingAuxiliary = false, error = failure.readableMessage(localized)) }
+            }
+        }
+    }
+
+    /** Toggles an agent's auto-update flag and re-reads the policies. */
+    fun setCodingAgentAutoUpdate(agentId: String, autoUpdate: Boolean) = launchWork(
+        work = { api.setCodingAgentUpdatePolicy(agentId, autoUpdate) },
+        onSuccess = { refreshStudioUpdate() },
+    )
+
+    fun checkCodingAgentUpdate(agentId: String) = launchWork(
+        work = { api.checkCodingAgentUpdate(agentId) },
+        onSuccess = { refreshStudioUpdate() },
+    )
 
     /** Install or update one coding agent on the server. */
     fun updateCodingAgent(agentId: String) {
@@ -5319,6 +5403,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.RoomSettings -> _state.update { it.copy(screen = Screen.Room) }
             Screen.RoomFiles -> _state.update { it.copy(screen = Screen.RoomSettings) }
             Screen.WorkflowRun -> _state.update { it.copy(screen = Screen.AgentHub, openWorkflowRun = null, openWorkflowRunId = null) }
+            Screen.AuxiliaryModels -> Screen.AgentHub
             else -> Unit
         }
         _state.update { state ->
