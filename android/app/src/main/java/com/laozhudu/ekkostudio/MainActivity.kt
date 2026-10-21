@@ -506,7 +506,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
     // The system back gesture belongs to the app while there is somewhere to go
     // back to. Only the two root lists let it fall through and close the app.
     when (state.screen) {
-        Screen.Conversation, Screen.Room, Screen.Profiles, Screen.Settings,
+        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.Profiles, Screen.Settings,
         Screen.MoreSettings, Screen.SettingsGroup, Screen.Channels, Screen.Channel, Screen.CronJobs,
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
@@ -569,6 +569,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.AgentHub -> AgentHubScreen(state, viewModel)
         Screen.Conversation -> ConversationScreen(state, viewModel)
         Screen.Room -> RoomScreen(state, viewModel)
+        Screen.RoomSettings -> RoomSettingsScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
         Screen.Terminal -> TerminalScreen(
@@ -1877,11 +1878,22 @@ private fun RoomScreen(state: UiState, viewModel: AppViewModel) {
         topBar = {
             StudioTopBar(
                 title = room?.name ?: stringResource(R.string.room_title),
+                // Agents and member count, not just the agent list: which agents are
+                // in a room is the thing you check before posting to it.
                 subtitle = listOfNotNull(
-                    room?.agents?.takeIf { it.isNotEmpty() }?.joinToString(", "),
+                    room?.agentList?.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.name },
+                    room?.members?.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.room_members_count, it.size) },
                     stringResource(if (state.roomLive) R.string.room_live else R.string.room_offline),
                 ).joinToString(" · "),
                 onBack = { viewModel.back() },
+                actions = {
+                    IconButton(onClick = viewModel::openRoomSettings) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.room_settings),
+                        )
+                    }
+                },
             )
         },
         bottomBar = { StudioTabs(state, viewModel) },

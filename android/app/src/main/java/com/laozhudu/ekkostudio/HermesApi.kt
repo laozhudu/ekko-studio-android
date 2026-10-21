@@ -331,11 +331,6 @@ class HermesApi(
         call("/api/studio/group-chat/rooms/${enc(roomId)}", "DELETE")
     }
 
-    /** POST /api/hermes/group-chat/rooms/{id}/agents */
-    fun addRoomAgent(roomId: String, profile: String) {
-        call("/api/studio/group-chat/rooms/${enc(roomId)}/agents", "POST", JSONObject().put("profile", profile))
-    }
-
     /** GET /api/hermes/config — the pieces of it the app can act on. */
     fun serverConfig(profile: String): ServerConfig {
         val result = call("/api/hermes/config?profile=${enc(profile)}")
@@ -1727,7 +1722,222 @@ class HermesApi(
                 timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
             )
         }
-        return RoomDetail(id = roomId, name = name, agents = agentNames, messages = messages)
+        return RoomDetail(
+            id = roomId,
+            name = name,
+            agents = agentNames,
+            messages = messages,
+            // Everything below was already in the response and was being dropped,
+            // which is why the group screen could show a room but not configure it.
+            agentList = parseRoomAgents(agents),
+            members = parseRoomMembers(result.optJSONArray("members")),
+            inviteCode = roomObject?.optString("inviteCode").orEmpty(),
+            canManage = roomObject?.optBoolean("canManage") == true,
+            total = result.optInt("total", messages.size),
+            hasMore = result.optBoolean("hasMore", false),
+            workspace = roomObject?.optString("workspace").orEmpty(),
+            handoffEnabled = roomObject?.optBoolean("agentHandoffEnabled") == true,
+            handoffUnlimited = roomObject?.optBoolean("agentHandoffUnlimited") == true,
+            handoffMaxDepth = roomObject?.optInt("agentHandoffMaxDepth", 0) ?: 0,
+            summaryEveryTurns = roomObject?.optInt("summaryEveryTurns", 0) ?: 0,
+            summaryModel = roomObject?.optString("summaryModel").orEmpty(),
+            summaryProvider = roomObject?.optString("summaryProvider").orEmpty(),
+            summaryProfile = roomObject?.optString("summaryProfile").orEmpty(),
+            allowGuestAgents = roomObject?.optBoolean("allowGuestAgents") == true,
+        )
+    }
+
+    private fun parseRoomAgents(array: JSONArray): List<RoomAgent> =
+        (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let { item ->
+                val id = item.optString("id").ifBlank { item.optString("agentId") }
+                if (id.isBlank()) return@mapNotNull null
+                RoomAgent(
+                    id = id,
+                    name = item.optString("name").ifBlank { item.optString("profile") },
+                    description = item.optString("description"),
+                    profile = item.optString("profile"),
+                    agent = item.optString("agent").ifBlank { "hermes" },
+                    agentMode = item.optString("agentMode"),
+                    model = item.optString("model"),
+                    provider = item.optString("provider"),
+                    apiMode = item.optString("apiMode"),
+                    reasoningEffort = item.optString("reasoningEffort"),
+                    preset = item.optString("agentPreset"),
+                    avatar = item.optString("avatar"),
+                    online = item.optString("connectionStatus") == "online",
+                    executorType = item.optString("executorType").ifBlank { "server" },
+                )
+            }
+        }
+
+    private fun parseRoomMembers(array: JSONArray?): List<RoomMember> =
+        (0 until (array?.length() ?: 0)).mapNotNull { index ->
+            array?.optJSONObject(index)?.let { item ->
+                val userId = item.optString("userId").ifBlank { item.optString("id") }
+                if (userId.isBlank()) return@mapNotNull null
+                RoomMember(
+                    userId = userId,
+                    name = item.optString("name").ifBlank { userId },
+                    description = item.optString("description"),
+                    avatar = item.optString("avatar"),
+                    online = item.optString("connectionStatus") == "online",
+                )
+            }
+        }
+
+    // ── group agents ─────────────────────────────────────────────────────
+
+    /** GET /api/studio/group-chat/rooms/{id}/agents */
+    fun roomAgents(roomId: String): List<RoomAgent> =
+        parseRoomAgents(call("/api/studio/group-chat/rooms/${enc(roomId)}/agents").optJSONArray("agents") ?: JSONArray())
+
+    /**
+     * POST /api/studio/group-chat/rooms/{id}/agents
+     *
+     * Only `profile` is required; the server derives `agentMode` from the agent
+     * name, and refuses a model on a global agent.
+     */
+    fun addRoomAgent(roomId: String, draft: RoomAgentDraft): List<RoomAgent> {
+        val body = JSONObject()
+            .put("profile", draft.profile)
+            .put("agent", draft.agent.ifBlank { "hermes" })
+            .put("name", draft.name)
+            .put("description", draft.description)
+        draft.model.takeIf { it.isNotBlank() }?.let { body.put("model", it) }
+        draft.provider.takeIf { it.isNotBlank() }?.let { body.put("provider", it) }
+        draft.reasoningEffort.takeIf { it.isNotBlank() }?.let { body.put("reasoningEffort", it) }
+        draft.apiMode.takeIf { it.isNotBlank() }?.let { body.put("apiMode", it) }
+        draft.presetId.takeIf { it.isNotBlank() }?.let { body.put("agentPreset", it) }
+        draft.avatar.takeIf { it.isNotBlank() }?.let { body.put("avatar", it) }
+        val result = call("/api/studio/group-chat/rooms/${enc(roomId)}/agents", "POST", body)
+        return parseRoomAgents(result.optJSONArray("agents") ?: JSONArray())
+    }
+
+    /** PUT /api/studio/group-chat/rooms/{id}/agents/{agentId} */
+    fun updateRoomAgent(roomId: String, agent: RoomAgent, draft: RoomAgentDraft): List<RoomAgent> {
+        val body = JSONObject()
+            .put("profile", draft.profile.ifBlank { agent.profile })
+            .put("agent", draft.agent.ifBlank { agent.agent })
+            .put("name", draft.name)
+            .put("description", draft.description)
+            .put("model", draft.model)
+            .put("provider", draft.provider)
+            .put("reasoningEffort", draft.reasoningEffort)
+            .put("apiMode", draft.apiMode)
+            .put("avatar", draft.avatar)
+        val result = call(
+            "/api/studio/group-chat/rooms/${enc(roomId)}/agents/${enc(agent.id)}",
+            "PUT",
+            body,
+        )
+        return parseRoomAgents(result.optJSONArray("agents") ?: JSONArray())
+    }
+
+    /** DELETE /api/studio/group-chat/rooms/{id}/agents/{agentId} */
+    fun deleteRoomAgent(roomId: String, agentId: String): List<RoomAgent> {
+        val result = call("/api/studio/group-chat/rooms/${enc(roomId)}/agents/${enc(agentId)}", "DELETE")
+        return parseRoomAgents(result.optJSONArray("agents") ?: JSONArray())
+    }
+
+    /** DELETE /api/studio/group-chat/rooms/{id}/members/{userId} — owner only. */
+    fun removeRoomMember(roomId: String, userId: String) {
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/members/${enc(userId)}", "DELETE")
+    }
+
+    /** PUT /api/studio/group-chat/rooms/{id}/invite-code — regenerates it. */
+    fun regenerateInviteCode(roomId: String): String =
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/invite-code", "PUT", JSONObject())
+            .optString("inviteCode")
+
+    /** PUT /api/studio/group-chat/rooms/{id}/config */
+    fun updateRoomConfig(
+        roomId: String,
+        name: String?,
+        handoffEnabled: Boolean?,
+        handoffUnlimited: Boolean?,
+        handoffMaxDepth: Int?,
+        summaryEveryTurns: Int?,
+        summaryModel: String?,
+        summaryProvider: String?,
+        summaryProfile: String?,
+    ) {
+        val body = JSONObject()
+        name?.takeIf { it.isNotBlank() }?.let { body.put("name", it) }
+        handoffEnabled?.let { body.put("agentHandoffEnabled", it) }
+        handoffUnlimited?.let { body.put("agentHandoffUnlimited", it) }
+        handoffMaxDepth?.let { body.put("agentHandoffMaxDepth", it) }
+        summaryEveryTurns?.let { body.put("summaryEveryTurns", it) }
+        summaryModel?.let { body.put("summaryModel", it) }
+        summaryProvider?.let { body.put("summaryProvider", it) }
+        summaryProfile?.let { body.put("summaryProfile", it) }
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/config", "PUT", body)
+    }
+
+    /** POST /api/studio/group-chat/rooms/{id}/clear-context */
+    fun clearRoomContext(roomId: String) {
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/clear-context", "POST", JSONObject())
+    }
+
+    // ── agent presets ────────────────────────────────────────────────────
+
+    /** GET /api/studio/group-chat/agent-presets */
+    fun agentPresets(): List<AgentPreset> {
+        val array = call("/api/studio/group-chat/agent-presets").optJSONArray("presets") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let { item ->
+                val id = item.optString("id")
+                if (id.isBlank()) return@mapNotNull null
+                AgentPreset(
+                    id = id,
+                    name = item.optString("name").ifBlank { id },
+                    description = item.optString("description"),
+                    agent = item.optString("agent").ifBlank { "hermes" },
+                    agentMode = item.optString("agentMode"),
+                    profile = item.optString("profile"),
+                    provider = item.optString("provider"),
+                    model = item.optString("model"),
+                    apiMode = item.optString("apiMode"),
+                    reasoningEffort = item.optString("reasoningEffort"),
+                    avatar = item.optString("avatar"),
+                )
+            }
+        }
+    }
+
+    fun createAgentPreset(draft: RoomAgentDraft): List<AgentPreset> {
+        val body = JSONObject()
+            .put("name", draft.name)
+            .put("description", draft.description)
+            .put("agent", draft.agent.ifBlank { "hermes" })
+            .put("profile", draft.profile)
+            .put("provider", draft.provider)
+            .put("model", draft.model)
+            .put("apiMode", draft.apiMode)
+            .put("reasoningEffort", draft.reasoningEffort)
+            .put("avatar", draft.avatar)
+        call("/api/studio/group-chat/agent-presets", "POST", body)
+        return agentPresets()
+    }
+
+    fun updateAgentPreset(id: String, draft: RoomAgentDraft): List<AgentPreset> {
+        val body = JSONObject()
+            .put("name", draft.name)
+            .put("description", draft.description)
+            .put("agent", draft.agent.ifBlank { "hermes" })
+            .put("profile", draft.profile)
+            .put("provider", draft.provider)
+            .put("model", draft.model)
+            .put("apiMode", draft.apiMode)
+            .put("reasoningEffort", draft.reasoningEffort)
+            .put("avatar", draft.avatar)
+        call("/api/studio/group-chat/agent-presets/${enc(id)}", "PUT", body)
+        return agentPresets()
+    }
+
+    fun deleteAgentPreset(id: String): List<AgentPreset> {
+        call("/api/studio/group-chat/agent-presets/${enc(id)}", "DELETE")
+        return agentPresets()
     }
 
     // ── native agent tools ───────────────────────────────────────────────
@@ -2790,6 +3000,87 @@ data class RoomDetail(
     val name: String,
     val agents: List<String>,
     val messages: List<RoomMessage>,
+    val agentList: List<RoomAgent> = emptyList(),
+    val members: List<RoomMember> = emptyList(),
+    val inviteCode: String = "",
+    val canManage: Boolean = false,
+    val total: Int = 0,
+    val hasMore: Boolean = false,
+    val workspace: String = "",
+    val handoffEnabled: Boolean = false,
+    val handoffUnlimited: Boolean = false,
+    val handoffMaxDepth: Int = 0,
+    val summaryEveryTurns: Int = 0,
+    val summaryModel: String = "",
+    val summaryProvider: String = "",
+    val summaryProfile: String = "",
+    val allowGuestAgents: Boolean = false,
+)
+
+/**
+ * One agent in a room.
+ *
+ * `executorType` distinguishes a server-side agent (this Studio runs it) from a
+ * remote one that another machine provides — only the former can be configured
+ * from here, which is why the settings screen hides the model fields for the
+ * latter.
+ */
+data class RoomAgent(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val profile: String = "",
+    val agent: String = "hermes",
+    val agentMode: String = "",
+    val model: String = "",
+    val provider: String = "",
+    val apiMode: String = "",
+    val reasoningEffort: String = "",
+    val preset: String = "",
+    val avatar: String = "",
+    val online: Boolean = false,
+    val executorType: String = "server",
+) {
+    val isRemote: Boolean get() = executorType == "remote"
+    /** The server refuses a model on a global agent; the UI must too. */
+    val isGlobal: Boolean get() = agentMode == "global"
+    val canConfigureModel: Boolean get() = !isRemote && !isGlobal
+}
+
+data class RoomMember(
+    val userId: String,
+    val name: String,
+    val description: String? = null,
+    val avatar: String = "",
+    val online: Boolean = false,
+)
+
+/** What the new/edit agent sheet collects. */
+data class RoomAgentDraft(
+    val name: String,
+    val description: String = "",
+    val profile: String = "",
+    val agent: String = "hermes",
+    val provider: String = "",
+    val model: String = "",
+    val apiMode: String = "",
+    val reasoningEffort: String = "",
+    val avatar: String = "",
+    val presetId: String = "",
+)
+
+data class AgentPreset(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val agent: String = "hermes",
+    val agentMode: String = "",
+    val profile: String = "",
+    val provider: String = "",
+    val model: String = "",
+    val apiMode: String = "",
+    val reasoningEffort: String = "",
+    val avatar: String = "",
 )
 
 data class AgentSettings(

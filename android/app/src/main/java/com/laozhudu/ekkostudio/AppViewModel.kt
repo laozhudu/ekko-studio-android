@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -119,6 +119,12 @@ data class UiState(
     val rooms: List<Room> = emptyList(),
     val openSession: SessionSummary? = null,
     val openRoom: RoomDetail? = null,
+    /** Agent presets are account-wide, so they load once and are reused per room. */
+    val agentPresets: List<AgentPreset> = emptyList(),
+    val presetsLoaded: Boolean = false,
+    /** Set while a group agent add/edit/delete is in flight. */
+    val roomAgentBusy: String? = null,
+    val roomSaving: Boolean = false,
     val lines: List<ChatLine> = emptyList(),
     val loadingHistory: Boolean = false,
     val sending: Boolean = false,
@@ -3222,12 +3228,123 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addRoomAgent(roomId: String, profile: String) {
-        viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { api.addRoomAgent(roomId, profile) } }
-                .onSuccess { reopenRoom(roomId) }
-                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
+    // ── group agents ──────────────────────────────────────────────────────
+
+    fun addRoomAgent(roomId: String, draft: RoomAgentDraft) = launchWork(
+        work = { api.addRoomAgent(roomId, draft) },
+        onSuccess = { agents -> applyRoomAgents(roomId, agents) },
+    )
+
+    fun updateRoomAgent(roomId: String, agent: RoomAgent, draft: RoomAgentDraft) = launchWork(
+        work = { api.updateRoomAgent(roomId, agent, draft) },
+        onSuccess = { agents -> applyRoomAgents(roomId, agents) },
+    )
+
+    fun deleteRoomAgent(roomId: String, agentId: String) = launchWork(
+        work = { api.deleteRoomAgent(roomId, agentId) },
+        onSuccess = { agents -> applyRoomAgents(roomId, agents) },
+    )
+
+    /**
+     * The agent endpoints answer with the room's whole agent list, so the screen
+     * updates from the response instead of firing a second read.
+     */
+    private fun applyRoomAgents(roomId: String, agents: List<RoomAgent>) {
+        _state.update { state ->
+            val room = state.openRoom
+            if (room == null || room.id != roomId) return@update state
+            state.copy(
+                openRoom = room.copy(
+                    agentList = agents,
+                    agents = agents.map { it.name },
+                ),
+            )
         }
+    }
+
+    // ── members ───────────────────────────────────────────────────────────
+
+    fun removeRoomMember(roomId: String, member: RoomMember) = launchWork(
+        work = { api.removeRoomMember(roomId, member.userId) },
+        onSuccess = { reopenRoom(roomId) },
+    )
+
+    // ── room settings ─────────────────────────────────────────────────────
+
+    fun regenerateInviteCode(roomId: String) = launchWork(
+        work = { api.regenerateInviteCode(roomId) },
+        onSuccess = { code ->
+            _state.update { state ->
+                state.openRoom?.takeIf { it.id == roomId }
+                    ?.let { state.copy(openRoom = it.copy(inviteCode = code)) }
+                    ?: state
+            }
+        },
+    )
+
+    fun saveRoomConfig(
+        roomId: String,
+        name: String? = null,
+        handoffEnabled: Boolean? = null,
+        handoffUnlimited: Boolean? = null,
+        handoffMaxDepth: Int? = null,
+        summaryEveryTurns: Int? = null,
+        summaryModel: String? = null,
+        summaryProvider: String? = null,
+        summaryProfile: String? = null,
+    ) = launchWork(
+        work = {
+            api.updateRoomConfig(
+                roomId = roomId,
+                name = name,
+                handoffEnabled = handoffEnabled,
+                handoffUnlimited = handoffUnlimited,
+                handoffMaxDepth = handoffMaxDepth,
+                summaryEveryTurns = summaryEveryTurns,
+                summaryModel = summaryModel,
+                summaryProvider = summaryProvider,
+                summaryProfile = summaryProfile,
+            )
+        },
+        onSuccess = { reopenRoom(roomId) },
+    )
+
+    fun clearRoomContext(roomId: String) = launchWork(
+        work = { api.clearRoomContext(roomId) },
+        onSuccess = {
+            _state.update { it.copy(notice = str(R.string.room_context_cleared)) }
+            reopenRoom(roomId)
+        },
+    )
+
+    // ── agent presets ─────────────────────────────────────────────────────
+
+    fun loadAgentPresets() {
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.agentPresets() } }
+                .onSuccess { presets ->
+                    _state.update { it.copy(agentPresets = presets, presetsLoaded = true) }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(presetsLoaded = true, error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    fun saveAgentPreset(existing: AgentPreset?, draft: RoomAgentDraft) = launchWork(
+        work = { if (existing == null) api.createAgentPreset(draft) else api.updateAgentPreset(existing.id, draft) },
+        onSuccess = { presets -> _state.update { it.copy(agentPresets = presets) } },
+    )
+
+    fun deleteAgentPreset(preset: AgentPreset) = launchWork(
+        work = { api.deleteAgentPreset(preset.id) },
+        onSuccess = { presets -> _state.update { it.copy(agentPresets = presets) } },
+    )
+
+    /** Opens the member/agent/config screen for the room currently on screen. */
+    fun openRoomSettings() {
+        _state.update { it.copy(screen = Screen.RoomSettings, error = null) }
+        loadAgentPresets()
     }
 
     private fun reopenRoom(roomId: String) {
@@ -4869,6 +4986,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // stop button is the action that aborts an agent run on Studio.
             Screen.Conversation -> cancelActiveRun(abort = false)
             Screen.Room -> leaveRoom()
+            // Room settings are part of the room; back goes to the conversation.
+            Screen.RoomSettings -> _state.update { it.copy(screen = Screen.Room) }
             else -> Unit
         }
         _state.update { state ->
