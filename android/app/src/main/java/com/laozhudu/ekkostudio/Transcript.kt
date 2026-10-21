@@ -32,8 +32,10 @@ internal fun messagesToLines(messages: List<Message>): List<ChatLine> {
                 name = message.toolName?.takeIf { it.isNotBlank() } ?: "tool",
                 detail = null,
                 status = ToolRunStatus.Done,
+                // Historical rows have no timing of their own; the process block
+                // groups them by the reply they belong to.
+                startedAtMillis = 0,
                 durationSeconds = null,
-                occurredAtMillis = 0,
             )
 
             "assistant" -> {
