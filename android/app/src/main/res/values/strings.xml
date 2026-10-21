@@ -1006,4 +1006,5 @@
     <string name="relay_disconnect">Disconnect</string>
     <string name="relay_new_code">New code</string>
     <string name="connections_empty">No connected devices yet</string>
+    <string name="workspace_open_failed">No app can open this file</string>
 </resources>

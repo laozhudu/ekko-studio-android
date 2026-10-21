@@ -702,6 +702,9 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
                         context.startActivity(
                             Intent(Intent.ACTION_VIEW, Uri.parse(viewModel.workspaceDownloadUrl(entry))),
                         )
+                    }.onFailure {
+                        // No viewer app for this type: say so instead of doing nothing.
+                        Toast.makeText(context, R.string.workspace_open_failed, Toast.LENGTH_SHORT).show()
                     }
                 },
                 onBack = { viewModel.showTab(Tab.Chats) },
