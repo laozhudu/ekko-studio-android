@@ -953,6 +953,10 @@ class HermesApi(
                 role = item.optString("role").ifBlank { "assistant" },
                 content = content,
                 timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
+                // Verified on 0.7.38: assistant rows carry the same thinking the
+                // socket streamed, under `reasoning` or `reasoning_content`.
+                reasoning = firstNonBlank(item, "reasoning", "reasoning_content"),
+                toolName = firstNonBlank(item, "tool_name", "toolName"),
             )
         }
         return ConversationPage(
@@ -979,6 +983,10 @@ class HermesApi(
                 role = item.optString("role").ifBlank { "assistant" },
                 content = content,
                 timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
+                // Verified on 0.7.38: assistant rows carry the same thinking the
+                // socket streamed, under `reasoning` or `reasoning_content`.
+                reasoning = firstNonBlank(item, "reasoning", "reasoning_content"),
+                toolName = firstNonBlank(item, "tool_name", "toolName"),
             )
         }
         // This response has no contextTokens field at all (verified against
@@ -2353,8 +2361,15 @@ data class Message(
     val role: String,
     val content: String,
     val timestamp: String?,
+    /** Thinking that produced this reply; the web client folds it behind a toggle. */
+    val reasoning: String? = null,
+    /** Set when role == "tool": which tool produced the row. */
+    val toolName: String? = null,
 ) {
     val fromUser: Boolean get() = role == "user"
+
+    /** Rows that belong to the agent's machinery rather than to the conversation. */
+    val isToolRow: Boolean get() = role == "tool"
 }
 
 data class ConversationHistory(

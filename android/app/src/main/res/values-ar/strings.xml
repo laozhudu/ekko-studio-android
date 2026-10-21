@@ -1006,4 +1006,6 @@
     <string name="relay_new_code">رمز جديد</string>
     <string name="connections_empty">لا توجد أجهزة متصلة بعد</string>
     <string name="workspace_open_failed">لا يوجد تطبيق لفتح هذا الملف</string>
+    <string name="compression_running">جارٍ ضغط السياق…</string>
+    <string name="compression_done">تم ضغط السياق</string>
 </resources>

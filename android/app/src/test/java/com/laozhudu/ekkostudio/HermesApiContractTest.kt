@@ -427,6 +427,39 @@ class HermesApiContractTest {
     }
 
     @Test
+    fun `history rows carry thinking and tool names`() {
+        val assistant = JSONObject()
+            .put("id", "2")
+            .put("role", "assistant")
+            .put("content", "answer")
+            .put("reasoning_content", "thought process")
+        val tool = JSONObject()
+            .put("id", "3")
+            .put("role", "tool")
+            .put("content", """{"output":"ok"}""")
+            .put("tool_name", "terminal")
+        val body = JSONObject()
+            .put("session", JSONObject().put("id", "s"))
+            .put("messages", org.json.JSONArray().put(assistant).put(tool))
+            .put("total", 2)
+            .put("offset", 0)
+            .put("limit", 50)
+            .put("hasMore", false)
+            .put("workspaceRunChanges", org.json.JSONArray())
+            .put("taskPlans", org.json.JSONArray())
+        enqueue(body.toString())
+
+        val page = api.conversationPage("s")
+        val messages = page.messages
+
+        assertEquals("answer", messages[0].content)
+        assertEquals("thought process", messages[0].reasoning)
+        assertEquals("terminal", messages[1].toolName)
+        assertTrue(messages[1].isToolRow)
+        assertFalse(messages[0].isToolRow)
+    }
+
+    @Test
     fun `transcription falls back to the settings route used by the official app`() {
         enqueue("""{"error":"Not found"}""", code = 404)
         enqueue("""{"activeProvider":"groq","providers":[]}""")

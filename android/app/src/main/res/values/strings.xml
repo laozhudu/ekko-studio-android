@@ -1007,4 +1007,6 @@
     <string name="relay_new_code">New code</string>
     <string name="connections_empty">No connected devices yet</string>
     <string name="workspace_open_failed">No app can open this file</string>
+    <string name="compression_running">Compacting context…</string>
+    <string name="compression_done">Context compacted</string>
 </resources>

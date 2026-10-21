@@ -32,6 +32,10 @@ sealed interface RunEvent {
     data class Notice(val kind: String, val text: String) : RunEvent
     /** `plan.updated`: the live task plan, no polling needed. */
     data class Plans(val plans: List<TaskPlanSnapshot>) : RunEvent
+    /** `session.title.updated`: the agent named or renamed the conversation. */
+    data class TitleChanged(val title: String) : RunEvent
+    /** `compression.started` / `compression.completed`: context compaction. */
+    data class Compression(val running: Boolean) : RunEvent
     data class Done(val output: String, val reasoning: String) : RunEvent
     data class RequiresAction(
         val kind: RequiredAction,
@@ -306,6 +310,34 @@ class ChatSocket(
                 val plans = parseTaskPlans(event)
                 if (plans.isNotEmpty()) trySend(RunEvent.Plans(plans))
             }
+        }
+        // Events the web client listens to and the app used to ignore. All of them
+        // are plain socket events on the same authenticated channel, so a native
+        // client can use them exactly like the browser does.
+        live.on("session.title.updated") { args ->
+            eventPayload(args)?.optString("title")?.takeIf { it.isNotBlank() }?.let {
+                trySend(RunEvent.TitleChanged(it))
+            }
+        }
+        live.on("compression.started") { _ -> trySend(RunEvent.Compression(true)) }
+        live.on("compression.completed") { _ -> trySend(RunEvent.Compression(false)) }
+        // The server forwards background work as a single `subagent.event` (it is
+        // in the session whitelist under that exact name; the per-phase names the
+        // web bundle registers belong to a newer bridge). Surface its type and text
+        // as a notice rather than inventing a richer model than the payload has.
+        live.on("subagent.event") { args ->
+            val event = eventPayload(args) ?: return@on
+            val kind = event.optString("type").ifBlank { event.optString("kind") }.ifBlank { "subagent" }
+            val text = event.optString("text").ifBlank {
+                event.optString("summary").ifBlank { event.optString("label") }
+            }
+            if (text.isNotBlank()) trySend(RunEvent.Notice("subagent", "$kind: $text"))
+        }
+        live.on("run.reattach_failed") { args ->
+            // The resume could not be re-attached; tell the user instead of
+            // leaving a spinner running forever.
+            val reason = eventPayload(args)?.optString("error").orEmpty()
+            trySend(RunEvent.Notice("warn", reason.ifBlank { "run re-attach failed" }))
         }
         live.on("run.completed") { args ->
             val event = args.firstOrNull() as? JSONObject

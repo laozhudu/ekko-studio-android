@@ -1657,14 +1657,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             taskPlans = page.taskPlans,
                             // Re-attaching a live run happens after this copy: the
                             // history above would otherwise erase the partial answer.
-                            lines = page.messages.map { message ->
-                                ChatLine(
-                                    text = message.content,
-                                    fromUser = message.fromUser,
-                                    timestamp = message.timestamp,
-                                    messageId = message.id,
-                                )
-                            },
+                            lines = messagesToLines(page.messages),
                         )
                     }
                 }
@@ -1713,16 +1706,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         if (state.openSession?.id != session.id || state.screen != Screen.Conversation) return@update state
                         // Guard against a double tap producing the same page twice.
                         val known = state.lines.mapNotNull { it.messageId }.toSet()
-                        val older = page.messages
-                            .filter { it.id.isBlank() || it.id !in known }
-                            .map { message ->
-                                ChatLine(
-                                    text = message.content,
-                                    fromUser = message.fromUser,
-                                    timestamp = message.timestamp,
-                                    messageId = message.id,
-                                )
-                            }
+                        val older = messagesToLines(
+                            page.messages.filter { it.id.isBlank() || it.id !in known },
+                        )
                         state.copy(
                             loadingOlder = false,
                             historyHasMore = page.hasMore,
@@ -1739,6 +1725,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
         }
     }
+
 
     /**
      * Reloads the open conversation without dropping the composer or flashing an
@@ -1772,14 +1759,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             historyHasMore = page.hasMore,
                             historyOffset = page.offset + page.messages.size,
                             taskPlans = if (page.taskPlans.isNotEmpty()) page.taskPlans else state.taskPlans,
-                            lines = page.messages.map { message ->
-                                ChatLine(
-                                    text = message.content,
-                                    fromUser = message.fromUser,
-                                    timestamp = message.timestamp,
-                                    messageId = message.id,
-                                )
-                            } + live,
+                            lines = messagesToLines(page.messages) + live,
                         )
                     }
                 }
@@ -2007,6 +1987,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                 // The event carries the plan for this run's session;
                                 // off-screen it is re-read from history on return.
                                 _state.update { it.copy(taskPlans = event.plans) }
+                            }
+                            is RunEvent.TitleChanged -> _state.update { state ->
+                                // The agent names the conversation itself; the list and
+                                // the header should follow without a manual refresh.
+                                val open = state.openSession
+                                state.copy(
+                                    openSession = if (open != null && open.id == sessionId) {
+                                        open.copy(title = event.title)
+                                    } else {
+                                        open
+                                    },
+                                    sessions = state.sessions.map {
+                                        if (it.id == sessionId) it.copy(title = event.title) else it
+                                    },
+                                )
+                            }
+                            is RunEvent.Compression -> _state.update {
+                                it.copy(
+                                    activity = str(
+                                        if (event.running) R.string.compression_running
+                                        else R.string.compression_done,
+                                    ),
+                                )
                             }
                             is RunEvent.Text -> {
                                 answer.append(event.delta)

@@ -1011,4 +1011,6 @@
     <string name="relay_new_code">换新码</string>
     <string name="connections_empty">还没有连接过设备</string>
     <string name="workspace_open_failed">没有能打开这个文件的应用</string>
+    <string name="compression_running">正在压缩上下文…</string>
+    <string name="compression_done">上下文已压缩</string>
 </resources>
