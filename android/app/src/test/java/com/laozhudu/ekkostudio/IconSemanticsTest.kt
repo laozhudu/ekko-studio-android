@@ -60,20 +60,50 @@ class IconSemanticsTest {
         assertFalse("settings must not reuse the old sun placeholder", studioSettings.contains("Icons.Filled.WbSunny"))
     }
 
+    /**
+     * The launcher mark is drawn by hand for this app.
+     *
+     * It used to be generated from the vendor's logo.png, which is brand artwork
+     * inside a proprietary APK — fine for a private build, but this repository is
+     * public. The replacement is a vector with its own path data, so there is no
+     * extracted asset left to distribute, and the test fails if anyone brings one
+     * back.
+     */
     @Test
-    fun launcherUsesTheOfficialArtwork() {
-        val foreground = File("src/main/res/drawable-nodpi/ic_launcher_foreground.png")
-        val monochrome = File("src/main/res/drawable-nodpi/ic_launcher_monochrome.png")
-        val colors = File("src/main/res/values/colors.xml").readText()
+    fun launcherUsesOriginalArtwork() {
+        val foreground = File("src/main/res/drawable/ic_launcher_foreground.xml")
+        val monochrome = File("src/main/res/drawable/ic_launcher_monochrome.xml")
+        val adaptive = File("src/main/res/mipmap-anydpi-v26/ic_launcher.xml").readText()
+        val adaptiveRound = File("src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml").readText()
 
-        assertTrue("adaptive foreground must ship", foreground.exists())
-        assertTrue("monochrome variant must ship", monochrome.exists())
-        assertTrue("launcher background must be the official white", colors.contains("#FFFFFF"))
+        assertTrue("adaptive foreground must ship as a vector", foreground.isFile)
+        assertTrue("monochrome variant must ship as a vector", monochrome.isFile)
 
-        val header = foreground.readBytes()
-        assertTrue("foreground must be a PNG", header.size > 24 && header[1].toInt() == 'P'.code)
-        val buffer = java.nio.ByteBuffer.wrap(header)
-        assertEquals(432, buffer.getInt(16))
-        assertEquals(432, buffer.getInt(20))
+        // Nothing extracted from the APK may sit in the resource tree.
+        val leftoverPngs = File("src/main/res")
+            .walkTopDown()
+            .filter { it.isFile && it.name.startsWith("ic_launcher") && it.extension == "png" }
+            .toList()
+        assertTrue("vendor-derived launcher PNGs must not come back: $leftoverPngs", leftoverPngs.isEmpty())
+
+        listOf("ic_launcher.xml" to adaptive, "ic_launcher_round.xml" to adaptiveRound).forEach { (name, text) ->
+            assertTrue("$name must use the vector foreground", text.contains("@drawable/ic_launcher_foreground"))
+            assertTrue("$name must declare a monochrome layer", text.contains("@drawable/ic_launcher_monochrome"))
+        }
+
+        listOf(foreground, monochrome).forEach { file ->
+            val vector = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(file)
+                .documentElement
+            assertEquals("${file.name} must be a vector", "vector", vector.tagName)
+            assertEquals("108", vector.getAttribute("android:viewportWidth"))
+            val paths = vector.getElementsByTagName("path")
+            assertTrue("${file.name} has no paths", paths.length >= 4)
+            (0 until paths.length).forEach { index ->
+                val path = paths.item(index) as Element
+                assertTrue("${file.name} path $index is empty", path.getAttribute("android:pathData").isNotBlank())
+            }
+        }
     }
 }

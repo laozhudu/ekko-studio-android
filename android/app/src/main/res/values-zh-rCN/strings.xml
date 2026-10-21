@@ -964,4 +964,7 @@
     <string name="workspace_save_shortcut">收藏此目录</string>
     <string name="workspace_saved">已收藏该目录</string>
     <string name="workspace_shortcut_updated">收藏已更新</string>
+    <string name="mcp_live_tools">工具清单</string>
+    <string name="mcp_tools_absent">该服务没有返回工具段</string>
+    <string name="mcp_tools_empty">当前没有暴露任何工具</string>
 </resources>

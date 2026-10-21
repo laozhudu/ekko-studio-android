@@ -1,9 +1,9 @@
 {
   "server_version": "0.7.38",
   "total": 529,
-  "used": 207,
+  "used": 208,
   "outOfScope": 121,
-  "gap": 201,
+  "gap": 200,
   "usedPaths": [
     "DELETE /api/app-connections/{id}",
     "DELETE /api/auth/locked-ips",
@@ -63,6 +63,7 @@
     "GET /api/hermes/kanban/{id}/attachments",
     "GET /api/hermes/kanban/{id}/log",
     "GET /api/hermes/mcp/servers",
+    "GET /api/hermes/mcp/tools",
     "GET /api/hermes/model-context",
     "GET /api/hermes/plugins",
     "GET /api/hermes/profiles",

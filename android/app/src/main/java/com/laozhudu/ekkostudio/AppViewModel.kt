@@ -232,6 +232,10 @@ data class UiState(
     /** 0..100, or -1 when the update reports no progress of its own. */
     val updateProgress: Int = -1,
     val agentPolicies: List<AgentPolicy> = emptyList(),
+    /** Server whose live tool inventory is open in a dialog, plus the data. */
+    val mcpToolsFor: String? = null,
+    val mcpLiveTools: List<McpServerTools> = emptyList(),
+    val mcpToolsLoading: Boolean = false,
     /** Saved workspace folders offered as shortcuts. */
     val workspaceDirectories: List<WorkspaceDirectory> = emptyList(),
     /** Skill bundles, shown in the slash-command sheet. */
@@ -1111,6 +1115,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    // ---- MCP live tools --------------------------------------------------
+
+    /**
+     * Fetches what the server actually exposes right now and opens it for one
+     * server. The list in the editor is the saved config; this is reality.
+     */
+    fun openMcpTools(server: String) {
+        _state.update { it.copy(mcpToolsFor = server, mcpToolsLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.mcpTools() } }
+                .onSuccess { live ->
+                    _state.update { it.copy(mcpLiveTools = live, mcpToolsLoading = false) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(mcpToolsLoading = false, mcpToolsFor = null, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun closeMcpTools() = _state.update { it.copy(mcpToolsFor = null, mcpLiveTools = emptyList()) }
 
     // ---- Workspace directories ------------------------------------------
 

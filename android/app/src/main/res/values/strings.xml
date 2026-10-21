@@ -965,4 +965,7 @@
     <string name="workspace_save_shortcut">Save this folder</string>
     <string name="workspace_saved">Folder saved</string>
     <string name="workspace_shortcut_updated">Shortcut updated</string>
+    <string name="mcp_live_tools">Tools</string>
+    <string name="mcp_tools_absent">This server reported no tool section</string>
+    <string name="mcp_tools_empty">No tools exposed right now</string>
 </resources>

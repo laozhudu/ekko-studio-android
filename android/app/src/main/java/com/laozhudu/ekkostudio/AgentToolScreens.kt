@@ -84,6 +84,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import org.json.JSONObject
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -440,6 +442,38 @@ internal fun McpScreen(state: UiState, viewModel: AppViewModel) {
             },
         )
     }
+    state.mcpToolsFor?.let { server ->
+        val live = state.mcpLiveTools.firstOrNull { it.server == server }
+        AlertDialog(
+            onDismissRequest = { viewModel.closeMcpTools() },
+            title = { Text(server) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 380.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    when {
+                        state.mcpToolsLoading -> CircularProgressIndicator(Modifier.size(20.dp))
+                        live == null -> Text(stringResource(R.string.mcp_tools_absent))
+                        live.tools.isEmpty() -> Text(stringResource(R.string.mcp_tools_empty))
+                        else -> live.tools.forEach { tool ->
+                            Text(
+                                tool,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.closeMcpTools() }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
+    }
     remove?.let { server ->
         ConfirmDeleteDialog(
             stringResource(R.string.mcp_delete_title),
@@ -507,6 +541,11 @@ internal fun McpScreen(state: UiState, viewModel: AppViewModel) {
                                     }
                                 }
                                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
+                                    TextButton(onClick = { viewModel.openMcpTools(server.name) }) {
+                                        Icon(Icons.Filled.List, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(stringResource(R.string.mcp_live_tools))
+                                    }
                                     TextButton(onClick = { viewModel.testMcpServer(server.name) }, enabled = ui.actionName == null) {
                                         Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp))
                                         Spacer(Modifier.width(5.dp))

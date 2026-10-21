@@ -1809,6 +1809,30 @@ class HermesApi(
         call("/api/hermes/mcp/servers/${enc(name)}/test", "POST")
     }
 
+    /**
+     * Live tool inventory per MCP server: `GET /api/hermes/mcp/tools` answers
+     * `{"ok":true,"results":[{"server":…,"tools":[{"name":…}]}]}`. This is what the
+     * server actually exposes right now, which can differ from the tools declared
+     * in the saved config.
+     */
+    fun mcpTools(): List<McpServerTools> {
+        val array = call("/api/hermes/mcp/tools").optJSONArray("results") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val server = firstNonBlank(item, "server", "name") ?: return@mapNotNull null
+            val tools = item.optJSONArray("tools")?.let { list ->
+                (0 until list.length()).mapNotNull { i ->
+                    when (val value = list.opt(i)) {
+                        is String -> value.takeIf(String::isNotBlank)
+                        is JSONObject -> firstNonBlank(value, "name", "id")
+                        else -> null
+                    }
+                }
+            }.orEmpty()
+            McpServerTools(server = server, tools = tools)
+        }.sortedBy { it.server.lowercase() }
+    }
+
     fun reloadMcpServer(name: String? = null) {
         call("/api/hermes/mcp/reload${name?.let { "?server=${enc(it)}" }.orEmpty()}", "POST")
     }
@@ -2427,6 +2451,12 @@ data class Message(
     /** Rows that belong to the agent's machinery rather than to the conversation. */
     val isToolRow: Boolean get() = role == "tool"
 }
+
+/** Live tool inventory of one MCP server. */
+data class McpServerTools(
+    val server: String,
+    val tools: List<String>,
+)
 
 /** A folder offered by the workspace picker. */
 data class WorkspaceDirectory(
