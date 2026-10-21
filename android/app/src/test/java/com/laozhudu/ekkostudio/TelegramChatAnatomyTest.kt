@@ -20,6 +20,9 @@ import java.io.File
 class TelegramChatAnatomyTest {
 
     private val activity = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
+    // Chat widgets live in their own file since the split; assertions about
+    // them must not depend on which file they sit in.
+    private val chatWidgets = File("src/main/java/com/laozhudu/ekkostudio/ChatWidgets.kt").readText()
     private val theme = File("src/main/java/com/laozhudu/ekkostudio/Theme.kt").readText()
 
     @Test
@@ -52,13 +55,13 @@ class TelegramChatAnatomyTest {
 
     @Test
     fun datesAreSeparatedByAPill() {
-        assertTrue(activity.contains("private fun DaySeparator("))
+        assertTrue(chatWidgets.contains("DaySeparator("))
         assertTrue("inserted when the day changes", activity.contains("if (dayKeyOf(previous?.timestamp) != dayKeyOf(line.timestamp))"))
     }
 
     @Test
     fun approvalsUseAnInlineKeyboard() {
-        assertTrue(activity.contains("private fun InlineActionKeyboard("))
+        assertTrue(chatWidgets.contains("InlineActionKeyboard("))
         assertTrue(
             "rendered as a list item under the request",
             activity.contains("state.pendingRunAction") && activity.contains("InlineActionKeyboard("),

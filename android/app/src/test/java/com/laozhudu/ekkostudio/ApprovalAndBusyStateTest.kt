@@ -20,6 +20,7 @@ class ApprovalAndBusyStateTest {
 
     private val activity = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
     private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
+    private val chatWidgets = File("src/main/java/com/laozhudu/ekkostudio/ChatWidgets.kt").readText()
 
     @Test
     fun approvalHostIsMountedAtTheAppRoot() {
@@ -53,7 +54,7 @@ class ApprovalAndBusyStateTest {
     fun writeGateIsPolledAndSurfacedAnywhere() {
         assertTrue("quiet poller exists", viewModel.contains("fun pollWriteGate()"))
         assertTrue("polled on a timer", activity.contains("viewModel.pollWriteGate()"))
-        assertTrue("banner exists", activity.contains("private fun ApprovalBanner("))
+        assertTrue("banner exists", chatWidgets.contains("ApprovalBanner("))
         assertTrue(
             "banner is pinned above the transcript",
             activity.contains("state.writeGateRecords.isNotEmpty() && state.screen != Screen.WriteGate"),

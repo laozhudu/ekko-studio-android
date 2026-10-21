@@ -20,6 +20,7 @@ class TelegramInteractionLogicTest {
 
     private val activity = File("src/main/java/com/laozhudu/ekkostudio/MainActivity.kt").readText()
     private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
+    private val chatWidgets = File("src/main/java/com/laozhudu/ekkostudio/ChatWidgets.kt").readText()
     private val store = File("src/main/java/com/laozhudu/ekkostudio/Store.kt").readText()
 
     private val conversation: String
@@ -54,7 +55,7 @@ class TelegramInteractionLogicTest {
 
     @Test
     fun swipingAMessageQuotesIt() {
-        assertTrue(activity.contains("private fun SwipeToReply("))
+        assertTrue(chatWidgets.contains("SwipeToReply("))
         assertTrue(activity.contains("detectHorizontalDragGestures("))
         assertTrue(
             "the gesture is wrapped around each bubble",
