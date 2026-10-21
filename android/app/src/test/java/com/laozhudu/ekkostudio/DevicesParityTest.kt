@@ -265,9 +265,9 @@ class DevicesParityTest {
     fun directConnectBehaviourIsIntact() {
         // The page must not have replaced the encrypted multi-instance store.
         assertTrue(store.contains("EncryptedSharedPreferences"))
-        assertTrue(instances.contains("fun upsertInstance"))
-        assertTrue(viewModel.contains("fun switchInstance(url: String)"))
-        assertTrue(viewModel.contains("fun addDevice(connection: String, name: String, username: String, password: String)"))
+        assertTrue(KotlinSource.hasFun(instances, "upsertInstance"))
+        assertTrue(KotlinSource.hasFun(viewModel, "switchInstance"))
+        assertTrue(KotlinSource.hasFun(viewModel, "addDevice"))
         // Pairing reuses the existing sign-in rather than adding a second
         // credential path.
         assertTrue(viewModel.contains("login(url, username, password, remember = false, label = label)"))

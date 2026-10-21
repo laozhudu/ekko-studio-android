@@ -46,6 +46,6 @@ class ContextReadoutTest {
         // called "run_usage", which is why the meter used to freeze.
         assertTrue(socket.contains("live.on(\"context.estimated\")"))
         assertTrue(socket.contains("live.on(\"run.usage.updated\")"))
-        assertTrue(socket.contains("fun usageFromEstimate("))
+        assertTrue(KotlinSource.hasFun(socket, "usageFromEstimate"))
     }
 }

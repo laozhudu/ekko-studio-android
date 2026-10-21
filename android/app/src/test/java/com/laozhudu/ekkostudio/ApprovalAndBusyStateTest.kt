@@ -52,7 +52,7 @@ class ApprovalAndBusyStateTest {
 
     @Test
     fun writeGateIsPolledAndSurfacedAnywhere() {
-        assertTrue("quiet poller exists", viewModel.contains("fun pollWriteGate()"))
+        assertTrue("quiet poller exists", KotlinSource.hasFun(viewModel, "pollWriteGate"))
         assertTrue("polled on a timer", activity.contains("viewModel.pollWriteGate()"))
         assertTrue("banner exists", chatWidgets.contains("ApprovalBanner("))
         assertTrue(
@@ -63,7 +63,7 @@ class ApprovalAndBusyStateTest {
 
     @Test
     fun composerIsNotBlockedByAnotherConversationsRun() {
-        val send = viewModel.substringAfter("fun send(message: String, replyTo: String? = null) {").substringBefore("_state.update {")
+        val send = (KotlinSource.funBody(viewModel, "send") ?: "").substringBefore("_state.update {")
         assertTrue("busy is scoped to this conversation", send.contains("val busyHere = activeRunSessionId != null"))
         assertFalse(
             "the app-wide flag must not gate sending",

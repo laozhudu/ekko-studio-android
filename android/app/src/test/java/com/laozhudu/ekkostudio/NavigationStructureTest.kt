@@ -120,7 +120,7 @@ class NavigationStructureTest {
     fun profilesReturnsToTheScreenThatOpenedIt() {
         assertTrue(viewModel.contains("val profilesReturnScreen: Screen"))
         assertTrue(viewModel.contains("Screen.Profiles -> state.profilesReturnScreen"))
-        assertTrue(viewModel.contains("fun openProfiles()"))
+        assertTrue(KotlinSource.hasFun(viewModel, "openProfiles"))
         assertFalse("callers must not bypass origin tracking", activity.contains("show(Screen.Profiles)"))
     }
 

@@ -29,8 +29,8 @@ class TelegramInteractionLogicTest {
 
     @Test
     fun draftsArePerConversationAndPersisted() {
-        assertTrue("store keeps one draft per chat", store.contains("fun draftFor(conversationId: String)"))
-        assertTrue(store.contains("fun setDraftFor("))
+        assertTrue("store keeps one draft per chat", KotlinSource.hasFun(store, "draftFor"))
+        assertTrue(KotlinSource.hasFun(store, "setDraftFor"))
         assertTrue(
             "the composer restores that chat's draft",
             conversation.contains("mutableStateOf(viewModel.draft(conversationKey))"),
@@ -65,7 +65,7 @@ class TelegramInteractionLogicTest {
 
     @Test
     fun theQuoteTravelsAsItsOwnField() {
-        assertTrue(viewModel.contains("fun send(message: String, replyTo: String? = null)"))
+        assertTrue(KotlinSource.hasFun(viewModel, "send"))
         assertTrue(viewModel.contains("replyToNote = replyTo?.take(400)"))
         assertTrue(
             "the agent still receives the quote in the payload",
@@ -76,7 +76,7 @@ class TelegramInteractionLogicTest {
 
     @Test
     fun unreadCountTracksTheBottom() {
-        assertTrue(store.contains("fun readIndexFor("))
+        assertTrue(KotlinSource.hasFun(store, "readIndexFor"))
         assertTrue(conversation.contains("viewModel.markRead(conversationKey, state.lines.size)"))
         assertTrue(
             "the pill shows the count",

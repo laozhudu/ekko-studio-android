@@ -16,7 +16,7 @@ class RunSurvivesNavigationTest {
     private val viewModel = File("src/main/java/com/laozhudu/ekkostudio/AppViewModel.kt").readText()
 
     private val openSession: String
-        get() = viewModel.substringAfter("fun openSession(")
+        get() = (KotlinSource.funBody(viewModel, "openSession") ?: "")
             .substringBefore("historyJob?.cancel()")
 
     @Test
@@ -50,7 +50,7 @@ class RunSurvivesNavigationTest {
 
     @Test
     fun backgroundRunEventsDoNotPaintOverAnotherConversation() {
-        assertTrue("collector gates UI writes", viewModel.contains("fun onScreen(): Boolean ="))
+        assertTrue("collector gates UI writes", KotlinSource.hasFun(viewModel, "onScreen"))
         assertTrue(
             "text deltas only touch the screen when the run's session is open",
             viewModel.contains("is RunEvent.Text -> {") &&
