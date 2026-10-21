@@ -23,7 +23,9 @@ object KotlinSource {
     /** `fun name(` somewhere in the file — modifiers and annotations before it are fine. */
     private fun declarationIndex(source: String, name: String): Int {
         val masked = mask(source)
-        val pattern = Regex("""\bfun\s+${Regex.escape(name)}\s*\(""")
+        // `fun <T> launchWork(` — a type parameter list sits between the keyword
+        // and the name, and the suite asserts on exactly that function.
+        val pattern = Regex("""\bfun\s+(?:<[^>]*>\s*)?${Regex.escape(name)}\s*\(""")
         return pattern.find(masked)?.range?.first ?: -1
     }
 

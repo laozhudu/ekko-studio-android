@@ -34,7 +34,29 @@ class KotlinSourceTest {
         val before = "fun openSession(session: SessionSummary) { doWork() }"
         val after = "fun openSession(session: SessionSummary, focus: String? = null) { doWork() }"
 
-        assertEquals(KotlinSource.funBody(before, "openSession"), KotlinSource.funBody(after, "openSession"))
+        // The body text still contains the signature, so compare what the tests
+        // actually care about: the body was found, and it is complete.
+        assertTrue(KotlinSource.funBody(before, "openSession")!!.contains("doWork()"))
+        assertTrue(KotlinSource.funBody(after, "openSession")!!.contains("doWork()"))
+        assertEquals(
+            KotlinSource.funBody(before, "openSession")!!.count { it == '{' },
+            KotlinSource.funBody(after, "openSession")!!.count { it == '{' },
+        )
+    }
+
+    @Test
+    fun `a generic type parameter list before the name is handled`() {
+        val source = """
+            private fun <T> launchWork(
+                work: suspend () -> T,
+                onSuccess: (T) -> Unit,
+            ) {
+                doWork()
+            }
+        """.trimIndent()
+
+        assertTrue(KotlinSource.hasFun(source, "launchWork"))
+        assertTrue(KotlinSource.funBody(source, "launchWork")!!.contains("doWork()"))
     }
 
     @Test
