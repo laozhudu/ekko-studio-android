@@ -114,7 +114,192 @@ import com.google.zxing.qrcode.QRCodeWriter
 @Composable fun LogsScreen(state: UiState, vm: AppViewModel) { Scaffold(topBar = { TopAppBar(title = { Text(state.openLog?.name ?: stringResource(R.string.logs_title)) }, navigationIcon = { IconButton(onClick = { if (state.openLog != null) vm.closeLog() else vm.back() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back)) } }, actions = { IconButton(onClick = { state.openLog?.let(vm::openLog) ?: vm.openLogs() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.action_refresh)) } }) }) { pad -> LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { if (state.openLog == null) items(state.studioLogs, key = { it.name }) { log -> Card(Modifier.fillMaxWidth().clickable { vm.openLog(log) }) { Column(Modifier.padding(15.dp)) { Text(log.name, fontWeight = FontWeight.Bold); Text("${log.size} · ${log.modified}", style = MaterialTheme.typography.labelSmall) } } } else items(state.logEntries) { entry -> Column { Text("${entry.level} · ${entry.timestamp}", color = if (entry.level.contains("ERROR")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall); Text(entry.message, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall); HorizontalDivider() } } } } }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun ConnectionsScreen(state: UiState, vm: AppViewModel) { var revoke by remember { mutableStateOf<AppConnection?>(null) }; var manual by remember { mutableStateOf(false) }; revoke?.let { item -> AlertDialog(onDismissRequest = { revoke = null }, title = { Text(stringResource(R.string.revoke_connection)) }, text = { Text(item.name) }, confirmButton = { TextButton(onClick = { revoke = null; vm.revokeAppConnection(item) }) { Text(stringResource(R.string.action_delete)) } }, dismissButton = { TextButton(onClick = { revoke = null }) { Text(stringResource(R.string.action_cancel)) } }) }; if (manual) SimpleNameDialog(stringResource(R.string.manual_device), "", { manual = false }) { manual = false; vm.manualDeviceRequest(it) }; Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.connections_title)) }, navigationIcon = { IconButton(vm::back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back)) } }, actions = { IconButton(vm::openConnections) { Icon(Icons.Filled.Refresh, stringResource(R.string.action_refresh)) } }) }) { pad -> LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {  if (state.appConnections.isNotEmpty()) item { Text(stringResource(R.string.app_connections_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }; items(state.appConnections, key = { it.id }) { connection -> Card(Modifier.fillMaxWidth()) { Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(connection.name, fontWeight = FontWeight.Bold); Text("${connection.type} · ${if (connection.online) stringResource(R.string.connected) else stringResource(R.string.disconnected)}") }; TextButton(onClick = { revoke = connection }) { Text(stringResource(R.string.action_delete)) } } } }; item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.devices_title), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); TextButton(onClick = { manual = true }) { Text(stringResource(R.string.manual_device)) } } }; if (state.pairingLink.isNotBlank()) item { Card { Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) { QrCode(state.pairingLink); Text(state.pairingLink, style = MaterialTheme.typography.labelSmall) } } }; items(state.studioDevices, key = { it.id }) { device -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(15.dp)) { Text(device.name, fontWeight = FontWeight.Bold); Text(device.address); Text("${device.inbound} · ${device.outbound}", style = MaterialTheme.typography.labelSmall); Row { TextButton(onClick = { vm.deviceAction(device, "approve") }) { Text(stringResource(R.string.action_approve)) }; TextButton(onClick = { vm.deviceAction(device, if (device.inbound == "blocked") "unblock" else "block") }) { Text(stringResource(if (device.inbound == "blocked") R.string.unblock else R.string.block)) }; TextButton(onClick = { vm.deviceAction(device, "connect") }) { Text(stringResource(R.string.connect)) } } } } }; items(state.peerConnections, key = { it.id }) { peer -> Card { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Text(peer.name, Modifier.weight(1f)); TextButton(onClick = { vm.disconnectPeer(peer) }) { Text(stringResource(R.string.disconnect)) } } } } } } }
+/**
+ * Devices and app connections.
+ *
+ * Rebuilt on the endpoints that exist on 0.7.38. The previous version called
+ * `/api/devices`, `/api/devices/pairing-link` and `/api/devices/peer-connections`
+ * — all of which return 404 — and it never loaded `/api/app-connections` at all,
+ * so the screen could only ever open empty.
+ *
+ * Pairing is the official flow: ask the server for an authorization code
+ * (`POST /api/app-connections/authorization-codes/{lan|cloud}`), then show the
+ * returned `qr_payload`, which the phone scans.
+ */
+@Composable
+fun ConnectionsScreen(state: UiState, vm: AppViewModel) {
+    var revoke by remember { mutableStateOf<AppConnection?>(null) }
+    var cloudPairing by remember { mutableStateOf(false) }
+
+    revoke?.let { item ->
+        AlertDialog(
+            onDismissRequest = { revoke = null },
+            title = { Text(stringResource(R.string.revoke_connection)) },
+            text = { Text(item.name) },
+            confirmButton = {
+                TextButton(onClick = { revoke = null; vm.revokeAppConnection(item) }) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = { TextButton(onClick = { revoke = null }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.connections_title)) },
+                navigationIcon = {
+                    IconButton(onClick = vm::back) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = vm::refreshConnections, enabled = !state.connectionsLoading) {
+                        Icon(Icons.Filled.Refresh, stringResource(R.string.action_refresh))
+                    }
+                },
+            )
+        },
+    ) { pad ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(pad),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (state.connectionsLoading) {
+                item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() } }
+            }
+            state.error?.let { message ->
+                item { ErrorNote(message) { vm.dismissError() } }
+            }
+            state.notice?.let { message ->
+                item {
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = vm::dismissNotice) { Text(stringResource(R.string.action_dismiss)) }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    stringResource(R.string.app_connections_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (state.appConnections.isEmpty()) {
+                item { Text(stringResource(R.string.connections_empty), style = MaterialTheme.typography.bodySmall) }
+            }
+            items(state.appConnections, key = { it.id }) { connection ->
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(connection.name, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${connection.type} · " + stringResource(
+                                    if (connection.online) R.string.connected else R.string.disconnected,
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = { revoke = connection }) {
+                            Text(stringResource(R.string.action_delete))
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    stringResource(R.string.pairing_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { cloudPairing = false; vm.requestPairingCode(false) }) {
+                        Text(stringResource(R.string.pairing_lan))
+                    }
+                    OutlinedButton(onClick = { cloudPairing = true; vm.requestPairingCode(true) }) {
+                        Text(stringResource(R.string.pairing_cloud))
+                    }
+                }
+            }
+            state.appAuthorization?.let { auth ->
+                item {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            QrCode(auth.qrPayload.ifBlank { auth.code })
+                            Text(
+                                auth.code,
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                            if (auth.expiresAt > 0) {
+                                Text(
+                                    stringResource(R.string.pairing_expires_at, formatStamp((auth.expiresAt / 1000).toString())),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                stringResource(
+                                    if (cloudPairing) R.string.pairing_hint_cloud else R.string.pairing_hint_lan,
+                                    auth.type,
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    stringResource(R.string.relay_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+            item {
+                val relay = state.appRelay
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            stringResource(
+                                if (relay?.connected == true) R.string.relay_connected else R.string.relay_disconnected,
+                            ),
+                            fontWeight = FontWeight.Bold,
+                        )
+                        relay?.machineId?.takeIf { it.isNotBlank() }?.let {
+                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (relay != null) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (relay.connected) {
+                                    TextButton(onClick = vm::disconnectRelay) { Text(stringResource(R.string.relay_disconnect)) }
+                                } else {
+                                    TextButton(onClick = vm::connectRelay) { Text(stringResource(R.string.relay_connect)) }
+                                }
+                                TextButton(onClick = vm::refreshRelayCode) { Text(stringResource(R.string.relay_new_code)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable private fun QrCode(value: String) { if (value.isBlank()) return; val image = remember(value) { val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 420, 420); Bitmap.createBitmap(420, 420, Bitmap.Config.ARGB_8888).apply { for (y in 0 until 420) for (x in 0 until 420) setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE) }.asImageBitmap() }; Image(image, null, Modifier.size(190.dp)) }
 

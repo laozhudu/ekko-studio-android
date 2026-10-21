@@ -992,4 +992,18 @@
     <string name="day_today">Today</string>
     <string name="history_load_older">Load earlier messages</string>
     <string name="history_loading_older">Loading earlier messages…</string>
+    <string name="pairing_title">Pairing</string>
+    <string name="pairing_lan">This network</string>
+    <string name="pairing_cloud">Cloud relay</string>
+    <string name="pairing_code_ready">Authorization code created</string>
+    <string name="pairing_hint_lan">Scan with the app on the same network (%1$s)</string>
+    <string name="pairing_hint_cloud">Scan with the app anywhere (%1$s)</string>
+    <string name="pairing_expires_at">Expires %1$s</string>
+    <string name="relay_title">App relay</string>
+    <string name="relay_connected">Relay connected</string>
+    <string name="relay_disconnected">Relay not connected</string>
+    <string name="relay_connect">Connect</string>
+    <string name="relay_disconnect">Disconnect</string>
+    <string name="relay_new_code">New code</string>
+    <string name="connections_empty">No connected devices yet</string>
 </resources>

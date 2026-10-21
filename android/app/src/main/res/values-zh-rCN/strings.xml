@@ -996,4 +996,18 @@
     <string name="day_today">今天</string>
     <string name="history_load_older">加载更早的消息</string>
     <string name="history_loading_older">正在加载更早的消息…</string>
+    <string name="pairing_title">配对</string>
+    <string name="pairing_lan">本网络</string>
+    <string name="pairing_cloud">云端中转</string>
+    <string name="pairing_code_ready">已生成配对码</string>
+    <string name="pairing_hint_lan">用同一网络下的 App 扫码（%1$s）</string>
+    <string name="pairing_hint_cloud">用任意网络的 App 扫码（%1$s）</string>
+    <string name="pairing_expires_at">%1$s 过期</string>
+    <string name="relay_title">应用中转</string>
+    <string name="relay_connected">中转已连接</string>
+    <string name="relay_disconnected">中转未连接</string>
+    <string name="relay_connect">连接</string>
+    <string name="relay_disconnect">断开</string>
+    <string name="relay_new_code">换新码</string>
+    <string name="connections_empty">还没有连接过设备</string>
 </resources>

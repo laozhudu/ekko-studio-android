@@ -287,7 +287,7 @@ data class UiState(
     val openLog: StudioLogFile? = null,
     val logEntries: List<StudioLogEntry> = emptyList(),
     val appRelay: AppRelayStatus? = null,
-    val studioDevices: List<StudioDevice> = emptyList(),
+    val connectionsLoading: Boolean = false,
     val appConnections: List<AppConnection> = emptyList(),
     val appAuthorization: AppAuthorization? = null,
     val ekkoExternalDirectories: List<String> = emptyList(),
@@ -296,8 +296,6 @@ data class UiState(
     val ekkoSkillFiles: List<String> = emptyList(),
     val ekkoSkillFilePreviewPath: String? = null,
     val ekkoSkillFilePreviewContent: String = "",
-    val pairingLink: String = "",
-    val peerConnections: List<PeerConnection> = emptyList(),
     val journey: JourneyGraph? = null,
     val skillUsage: SkillUsage? = null,
     val webhooks: List<WebhookEndpoint> = emptyList(),
@@ -1441,15 +1439,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun openLog(log: StudioLogFile) = launchWork(work = { api.studioLog(log.name, currentProfile()) }, onSuccess = { entries -> _state.update { it.copy(openLog = log, logEntries = entries) } })
     fun closeLog() = _state.update { it.copy(openLog = null, logEntries = emptyList()) }
 
-    fun openConnections() = launchWork(work = { api.studioDevices() to (runCatching { api.devicePairingLink() }.getOrDefault("") to runCatching { api.peerConnections() }.getOrDefault(emptyList())) }, onSuccess = { data -> val (devices, extra) = data; _state.update { it.copy(screen = Screen.Connections, appRelay = null, appConnections = emptyList(), pairingLink = extra.first, studioDevices = devices, peerConnections = extra.second, error = null) } })
+    /**
+     * The connections screen is built on the endpoints that actually exist on
+     * 0.7.x: GET /api/app-connections, GET /api/app-relay/status and the
+     * authorization-code endpoints. The old /api/devices/*, /devices/pairing-link
+     * and /devices/peer-connections routes all return 404, so the screen used to
+     * open empty with an error.
+     */
+    fun openConnections() {
+        _state.update { it.copy(screen = Screen.Connections, error = null, notice = null) }
+        refreshConnections()
+    }
+
+    fun refreshConnections() {
+        _state.update { it.copy(connectionsLoading = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Triple(
+                        api.appConnections(),
+                        runCatching { api.appRelayStatus() }.getOrNull(),
+                        runCatching { api.serverVersions() }.getOrNull(),
+                    )
+                }
+            }
+                .onSuccess { (connections, relay, versions) ->
+                    _state.update {
+                        it.copy(
+                            connectionsLoading = false,
+                            appConnections = connections,
+                            appRelay = relay ?: it.appRelay,
+                            serverVersions = versions ?: it.serverVersions,
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(connectionsLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    /** LAN pairing code: the server returns a full QR payload for the phone app. */
+    fun requestPairingCode(cloud: Boolean) = launchWork(
+        work = { api.createAppAuthorization(cloud) },
+        onSuccess = { auth -> _state.update { it.copy(appAuthorization = auth, notice = str(R.string.pairing_code_ready)) } },
+    )
     fun connectRelay() = launchWork(work = { api.connectAppRelay() }, onSuccess = { relay -> _state.update { it.copy(appRelay = relay) } })
     fun refreshRelayCode() = launchWork(work = { api.refreshAppRelayCode() }, onSuccess = { relay -> _state.update { it.copy(appRelay = relay) } })
     fun disconnectRelay() = launchWork(work = { api.disconnectAppRelay() }, onSuccess = { relay -> _state.update { it.copy(appRelay = relay) } })
-    fun deviceAction(device: StudioDevice, action: String) = launchWork(work = { api.deviceAction(device.id, action) }, onSuccess = { openConnections() })
     fun createAppAuthorization(cloud: Boolean) = launchWork(work = { api.createAppAuthorization(cloud) }, onSuccess = { auth -> _state.update { it.copy(appAuthorization = auth) } })
     fun revokeAppConnection(connection: AppConnection) = launchWork(work = { api.revokeAppConnection(connection.id) }, onSuccess = { openConnections() })
-    fun manualDeviceRequest(url: String) = launchWork(work = { api.manualDeviceRequest(url) }, onSuccess = { openConnections() })
-    fun disconnectPeer(connection: PeerConnection) = launchWork(work = { api.disconnectPeer(connection.id) }, onSuccess = { openConnections() })
 
     fun switchActiveProfile(name: String) = launchWork(work = { api.switchActiveProfile(name) }, onSuccess = { selectProfile(name); refreshProfiles() })
     fun importProfile(bytes: ByteArray, name: String) = launchWork(work = { api.importProfile(bytes, name) }, onSuccess = { refreshProfiles() })

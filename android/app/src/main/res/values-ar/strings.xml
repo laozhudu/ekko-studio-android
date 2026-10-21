@@ -991,4 +991,18 @@
     <string name="day_today">اليوم</string>
     <string name="history_load_older">تحميل رسائل أقدم</string>
     <string name="history_loading_older">جارٍ تحميل رسائل أقدم…</string>
+    <string name="pairing_title">الاقتران</string>
+    <string name="pairing_lan">هذه الشبكة</string>
+    <string name="pairing_cloud">عبر السحابة</string>
+    <string name="pairing_code_ready">تم إنشاء رمز الاقتران</string>
+    <string name="pairing_hint_lan">امسح بال تطبيق على نفس الشبكة (%1$s)</string>
+    <string name="pairing_hint_cloud">امسح بال تطبيق من أي شبكة (%1$s)</string>
+    <string name="pairing_expires_at">ينتهي %1$s</string>
+    <string name="relay_title">مرحّل التطبيق</string>
+    <string name="relay_connected">المرحّل متصل</string>
+    <string name="relay_disconnected">المرحّل غير متصل</string>
+    <string name="relay_connect">اتصال</string>
+    <string name="relay_disconnect">قطع</string>
+    <string name="relay_new_code">رمز جديد</string>
+    <string name="connections_empty">لا توجد أجهزة متصلة بعد</string>
 </resources>
