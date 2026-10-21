@@ -122,7 +122,11 @@ fun inferDownloadFileName(path: String, label: String? = null): String {
 }
 
 fun unwrapStudioDownloadPath(value: String): String {
-    if (!value.startsWith("/api/hermes/download?")) return decodeUrlPart(value)
+    // Both the documented /api/studio/files/download route and the older
+    // /api/hermes/download alias carry the real path in a `path` query parameter.
+    val isDownloadUrl = value.startsWith("/api/studio/files/download?") ||
+        value.startsWith("/api/hermes/download?")
+    if (!isDownloadUrl) return decodeUrlPart(value)
     val encoded = value.substringAfter('?').split('&')
         .firstOrNull { it.substringBefore('=') == "path" }
         ?.substringAfter('=', "")

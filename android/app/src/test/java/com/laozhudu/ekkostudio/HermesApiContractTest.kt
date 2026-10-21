@@ -912,7 +912,7 @@ class HermesApiContractTest {
         assertEquals(1.25, active.scale, 0.001)
         val adopt = server.takeRequest()
         // Consume the manifest request before asserting adoption.
-        assertEquals("/api/hermes/petdex/manifest", adopt.path)
+        assertEquals("/api/studio/petdex/manifest", adopt.path)
         val adoptRequest = server.takeRequest()
         assertEquals("/api/studio/pets/adopt", adoptRequest.path)
         assertEquals("luna", JSONObject(adoptRequest.body.readUtf8()).getString("slug"))
