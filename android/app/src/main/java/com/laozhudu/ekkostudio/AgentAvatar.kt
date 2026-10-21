@@ -39,7 +39,10 @@ object AgentAvatar {
     fun image(mime: String, bytes: ByteArray): String? {
         if (mime !in ALLOWED_MIME) return null
         if (bytes.isEmpty() || bytes.size > MAX_IMAGE_BYTES) return null
-        val encoded = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        // java.util.Base64, not android.util.Base64: the latter is a stub in unit
+        // tests and throws "not mocked", which would make this untestable. minSdk
+        // is 26, where the java.util version exists on the device too.
+        val encoded = java.util.Base64.getEncoder().encodeToString(bytes)
         val payload = "data:$mime;base64,$encoded"
         if (payload.length > MAX_FIELD_CHARS) return null
         return JSONObject().put("type", "image").put("dataUrl", payload).toString()
