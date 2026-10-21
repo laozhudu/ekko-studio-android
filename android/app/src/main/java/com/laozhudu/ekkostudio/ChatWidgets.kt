@@ -330,7 +330,7 @@ internal fun InlineActionKeyboard(action: PendingRunAction, onChoice: (String) -
         Surface(
             modifier = Modifier.widthIn(max = 300.dp),
             shape = RoundedCornerShape(12.dp),
-            color = telegramIncomingBg(inkDark),
+            color = inkMessageBg(inkDark),
             border = BorderStroke(1.dp, inkBorder(inkDark)),
         ) {
             Column {
@@ -343,7 +343,7 @@ internal fun InlineActionKeyboard(action: PendingRunAction, onChoice: (String) -
                     },
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = telegramIncomingText(inkDark),
+                    color = inkTextPrimary(inkDark),
                 )
                 HorizontalDivider(color = inkBorder(inkDark), thickness = 0.5.dp)
                 choices.forEach { choice ->

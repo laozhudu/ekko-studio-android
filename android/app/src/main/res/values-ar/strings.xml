@@ -1024,4 +1024,7 @@
     <string name="appearance_local_note">يُحفظ على هذا الهاتف فقط.</string>
     <string name="appearance_server">سمة الخادم</string>
     <string name="appearance_server_note">تُطبق على كل الأجهزة.</string>
+    <string name="run_stopping">جارٍ الإيقاف…</string>
+    <string name="run_stop_timeout">لم يؤكد الخادم الإيقاف.</string>
+    <string name="workspace_changed_files">غيّر الوكيل %1$d ملفات</string>
 </resources>

@@ -34,8 +34,29 @@ sealed interface RunEvent {
     data class Plans(val plans: List<TaskPlanSnapshot>) : RunEvent
     /** `session.title.updated`: the agent named or renamed the conversation. */
     data class TitleChanged(val title: String) : RunEvent
-    /** `compression.started` / `compression.completed`: context compaction. */
-    data class Compression(val running: Boolean) : RunEvent
+    /** `compression.*`: context compaction, with the numbers the payload carries. */
+    data class Compression(
+        val running: Boolean,
+        val messageCount: Int = 0,
+        val beforeTokens: Long = 0,
+        val afterTokens: Long = 0,
+    ) : RunEvent
+    /** `message.interim`: a whole message at once, so the bubble stops streaming. */
+    data class Interim(val text: String) : RunEvent
+    /** `reasoning.available`: a reasoning fold exists before any delta arrives. */
+    object ReasoningAvailable : RunEvent
+    /** `session.activity.snapshot`: sessions already running when we connect. */
+    data class RunningSessions(val ids: List<String>) : RunEvent
+    /** `session.workspace.updated`: the agent moved this session's workspace. */
+    data class WorkspaceChanged(val path: String) : RunEvent
+    /** `workspace.diff.completed`: this run touched files. */
+    data class WorkspaceDiff(val changeId: String, val files: Int) : RunEvent
+    /** `peer.user.message`: another device posted into this conversation. */
+    object PeerMessage : RunEvent
+    /** `app.notification`: the server's own run-completion notice. */
+    data class CompletionNotice(val title: String, val content: String, val sessionId: String) : RunEvent
+    /** `abort.started|timeout|completed`: whether the server really stopped. */
+    data class AbortPhase(val phase: String) : RunEvent
     data class Done(val output: String, val reasoning: String) : RunEvent
     data class RequiresAction(
         val kind: RequiredAction,
@@ -319,8 +340,93 @@ class ChatSocket(
                 trySend(RunEvent.TitleChanged(it))
             }
         }
-        live.on("compression.started") { _ -> trySend(RunEvent.Compression(true)) }
-        live.on("compression.completed") { _ -> trySend(RunEvent.Compression(false)) }
+        // The payload carries the size of the compaction, which is the only
+        // honest way to say what happened: "压缩 87 条 · 51.2k → 12.4k".
+        live.on("compression.started") { args ->
+            val event = eventPayload(args)
+            trySend(
+                RunEvent.Compression(
+                    running = true,
+                    messageCount = event?.optInt("message_count") ?: 0,
+                    beforeTokens = event?.optLong("token_count") ?: 0,
+                ),
+            )
+        }
+        live.on("compression.completed") { args ->
+            val event = eventPayload(args)
+            trySend(
+                RunEvent.Compression(
+                    running = false,
+                    messageCount = event?.optInt("totalMessages") ?: 0,
+                    beforeTokens = event?.optLong("beforeTokens") ?: 0,
+                    afterTokens = event?.optLong("contextTokens") ?: (event?.optLong("afterTokens") ?: 0),
+                ),
+            )
+        }
+        // A model can answer in one piece, with no deltas at all. The official
+        // client replaces the streaming bubble with this text; without it such
+        // a run looks empty until it completes.
+        live.on("message.interim") { args ->
+            val text = eventPayload(args)?.let { event -> event.firstString("text", "content") }.orEmpty()
+            if (text.isNotBlank()) {
+                runStarted = true
+                trySend(RunEvent.Interim(text))
+            }
+        }
+        // "There is reasoning for this turn", sent before the deltas: it is what
+        // lets the fold appear immediately instead of after the first token.
+        live.on("reasoning.available") { _ ->
+            runStarted = true
+            trySend(RunEvent.ReasoningAvailable)
+        }
+        // Which sessions are already working when this phone connects. Without
+        // it a run started on the desktop is invisible in the list until reload.
+        live.on("session.activity.snapshot") { args ->
+            val sessions = eventPayload(args)?.optJSONArray("sessions") ?: return@on
+            val ids = (0 until sessions.length()).mapNotNull { index ->
+                val row = sessions.optJSONObject(index) ?: return@mapNotNull null
+                row.optString("session_id").takeIf { row.optString("status") == "running" && it.isNotBlank() }
+            }
+            trySend(RunEvent.RunningSessions(ids))
+        }
+        live.on("session.workspace.updated") { args ->
+            eventPayload(args)?.optString("workspace")?.takeIf { it.isNotBlank() }
+                ?.let { trySend(RunEvent.WorkspaceChanged(it)) }
+        }
+        live.on("workspace.diff.completed") { args ->
+            val event = eventPayload(args) ?: return@on
+            val changeId = event.firstString("change_id", "id")
+            val files = event.optJSONObject("change")?.optJSONArray("files")?.length() ?: 0
+            if (changeId.isNotBlank()) trySend(RunEvent.WorkspaceDiff(changeId, files))
+        }
+        // Another device (the desktop, or a second phone) posting into the same
+        // conversation. Two names exist on the wire; both mean "reload".
+        listOf("peer.user.message", "run.peer_user_message").forEach { name ->
+            live.on(name) { _ -> trySend(RunEvent.PeerMessage) }
+        }
+        // The server already writes the notification; the client only has to
+        // show it. Fired on completion for runs this phone did not start too.
+        live.on("app.notification") { args ->
+            val event = eventPayload(args) ?: return@on
+            trySend(
+                RunEvent.CompletionNotice(
+                    title = event.optString("title"),
+                    content = event.optString("content"),
+                    sessionId = event.optString("sessionId").ifBlank { event.optString("session_id") },
+                ),
+            )
+        }
+        // Abort is asynchronous on the server: "timeout" means it did NOT stop.
+        listOf("abort.started", "abort.completed", "abort.timeout").forEach { name ->
+            live.on(name) { args ->
+                val phase = name.substringAfter('.')
+                trySend(RunEvent.AbortPhase(phase))
+                if (phase == "completed" && (eventPayload(args)?.optInt("queue_remaining", 0) ?: 0) == 0) {
+                    terminal = true
+                    close()
+                }
+            }
+        }
         // The server forwards background work as a single `subagent.event` (it is
         // in the session whitelist under that exact name; the per-phase names the
         // web bundle registers belong to a newer bridge). Surface its type and text

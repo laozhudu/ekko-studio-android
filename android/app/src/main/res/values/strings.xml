@@ -1025,4 +1025,7 @@
     <string name="appearance_local_note">Saved on this phone only; the server theme is untouched.</string>
     <string name="appearance_server">Server theme</string>
     <string name="appearance_server_note">Applies to every device signed in to this Studio.</string>
+    <string name="run_stopping">Stopping…</string>
+    <string name="run_stop_timeout">The server did not confirm the stop — the run may still be working.</string>
+    <string name="workspace_changed_files">The agent changed %1$d files in the workspace</string>
 </resources>

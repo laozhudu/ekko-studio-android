@@ -310,6 +310,10 @@ data class UiState(
     val webhooks: List<WebhookEndpoint> = emptyList(),
     val webhookEvents: List<String> = emptyList(),
     val runtimeVersions: RuntimeVersions? = null,
+    /** Sessions the server reports as running right now, including remote ones. */
+    val remoteRunningSessions: Set<String> = emptySet(),
+    /** Live compaction figures, so the strip can say what it actually did. */
+    val compression: CompressionUi? = null,
     val runtimeJobs: List<RuntimeJob> = emptyList(),
     /** Model pricing table, edited locally then PUT as a whole. */
     val pricingRates: List<PricingRate> = emptyList(),
@@ -328,6 +332,14 @@ data class UiState(
     val kanbanStats: String = "",
     val kanbanLog: String = "",
     val kanbanAttachments: List<String> = emptyList(),
+)
+
+/** Numbers from `compression.started|completed`; wording is the UI's job. */
+data class CompressionUi(
+    val running: Boolean,
+    val messageCount: Int = 0,
+    val beforeTokens: Long = 0,
+    val afterTokens: Long = 0,
 )
 
 data class WeixinQrUi(
@@ -392,6 +404,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val recorder = Recorder(app)
     private var speechPlayer: MediaPlayer? = null
     private var runJob: kotlinx.coroutines.Job? = null
+    /** Set when another device posts while this phone is elsewhere. */
+    private var peerMessagePending = false
     private var historyJob: kotlinx.coroutines.Job? = null
     private var roomJob: kotlinx.coroutines.Job? = null
     private var roomLoadJob: kotlinx.coroutines.Job? = null
@@ -1873,6 +1887,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
                 .onSuccess { (page, window) ->
+                    // A message from another device arrived while this phone was
+                    // elsewhere; this load already contains it, so the debt is paid.
+                    if (peerMessagePending) peerMessagePending = false
                     _state.update { state ->
                         if (state.screen != Screen.Conversation || state.openSession?.id != session.id) {
                             return@update state
@@ -2242,7 +2259,80 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                         if (event.running) R.string.compression_running
                                         else R.string.compression_done,
                                     ),
+                                    // Only the numbers are kept; the UI decides the wording.
+                                    compression = CompressionUi(
+                                        running = event.running,
+                                        messageCount = event.messageCount,
+                                        beforeTokens = event.beforeTokens,
+                                        afterTokens = event.afterTokens,
+                                    ),
                                 )
+                            }
+                            is RunEvent.Interim -> {
+                                // A whole message at once: it replaces whatever the
+                                // streaming bubble was showing, and is not streaming.
+                                answer.clear()
+                                answer.append(event.text)
+                                runStreamed = true
+                                if (onScreen()) {
+                                    ensureStreamingReply()
+                                    updateLastReply(event.text, thinking.toString(), streaming = false)
+                                }
+                            }
+                            is RunEvent.ReasoningAvailable -> if (onScreen()) {
+                                // The fold exists even if the first delta is still in
+                                // flight; opening the bubble now shows "思考中" instead
+                                // of looking like the model said nothing.
+                                ensureStreamingReply()
+                            }
+                            is RunEvent.RunningSessions -> _state.update {
+                                it.copy(remoteRunningSessions = event.ids.toSet())
+                            }
+                            is RunEvent.WorkspaceChanged -> _state.update { state ->
+                                state.copy(
+                                    openSession = state.openSession?.let { open ->
+                                        if (open.id == sessionId) open.copy(workspace = event.path) else open
+                                    },
+                                    sessions = state.sessions.map { row ->
+                                        if (row.id == sessionId) row.copy(workspace = event.path) else row
+                                    },
+                                )
+                            }
+                            is RunEvent.WorkspaceDiff -> {
+                                // The change set is fetched from history on return; the
+                                // banner only needs to say that something changed.
+                                _state.update { state ->
+                                    state.copy(
+                                        runNotices = (state.runNotices + str(R.string.workspace_changed_files, event.files)).takeLast(6),
+                                    )
+                                }
+                            }
+                            is RunEvent.PeerMessage -> {
+                                // Another device wrote into this conversation. Reload,
+                                // but quietly: a spinner here would erase the reply the
+                                // user is reading while it is still arriving.
+                                if (onScreen()) refreshConversationQuietly() else peerMessagePending = true
+                            }
+                            is RunEvent.CompletionNotice -> _state.update { state ->
+                                // An in-app notice for runs this phone did not start;
+                                // the system notification is a separate permission.
+                                state.copy(
+                                    notice = event.content.ifBlank { event.title },
+                                    remoteRunningSessions = state.remoteRunningSessions - event.sessionId,
+                                )
+                            }
+                            is RunEvent.AbortPhase -> when (event.phase) {
+                                "started" -> _state.update { it.copy(activity = str(R.string.run_stopping)) }
+                                // "timeout" means the server did NOT stop. Saying
+                                // "stopped" there would be a lie.
+                                "timeout" -> _state.update {
+                                    it.copy(
+                                        activity = null,
+                                        error = str(R.string.run_stop_timeout),
+                                        runStatus = "running",
+                                    )
+                                }
+                                else -> _state.update { it.copy(activity = null) }
                             }
                             is RunEvent.Text -> {
                                 answer.append(event.delta)
@@ -2569,6 +2659,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Asks the server to stop the run that is streaming right now. */
     fun stopRun() {
         cancelActiveRun(abort = true)
+    }
+
+    /**
+     * Reload the transcript without the loading state.
+     *
+     * `refreshConversation()` sets `loadingHistory`, which replaces the list with
+     * a spinner and loses the scroll position. That is right when the user asks
+     * for a refresh and wrong when the server pushes a message from another
+     * device mid-read.
+     */
+    fun refreshConversationQuietly() {
+        val session = _state.value.openSession ?: return
+        val wanted = _state.value.historyOffset.coerceIn(HISTORY_PAGE_SIZE, HISTORY_PAGE_MAX)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.conversationPage(session.id, limit = wanted, offset = 0) }
+            }.onSuccess { page ->
+                _state.update { state ->
+                    if (state.screen != Screen.Conversation || state.openSession?.id != session.id) return@update state
+                    val live = state.lines.filter { it.streaming && !it.fromUser }
+                    state.copy(
+                        historyTotal = page.total,
+                        historyHasMore = page.hasMore,
+                        historyOffset = page.offset + page.messages.size,
+                        lines = messagesToLines(page.messages) + live,
+                    )
+                }
+            }
+        }
     }
 
     private fun cancelActiveRun(abort: Boolean) {

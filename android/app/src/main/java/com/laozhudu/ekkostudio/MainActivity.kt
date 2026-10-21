@@ -109,6 +109,7 @@ import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.RestartAlt
@@ -1234,6 +1235,7 @@ private fun ChatsScreen(state: UiState, viewModel: AppViewModel) {
                                     avatar = state.avatarOf(session.profile),
                                     isActive = state.openSession?.id == session.id,
                                     isRunningHere = state.runSessionId == session.id && state.runStatus == "running",
+                                    isRunningElsewhere = session.id in state.remoteRunningSessions,
                                     onClick = { viewModel.openSession(session) },
                                     onLongClick = { manage = session },
                                 )
@@ -1355,95 +1357,99 @@ private fun SessionRow(
     avatar: AvatarSpec?,
     isActive: Boolean,
     isRunningHere: Boolean = false,
+    /** Server says this session is working, even if another device started it. */
+    isRunningElsewhere: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val running = session.running
-    val locallyRunning = isRunningHere
-    // HStudio .session-item--active (App app-service CSS): background
-    // ink-bg-secondary + .session-title font-weight 550. The active flag is
-    // computed at the call site from UiState.openSession (SessionSummary has
-    // no selection field). `inkSelectedBg` is for dots/rings, not row fills.
+    val running = session.running || isRunningHere || isRunningElsewhere
     val inkDark = MaterialTheme.colorScheme.isInkDark()
+    // Official `.session-item`: one flat row, 8/10 padding, 6dp radius, no
+    // avatar — only a 16dp agent logo sitting inline with the title. The old
+    // build drew a 42dp profile disc and a chevron, which is Telegram's list,
+    // not this one.
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = ChatMetrics.sessionListPaddingH, vertical = ChatMetrics.sessionRowGap / 2)
+            .clip(RoundedCornerShape(ChatMetrics.sessionRowRadius))
             .background(if (isActive) inkSecondaryBg(inkDark) else Color.Unspecified)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 13.dp, vertical = 11.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+            .padding(horizontal = ChatMetrics.sessionRowPaddingH, vertical = ChatMetrics.sessionRowPaddingV),
+        verticalArrangement = Arrangement.spacedBy(ChatMetrics.sessionRowGap),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(ChatMetrics.sessionTitleMainGap),
+        ) {
+            // `.session-agent-logo`: 16dp, 3dp radius — a badge, not a portrait.
             ProfileAvatar(
                 name = session.profile.orEmpty().ifBlank { "default" },
                 spec = avatar,
-                size = 42.dp,
+                size = ChatMetrics.sessionAgentLogo,
             )
-            Spacer(Modifier.width(12.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ChatMetrics.sessionTitleRowGap),
+                ) {
                     Text(
                         text = session.title,
                         modifier = Modifier.weight(1f),
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (isActive) inkTextPrimary(inkDark) else Color.Unspecified,
-                        fontWeight = if (isActive) FontWeight.W500 else FontWeight.SemiBold,
+                        fontSize = ChatMetrics.sessionTitleSize,
+                        lineHeight = ChatMetrics.sessionTitleLineHeight,
+                        fontWeight = FontWeight(ChatMetrics.sessionTitleWeight),
+                        // Active rows go from secondary to primary text; the weight
+                        // stays 550 in both states, exactly as the stylesheet has it.
+                        color = if (isActive) inkTextPrimary(inkDark) else inkTextSecondary(inkDark),
                     )
-                    Spacer(Modifier.width(8.dp))
-                    if (locallyRunning) {
-                        // Telegram-style animated dot for "working"
-                        AnimatedIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(6.dp),
+                    if (session.pinned) {
+                        Icon(
+                            Icons.Filled.PushPin,
+                            contentDescription = null,
+                            modifier = Modifier.size(ChatMetrics.sessionPin),
+                            tint = inkTextMuted(inkDark),
                         )
-                        Spacer(Modifier.width(4.dp))
-                    } else if (running) {
-                        Text("●", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(4.dp))
                     }
                     Text(
                         text = formatStamp(session.updatedAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = ChatMetrics.sessionTimeSize,
+                        lineHeight = ChatMetrics.sessionTimeLineHeight,
+                        color = inkTextMuted(inkDark),
+                        maxLines = 1,
                     )
                 }
-                Text(
-                    text = listOfNotNull(session.agentId ?: session.source.takeIf { it != "cli" }, session.profile, session.model).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (locallyRunning && !session.activity.isNullOrBlank()) {
+                // `.session-preview`: 10sp/14sp, muted, one line. This build has no
+                // last-message preview from the list route, so the slot carries the
+                // facts it does have instead of inventing a preview.
+                val secondary = listOfNotNull(
+                    session.source.takeIf { it != "cli" },
+                    session.profile,
+                    session.model,
+                ).joinToString(" · ")
+                if (secondary.isNotBlank()) {
                     Text(
-                        session.activity,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                        color = MaterialTheme.colorScheme.primary,
+                        text = secondary,
+                        modifier = Modifier.padding(top = ChatMetrics.sessionPreviewGap),
+                        fontSize = ChatMetrics.sessionPreviewSize,
+                        lineHeight = ChatMetrics.sessionPreviewLineHeight,
+                        color = inkTextMuted(inkDark),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (running) {
+                    SessionRunningBar()
+                }
             }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        if (running) {
-            SessionRunningBar()
         }
     }
 }
 
-/** HStudio session-running-light: 2px rainbow gradient bar flowing left→right. */
-@Composable
 private fun SessionRunningBar() {
     val transition = rememberInfiniteTransition(label = "running")
     val progress by transition.animateFloat(
@@ -1463,8 +1469,8 @@ private fun SessionRunningBar() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp)
-            .height(2.dp)
+            .padding(top = ChatMetrics.sessionRunningTrackGap)
+            .height(ChatMetrics.sessionRunningTrack)
             .clip(RoundedCornerShape(999.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
     ) {
@@ -1472,7 +1478,7 @@ private fun SessionRunningBar() {
         Box(
             modifier = Modifier
                 .fillMaxWidth(barWidth)
-                .height(2.dp)
+                .height(ChatMetrics.sessionRunningTrack)
                 .offset(x = (progress * 200 - 50).dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(Brush.linearGradient(rainbow)),
@@ -1962,10 +1968,16 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 LazyColumn(
                     state = listState,
                         modifier = Modifier.fillMaxSize(),
-                    // HStudio message-list uses a 20px outer gutter and 8px rhythm between messages.
-                    // Telegram's gutters are tight; the bubble tail needs the room.
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    // Official `.app-message-list`: 20px gutter all round, 960px
+                    // readable cap, and 14px between messages (a gap here plus a
+                    // 12dp bottom spacer is what the stylesheet's margins add up to).
+                    contentPadding = PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 20.dp,
+                        bottom = ChatMetrics.listBottomGap,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(ChatMetrics.messageGap),
                 ) {
                     if (state.historyHasMore) {
                         item(key = "load-older") {
@@ -2149,93 +2161,70 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
 @Composable
 private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSpec?, viewModel: AppViewModel) {
     var menuOpen by remember { mutableStateOf(false) }
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
     Column {
-        TopAppBar(
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+        // Official `.chat-embedded-header`: 46dp tall, 3/14 padding, a centred
+        // 15sp/22sp title at weight 650, and 38dp round-ish buttons. The official
+        // client has no avatar and no subtitle here — the "working" state lives
+        // in the transcript's process strip, not under the chat name.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ChatMetrics.headerHeight)
+                .padding(horizontal = ChatMetrics.headerPaddingH, vertical = ChatMetrics.headerPaddingV),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(ChatMetrics.headerButton)
+                    .clip(RoundedCornerShape(ChatMetrics.headerButtonRadius))
+                    .clickable { viewModel.back() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                    modifier = Modifier.size(20.dp),
+                    tint = inkTextPrimary(inkDark),
+                )
+            }
+            Text(
+                text = state.openSession?.title ?: stringResource(R.string.action_new_chat),
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                fontSize = ChatMetrics.headerTitleSize,
+                lineHeight = ChatMetrics.headerTitleLineHeight,
+                fontWeight = FontWeight(ChatMetrics.headerTitleWeight),
+                color = inkTextPrimary(inkDark),
+            )
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(ChatMetrics.headerButton)
+                        .clip(RoundedCornerShape(ChatMetrics.headerButtonRadius))
+                        .clickable { menuOpen = true },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    ProfileAvatar(profile.ifBlank { "default" }, avatar, size = 33.dp)
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            state.openSession?.title ?: stringResource(R.string.action_new_chat),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            // The only "is it working" indicator in the screen — the
-                            // way Telegram puts "typing…" under the chat name instead
-                            // of adding a row to the transcript.
-                            if (state.runStatus == "running") {
-                                var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
-                                LaunchedEffect(state.runStartedAtMillis) {
-                                    while (true) {
-                                        tick = System.currentTimeMillis()
-                                        delay(500)
-                                    }
-                                }
-                                val secs = if (state.runStartedAtMillis > 0) {
-                                    (tick - state.runStartedAtMillis).coerceAtLeast(0) / 1000
-                                } else 0
-                                // Same sweep the web uses for its live status label.
-                                ShimmerText(
-                                    text = buildString {
-                                        append(stringResource(R.string.run_status_working))
-                                        if (secs >= 1) append(" ").append(secs).append("s")
-                                        state.lines.lastOrNull()?.tools
-                                            ?.lastOrNull { it.status == ToolRunStatus.Running }
-                                            ?.let { append(" · ").append(it.name) }
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    dark = MaterialTheme.colorScheme.isInkDark(),
-                                )
-                            } else {
-                                Text(
-                                    state.selectedRuntime.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.message_actions),
+                        modifier = Modifier.size(20.dp),
+                        tint = inkTextSecondary(inkDark),
+                    )
                 }
-            },
-            navigationIcon = {
-                IconButton(onClick = { viewModel.back() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_refresh)) }, onClick = { menuOpen = false; viewModel.refreshConversation() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_new_chat)) }, onClick = { menuOpen = false; viewModel.startNewConversation() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.message_fork)) }, enabled = !(state.runSessionId != null && state.runSessionId == state.openSession?.id), onClick = { menuOpen = false; viewModel.send("/fork") })
                 }
-            },
-            actions = {
-                Box {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, stringResource(R.string.message_actions))
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.action_refresh)) }, onClick = { menuOpen = false; viewModel.refreshConversation() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.action_new_chat)) }, onClick = { menuOpen = false; viewModel.startNewConversation() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.message_fork)) }, enabled = !(state.runSessionId != null && state.runSessionId == state.openSession?.id), onClick = { menuOpen = false; viewModel.send("/fork") })
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+            }
+        }
+        HorizontalDivider(color = inkBorder(inkDark), thickness = 0.5.dp)
     }
 }
-
-
-
 @Composable
 private fun MessageBubble(
     line: ChatLine,
@@ -2259,6 +2248,8 @@ private fun MessageBubble(
         line.streaming || line.reasoning?.isNotBlank() == true || line.tools.isNotEmpty()
     )
     val hasWideContent = hasThinking || parsed.files.isNotEmpty()
+    // One clock per turn fragment that opts in, drawn under the bubble.
+    val stamp = formatStamp(line.timestamp)
 
     // HStudio .message-bubble: padding:10px 14px, border-radius:10px,
     // background: var(ink-bg-message) (#f1f1f1 light / #262828 dark).
@@ -2267,16 +2258,13 @@ private fun MessageBubble(
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     // Telegram colour-coding: outgoing is tinted, incoming is a flat card. The
     // old build drew both on ink-bg-message, so the two sides looked the same.
-    val bubbleColor = when {
-        line.isError -> inkErrorSoft(inkDark)
-        isUser -> telegramOutgoingBg(inkDark)
-        else -> telegramIncomingBg(inkDark)
-    }
-    val onBubble = when {
-        line.isError -> inkError(inkDark)
-        isUser -> telegramOutgoingText(inkDark)
-        else -> telegramIncomingText(inkDark)
-    }
+    // Official `.message-bubble`: one surface for both roles
+    // (`--ink-bg-message`), radius 10, padding 10/14. The two-sided Telegram
+    // tint this build used to draw does not exist in the official client; the
+    // sides are distinguished by alignment, not colour. Only an error bubble
+    // gets its own fill.
+    val bubbleColor = if (line.isError) inkErrorSoft(inkDark) else inkMessageBg(inkDark)
+    val onBubble = if (line.isError) inkError(inkDark) else inkTextPrimary(inkDark)
 
     // HStudio msg-body: width:fit-content, max-width:88%
     Row(
@@ -2315,19 +2303,24 @@ private fun MessageBubble(
                 // a long press on the text raises the system selection handles
                 // instead of the sheet.
                 modifier = Modifier
-                    .widthIn(max = 300.dp)
+                    // `.message.user .message-bubble { max-width: 100% }` — the
+                    // column already caps it; a shrink-wrapping Card keeps short
+                    // messages short and lets long ones use the width.
                     .combinedClickable(
                         enabled = onActions != null,
                         // Telegram: a tap does nothing, a long press opens the menu.
                         onClick = {},
                         onLongClick = { onActions?.invoke() },
                     ),
-                shape = telegramBubbleShape(isUser),
+                shape = RoundedCornerShape(ChatMetrics.bubbleRadius),
                 colors = CardDefaults.cardColors(containerColor = bubbleColor, contentColor = onBubble),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(
+                        horizontal = ChatMetrics.bubblePaddingH,
+                        vertical = ChatMetrics.bubblePaddingV,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     // Telegram's reply block: a thin accent bar and two lines of the
@@ -2378,34 +2371,37 @@ private fun MessageBubble(
                         ChatFileCard(file = file, onDownload = { onDownload?.invoke(file) })
                     }
 
-                    // Telegram keeps the clock inside the bubble, bottom-right,
-                    // next to a state glyph. One per turn, not per fragment.
-                    val stamp = formatStamp(line.timestamp)
-                    if (stamp.isNotBlank() && showStamp) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                stamp,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = telegramMetaText(isUser, inkDark),
-                            )
-                            if (!isUser) {
-                                Spacer(Modifier.width(3.dp))
-                                Icon(
-                                    imageVector = when {
-                                        line.streaming -> Icons.Filled.Schedule
-                                        line.isError -> Icons.Filled.Close
-                                        else -> Icons.Filled.Done
-                                    },
-                                    contentDescription = null,
-                                    modifier = Modifier.size(11.dp),
-                                    tint = telegramMetaText(false, inkDark),
-                                )
-                            }
-                        }
+                }
+            }
+
+            // Official `.message-meta`: outside the bubble, min-height 24, 4dp
+            // below it, 4dp side padding, muted 11sp/16sp clock. Telegram puts the
+            // clock inside the bubble; the official client does not.
+            if (stamp.isNotBlank() && showStamp) {
+                Row(
+                    modifier = Modifier
+                        .heightIn(min = ChatMetrics.metaRowMinHeight)
+                        .padding(top = ChatMetrics.metaRowTopGap, start = ChatMetrics.metaRowPaddingH, end = ChatMetrics.metaRowPaddingH),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ChatMetrics.metaRowGap),
+                ) {
+                    Text(
+                        stamp,
+                        fontSize = ChatMetrics.metaTimeSize,
+                        lineHeight = ChatMetrics.metaTimeLineHeight,
+                        color = inkTextMuted(inkDark),
+                    )
+                    if (!isUser) {
+                        Icon(
+                            imageVector = when {
+                                line.streaming -> Icons.Filled.Schedule
+                                line.isError -> Icons.Filled.Close
+                                else -> Icons.Filled.Done
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = inkTextMuted(inkDark),
+                        )
                     }
                 }
             }
@@ -2480,13 +2476,17 @@ private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()
     val runningTool = line.tools.lastOrNull { it.status == ToolRunStatus.Running }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        // Official `.thinking-status`: a fixed 32dp strip (label + mono elapsed +
+        // a 26dp chip showing the tool that is running), so the composer never
+        // jumps while tools come and go.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = ChatMetrics.thinkingStripHeight)
                 .then(if (hasDetails) Modifier.clickable { expanded = !expanded } else Modifier)
-                .padding(vertical = 2.dp, horizontal = 2.dp),
+                .padding(horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (line.streaming) {
                 CircularProgressIndicator(
@@ -2503,16 +2503,19 @@ private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()
                 )
             }
             val headerStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+            // Only the state goes in the label; the elapsed time has its own
+            // monospace slot (`.thinking-status-time`) so it does not reflow the
+            // text as the number grows.
             val headerText = buildString {
                 if (line.streaming) {
                     append(stringResource(R.string.run_status_working))
-                    elapsed?.let { append(" · ").append(it) }
-                    runningTool?.let { append(" · ").append(it.name) }
                 } else {
                     append(stringResource(R.string.process_title))
                     if (line.tools.isNotEmpty()) {
                         append(" · ").append(stringResource(R.string.process_tools, line.tools.size))
                     }
+                    // A finished turn keeps its total duration inline: there is no
+                    // running clock to sit beside it any more.
                     elapsed?.let { append(" · ").append(it) }
                 }
             }
@@ -2533,6 +2536,43 @@ private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+            }
+            if (line.streaming && elapsed != null) {
+                Text(
+                    text = elapsed,
+                    modifier = Modifier.widthIn(min = ChatMetrics.thinkingTimeMinWidth),
+                    fontSize = ChatMetrics.thinkingTimeSize,
+                    lineHeight = ChatMetrics.thinkingTimeLineHeight,
+                    fontFamily = FontFamily.Monospace,
+                    color = inkTextMuted(inkDark),
+                )
+            }
+            runningTool?.let { tool ->
+                // `.tool-calls-panel` shows the live tool as a chip rather than as
+                // "· name" glued onto the status label.
+                Row(
+                    modifier = Modifier
+                        .height(ChatMetrics.toolChipHeight)
+                        .clip(RoundedCornerShape(ChatMetrics.toolChipRadius))
+                        .background(inkCardHover(inkDark))
+                        .padding(horizontal = ChatMetrics.toolChipPaddingH),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(10.dp),
+                        strokeWidth = 1.5.dp,
+                        color = inkTextMuted(inkDark),
+                    )
+                    Text(
+                        tool.name,
+                        fontSize = ChatMetrics.toolNameSize,
+                        fontFamily = FontFamily.Monospace,
+                        color = inkTextSecondary(inkDark),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (hasDetails) {
                 val chevronDeg by animateFloatAsState(
