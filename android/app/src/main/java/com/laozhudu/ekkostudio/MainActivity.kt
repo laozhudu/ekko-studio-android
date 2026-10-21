@@ -62,6 +62,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -128,6 +129,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Palette
 import android.widget.Toast
 import androidx.compose.material3.AlertDialog
@@ -495,7 +497,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.MoreSettings, Screen.SettingsGroup, Screen.Channels, Screen.Channel, Screen.CronJobs,
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
-        Screen.Devices,
+        Screen.Pricing, Screen.ApiKeys, Screen.Devices,
         -> BackHandler { viewModel.back() }
         Screen.Groups, Screen.AgentHub -> BackHandler { viewModel.showTab(Tab.Chats) }
         Screen.Terminal -> BackHandler {
@@ -545,6 +547,8 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.Journey -> JourneyScreen(state, viewModel)
         Screen.Webhooks -> WebhooksScreen(state, viewModel)
         Screen.RuntimeVersions -> RuntimeVersionsScreen(state, viewModel)
+        Screen.Pricing -> PricingScreen(state, viewModel)
+        Screen.ApiKeys -> ApiKeysScreen(state, viewModel)
         Screen.Appearance -> AppearanceScreen(state, viewModel)
         Screen.Login -> LoginScreen(state, viewModel)
         Screen.Chats -> ChatsScreen(state, viewModel)
@@ -4406,6 +4410,10 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                     StudioDestinationRow(Icons.Filled.Link, Color(0xFFC28A30), stringResource(R.string.webhooks_title), stringResource(R.string.webhooks_note), { viewModel.openWebhooks() })
                     StudioCardDivider()
                     StudioDestinationRow(Icons.Filled.SystemUpdate, Color(0xFF4CA66A), stringResource(R.string.runtime_versions_title), stringResource(R.string.runtime_versions_note), { viewModel.openRuntimeVersions() })
+                    StudioCardDivider()
+                    StudioDestinationRow(Icons.Filled.Paid, Color(0xFFC28A30), stringResource(R.string.pricing_title), stringResource(R.string.pricing_note), { viewModel.openPricing() })
+                    StudioCardDivider()
+                    StudioDestinationRow(Icons.Filled.Key, Color(0xFF007AFF), stringResource(R.string.apikeys_title), stringResource(R.string.apikeys_note), { viewModel.openApiKeys() })
                     StudioCardDivider()
                     StudioDestinationRow(Icons.Filled.Palette, Color(0xFF4CA66A), stringResource(R.string.appearance_title), stringResource(R.string.appearance_note), { viewModel.openAppearance() })
                 }

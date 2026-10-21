@@ -220,7 +220,63 @@ data class JourneyGraph(val profile: String, val nodes: List<JourneyNode>, val e
 data class SkillUsage(val totalLoads: Int, val totalEdits: Int, val totalActions: Int, val distinctSkills: Int, val topSkills: List<Pair<String, Int>>)
 data class WebhookEndpoint(val id: String, val name: String, val url: String, val enabled: Boolean, val state: String, val delivered: Int, val failed: Int)
 data class RuntimeVersion(val version: String, val active: Boolean, val kind: String)
-data class RuntimeVersions(val platform: String, val activeRuntime: String, val activeWebUi: String, val runtime: List<RuntimeVersion>, val webUi: List<RuntimeVersion>, val remoteRuntime: List<String>, val remoteWebUi: List<String>)
+
+data class RuntimeJob(
+    val id: String,
+    val kind: String,
+    val version: String,
+    val status: String,
+    val stage: String,
+    val percent: Double?,
+    val receivedBytes: Long,
+    val totalBytes: Long,
+    val error: String,
+    val createdAt: String,
+) {
+    /** A job is live while the server is still resolving or transferring. */
+    val isLive: Boolean get() = status == "queued" || status == "running"
+}
+
+/** One row of `GET /api/studio/usage/pricing`, in USD per million tokens. */
+data class PricingRate(
+    val provider: String,
+    val model: String,
+    val input: Double,
+    val output: Double,
+    val cacheRead: Double? = null,
+    val cacheWrite: Double? = null,
+)
+
+/** A model ID as the API-key scope check sees it (`openrouter/...`). */
+data class KeyModel(val id: String, val provider: String, val responsesSupported: Boolean)
+
+data class ModelApiKey(
+    val id: String,
+    val name: String,
+    val preview: String,
+    val models: List<String>,
+    val budgetUsd: Double?,
+    val spentUsd: Double,
+    val unpricedRequests: Int,
+    val createdAt: Long,
+    val lastUsedAt: Long?,
+)
+
+/** The 201 body: metadata plus the one and only copy of the secret. */
+data class CreatedModelApiKey(val key: ModelApiKey, val secret: String)
+data class RuntimeVersions(
+    val platform: String,
+    val activeRuntime: String,
+    val activeWebUi: String,
+    val runtime: List<RuntimeVersion>,
+    val webUi: List<RuntimeVersion>,
+    val remoteRuntime: List<String>,
+    val remoteWebUi: List<String>,
+    /** `user-cli` means Hermes runs from /usr/local/lib/hermes-agent, not managed. */
+    val source: String = "",
+    val agentVersion: String = "",
+    val cliInstallations: List<Pair<String, String>> = emptyList(),
+)
 data class ThemeSettings(val fontSize: Int, val textColor: String, val accentColor: String, val backgroundName: String)
 
 data class PluginsUiState(

@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -310,6 +310,17 @@ data class UiState(
     val webhooks: List<WebhookEndpoint> = emptyList(),
     val webhookEvents: List<String> = emptyList(),
     val runtimeVersions: RuntimeVersions? = null,
+    val runtimeJobs: List<RuntimeJob> = emptyList(),
+    /** Model pricing table, edited locally then PUT as a whole. */
+    val pricingRates: List<PricingRate> = emptyList(),
+    val pricingLoaded: Boolean = false,
+    val pricingDirty: Boolean = false,
+    val pricingSaving: Boolean = false,
+    val modelApiKeys: List<ModelApiKey> = emptyList(),
+    val modelApiKeysLoaded: Boolean = false,
+    val modelApiCatalog: List<KeyModel> = emptyList(),
+    /** Set right after creation; the server keeps only a hash. */
+    val createdApiKeySecret: String? = null,
     val themeSettings: ThemeSettings? = null,
     val kanbanDiagnostics: List<String> = emptyList(),
     val kanbanStats: String = "",
@@ -1636,7 +1647,99 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteWebhook(item: WebhookEndpoint) = launchWork(work = { api.deleteWebhook(item.id) }, onSuccess = { openWebhooks() })
     fun testWebhook(item: WebhookEndpoint) = launchWork(work = { api.testWebhook(item.id) }, onSuccess = { result -> _state.update { it.copy(notice = result) } })
     fun clearWebhookEvents() = launchWork(work = { api.clearWebhookEvents() }, onSuccess = { openWebhooks() })
-    fun openRuntimeVersions() = launchWork(work = { api.runtimeVersions() }, onSuccess = { versions -> _state.update { it.copy(screen = Screen.RuntimeVersions, runtimeVersions = versions) } })
+    fun openRuntimeVersions() = launchWork(
+        work = { api.runtimeVersions() to api.runtimeJobs() },
+        onSuccess = { (versions, jobs) ->
+            _state.update { it.copy(screen = Screen.RuntimeVersions, runtimeVersions = versions, runtimeJobs = jobs) }
+        },
+    )
+
+    /** Jobs outlive the screen, so the poller asks for them on its own. */
+    fun refreshRuntimeJobs() {
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.runtimeJobs() } }
+                .onSuccess { jobs -> _state.update { it.copy(runtimeJobs = jobs) } }
+        }
+    }
+
+    fun openPricing() = launchWork(
+        work = { api.usagePricing() },
+        onSuccess = { rates ->
+            _state.update { it.copy(screen = Screen.Pricing, pricingRates = rates, pricingLoaded = true, pricingDirty = false) }
+        },
+    )
+
+    /** `index` null appends; an empty provider/model is rejected before it can be saved. */
+    fun upsertPricingRate(index: Int?, rate: PricingRate) {
+        _state.update { state ->
+            val next = state.pricingRates.toMutableList()
+            if (index != null && index in next.indices) next[index] = rate else next.add(rate)
+            state.copy(pricingRates = next, pricingDirty = true)
+        }
+    }
+
+    fun removePricingRate(index: Int) {
+        _state.update { state ->
+            if (index !in state.pricingRates.indices) return@update state
+            state.copy(pricingRates = state.pricingRates.filterIndexed { i, _ -> i != index }, pricingDirty = true)
+        }
+    }
+
+    fun savePricing() {
+        val rates = _state.value.pricingRates.filter { it.provider.isNotBlank() && it.model.isNotBlank() }
+        _state.update { it.copy(pricingSaving = true) }
+        launchWork(
+            work = { api.saveUsagePricing(rates) },
+            onSuccess = {
+                _state.update { it.copy(pricingRates = rates, pricingSaving = false, pricingDirty = false) }
+            },
+            onFailure = { failure ->
+                _state.update { it.copy(pricingSaving = false, error = failure.readableMessage(localized)) }
+            },
+        )
+    }
+
+    fun openApiKeys() = launchWork(
+        work = { api.modelApiKeys() to api.modelApiCatalog().filter { model -> model.responsesSupported } },
+        onSuccess = { (keys, catalog) ->
+            _state.update {
+                it.copy(screen = Screen.ApiKeys, modelApiKeys = keys, modelApiKeysLoaded = true, modelApiCatalog = catalog)
+            }
+        },
+    )
+
+    fun createApiKey(name: String, models: List<String>, budgetUsd: Double?) = launchWork(
+        work = { api.createModelApiKey(name, models, budgetUsd) },
+        onSuccess = { created ->
+            _state.update {
+                it.copy(modelApiKeys = listOf(created.key) + it.modelApiKeys, createdApiKeySecret = created.secret)
+            }
+        },
+    )
+
+    /** The plaintext only exists in memory until the dialog is dismissed. */
+    fun dismissCreatedApiKey() = _state.update { it.copy(createdApiKeySecret = null) }
+
+    fun editApiKey(key: ModelApiKey, name: String, models: List<String>, budgetUsd: Double?) = launchWork(
+        work = { api.editModelApiKey(key.id, name, models, budgetUsd) },
+        onSuccess = { updated ->
+            _state.update { state ->
+                state.copy(modelApiKeys = state.modelApiKeys.map { if (it.id == updated.id) updated else it })
+            }
+        },
+    )
+
+    fun revokeApiKey(key: ModelApiKey) = launchWork(
+        work = { api.deleteModelApiKey(key.id) },
+        onSuccess = {
+            _state.update { state -> state.copy(modelApiKeys = state.modelApiKeys.filterNot { it.id == key.id }) }
+        },
+    )
+
+    fun deleteRuntimeVersion(version: String, webUi: Boolean) = launchWork(
+        work = { api.deleteRuntimeVersion(version, webUi) },
+        onSuccess = { openRuntimeVersions() },
+    )
     fun activateVersion(version: RuntimeVersion) = launchWork(work = { api.activateVersion(version.version, version.kind == "webui") }, onSuccess = { openRuntimeVersions() })
     fun downloadVersion(version: String, webUi: Boolean) = launchWork(work = { api.downloadVersion(version, webUi) }, onSuccess = { openRuntimeVersions() })
     fun restartWebUi() = launchWork(work = { api.restartWebUi() }, onSuccess = { openRuntimeVersions() })
@@ -4538,7 +4641,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 Screen.CronJob, Screen.CronHistory -> Screen.CronJobs
                 Screen.KanbanTask -> Screen.Kanban
                 Screen.Skill -> Screen.Skills
-                Screen.Kanban, Screen.Skills, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance -> Screen.AgentHub
+                Screen.Kanban, Screen.Skills, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance, Screen.Pricing, Screen.ApiKeys -> Screen.AgentHub
                 Screen.Channels, Screen.SettingsGroup, Screen.CronJobs -> state.toolReturnScreen
                 Screen.Profiles -> state.profilesReturnScreen
                 Screen.Devices -> Screen.Chats

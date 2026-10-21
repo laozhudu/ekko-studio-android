@@ -968,11 +968,147 @@ class HermesApi(
             webUi = installed(webUi.optJSONArray("installed"), "webui"),
             remoteRuntime = strings(hermes.optJSONArray("remoteVersions")),
             remoteWebUi = strings(webUi.optJSONArray("remoteVersions")),
+            source = hermes.optString("source"),
+            agentVersion = hermes.optString("agentVersion"),
+            cliInstallations = (0 until (hermes.optJSONArray("cliInstallations")?.length() ?: 0)).mapNotNull { index ->
+                hermes.optJSONArray("cliInstallations")?.optJSONObject(index)?.let { cli ->
+                    cli.optString("version") to cli.optString("path")
+                }
+            },
         )
     }
     fun activateVersion(version: String, webUi: Boolean) { call("/api/hermes/runtime-versions/${if (webUi) "active-webui" else "active-runtime"}", "POST", JSONObject().put("version", version)) }
     fun downloadVersion(version: String, webUi: Boolean) { call("/api/hermes/runtime-versions/${if (webUi) "webui" else "runtime"}/download", "POST", JSONObject().put("version", version).put("source", "github")) }
     fun restartWebUi() { call("/api/hermes/runtime-versions/restart-webui", "POST", JSONObject()) }
+
+    /** GET /api/hermes/runtime-versions/jobs — download jobs, newest first. */
+    fun runtimeJobs(): List<RuntimeJob> {
+        val jobs = call("/api/hermes/runtime-versions/jobs").optJSONArray("jobs") ?: JSONArray()
+        return (0 until jobs.length()).mapNotNull { index ->
+            jobs.optJSONObject(index)?.let { job ->
+                RuntimeJob(
+                    id = job.optString("id"),
+                    kind = job.optString("kind"),
+                    version = job.optString("version"),
+                    status = job.optString("status"),
+                    stage = job.optString("stage"),
+                    percent = if (job.has("percent")) job.optDouble("percent") else null,
+                    receivedBytes = job.optLong("receivedBytes"),
+                    totalBytes = job.optLong("totalBytes"),
+                    error = job.optString("error"),
+                    createdAt = job.optString("createdAt"),
+                )
+            }
+        }
+    }
+
+    /** DELETE /api/hermes/runtime-versions/{runtime|webui}/{version} */
+    fun deleteRuntimeVersion(version: String, webUi: Boolean) {
+        val kind = if (webUi) "webui" else "runtime"
+        call("/api/hermes/runtime-versions/$kind/${enc(version)}", "DELETE")
+    }
+
+    /**
+     * GET /api/studio/usage/pricing — USD per million tokens.
+     *
+     * Profile-scoped and applied only to calls that do not report a cost of
+     * their own, so an empty table is not "free", it is "unknown".
+     */
+    fun usagePricing(): List<PricingRate> {
+        val rates = call("/api/studio/usage/pricing").optJSONArray("rates") ?: JSONArray()
+        return (0 until rates.length()).mapNotNull { index ->
+            rates.optJSONObject(index)?.let { rate ->
+                PricingRate(
+                    provider = rate.optString("provider"),
+                    model = rate.optString("model"),
+                    input = rate.optDouble("input", 0.0),
+                    output = rate.optDouble("output", 0.0),
+                    cacheRead = if (rate.isNull("cacheRead")) null else rate.optDouble("cacheRead"),
+                    cacheWrite = if (rate.isNull("cacheWrite")) null else rate.optDouble("cacheWrite"),
+                )
+            }
+        }
+    }
+
+    /** PUT /api/studio/usage/pricing — the whole table is replaced, not merged. */
+    fun saveUsagePricing(rates: List<PricingRate>) {
+        val array = JSONArray()
+        rates.forEach { rate ->
+            array.put(
+                JSONObject()
+                    .put("provider", rate.provider)
+                    .put("model", rate.model)
+                    .put("input", rate.input)
+                    .put("output", rate.output)
+                    .put("cacheRead", rate.cacheRead ?: JSONObject.NULL)
+                    .put("cacheWrite", rate.cacheWrite ?: JSONObject.NULL),
+            )
+        }
+        call("/api/studio/usage/pricing", "PUT", JSONObject().put("rates", array))
+    }
+
+    /**
+     * GET /api/ekko-studio/models/v1/models — the authoritative list of model IDs.
+     *
+     * An API key may only name models that appear here with
+     * `responses_supported`, so the picker must not invent its own list.
+     */
+    fun modelApiCatalog(): List<KeyModel> {
+        val data = call("/api/ekko-studio/models/v1/models").optJSONArray("data") ?: JSONArray()
+        return (0 until data.length()).mapNotNull { index ->
+            data.optJSONObject(index)?.let { model ->
+                KeyModel(
+                    id = model.optString("id"),
+                    provider = model.optString("owned_by"),
+                    responsesSupported = model.optBoolean("responses_supported"),
+                )
+            }
+        }
+    }
+
+    fun modelApiKeys(): List<ModelApiKey> {
+        val keys = call("/api/studio/models/api-keys").optJSONArray("keys") ?: JSONArray()
+        return (0 until keys.length()).mapNotNull { index -> keys.optJSONObject(index)?.let(::toModelApiKey) }
+    }
+
+    /**
+     * POST /api/studio/models/api-keys — 201 carries the plaintext secret in `apiKey`.
+     *
+     * Only a hash is persisted, so a lost secret cannot be recovered, only
+     * revoked and reissued.
+     */
+    fun createModelApiKey(name: String, models: List<String>, budgetUsd: Double?): CreatedModelApiKey {
+        val body = JSONObject()
+            .put("name", name)
+            .put("models", JSONArray(models))
+            .put("budgetUsd", budgetUsd ?: JSONObject.NULL)
+        val result = call("/api/studio/models/api-keys", "POST", body)
+        val key = result.optJSONObject("key") ?: JSONObject()
+        return CreatedModelApiKey(toModelApiKey(key), result.optString("apiKey"))
+    }
+
+    /** PATCH /api/studio/models/api-keys/{id} — name, scope and budget only. */
+    fun editModelApiKey(id: String, name: String, models: List<String>, budgetUsd: Double?): ModelApiKey {
+        val body = JSONObject()
+            .put("name", name)
+            .put("models", JSONArray(models))
+            .put("budgetUsd", budgetUsd ?: JSONObject.NULL)
+        return toModelApiKey(call("/api/studio/models/api-keys/${enc(id)}", "PATCH", body).optJSONObject("key") ?: JSONObject())
+    }
+
+    fun deleteModelApiKey(id: String) { call("/api/studio/models/api-keys/${enc(id)}", "DELETE") }
+
+    private fun toModelApiKey(key: JSONObject): ModelApiKey = ModelApiKey(
+        id = key.optString("id"),
+        name = key.optString("name"),
+        preview = key.optString("preview"),
+        models = strings(key.optJSONArray("models")),
+        budgetUsd = if (key.isNull("budgetUsd")) null else key.optDouble("budgetUsd"),
+        spentUsd = key.optDouble("spentUsd", 0.0),
+        unpricedRequests = key.optInt("unpricedRequests"),
+        createdAt = key.optLong("createdAt"),
+        lastUsedAt = if (key.isNull("lastUsedAt")) null else key.optLong("lastUsedAt"),
+    )
     fun themeSettings(): ThemeSettings { val r = call("/api/theme"); return ThemeSettings(r.optInt("fontSize", 16), r.optString("textColor"), r.optString("accentColor"), r.optJSONObject("background")?.optString("name") ?: "") }
     fun updateTheme(fontSize: Int, text: String, accent: String) { call("/api/theme", "PUT", JSONObject().put("fontSize", fontSize).put("textColor", text.ifBlank { JSONObject.NULL }).put("accentColor", accent.ifBlank { JSONObject.NULL })) }
     fun removeThemeBackground() { call("/api/theme/background", "DELETE") }
