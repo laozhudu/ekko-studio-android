@@ -321,6 +321,8 @@ data class UiState(
     val modelApiCatalog: List<KeyModel> = emptyList(),
     /** Set right after creation; the server keeps only a hash. */
     val createdApiKeySecret: String? = null,
+    /** Opened by tapping the context readout; null when the sheet is closed. */
+    val sessionUsage: SessionUsage? = null,
     val themeSettings: ThemeSettings? = null,
     val kanbanDiagnostics: List<String> = emptyList(),
     val kanbanStats: String = "",
@@ -1699,6 +1701,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    /** A per-session token sheet, for the conversation currently on screen. */
+    fun openSessionUsage() {
+        val sessionId = _state.value.openSession?.id ?: return
+        launchWork(
+            work = { api.sessionUsage(sessionId) to api.usagePricing() },
+            onSuccess = { (usage, rates) ->
+                _state.update { it.copy(sessionUsage = usage, pricingRates = rates, pricingLoaded = true) }
+            },
+        )
+    }
+
+    fun closeSessionUsage() = _state.update { it.copy(sessionUsage = null) }
+
     fun openApiKeys() = launchWork(
         work = { api.modelApiKeys() to api.modelApiCatalog().filter { model -> model.responsesSupported } },
         onSuccess = { (keys, catalog) ->
@@ -2637,6 +2652,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Uploads the picked file to the server so the agent can read it by path. */
     fun attach(bytes: ByteArray, filename: String, mime: String) {
+        // The official client caps a message at 9 files of 20 MB each; the
+        // server does not, so an unbounded list would only fail later.
+        val attached = _state.value.attachments.size
+        if (attached >= MAX_ATTACHMENTS) {
+            _state.update { it.copy(error = str(R.string.attach_limit_count, MAX_ATTACHMENTS)) }
+            return
+        }
+        if (bytes.size > MAX_ATTACHMENT_BYTES) {
+            _state.update { it.copy(error = str(R.string.attach_limit_size, MAX_ATTACHMENT_BYTES / 1_048_576)) }
+            return
+        }
         val profile = currentProfile()
         _state.update { it.copy(attaching = true, error = null) }
         viewModelScope.launch {
@@ -4807,6 +4833,10 @@ private fun List<CronJob>.upsert(job: CronJob): List<CronJob> =
     (filterNot { it.id == job.id } + job).sortedBy { it.name.lowercase() }
 
 private val INVITE_ALPHABET = ('A'..'Z') + ('2'..'9')
+
+/** Official mobile limits: 9 files per message, 20 MB each. */
+internal const val MAX_ATTACHMENTS = 9
+internal const val MAX_ATTACHMENT_BYTES = 20L * 1024 * 1024
 
 internal fun Throwable.invalidatesSavedSession(): Boolean =
     (this as? HermesException)?.statusCode in setOf(401, 403)

@@ -1008,4 +1008,20 @@
     <string name="runtime_active">قيد التشغيل الآن</string>
     <string name="runtime_downloaded">تم تنزيلها</string>
     <string name="restart_webui_confirm">إعادة تشغيل واجهة الويب؟ ستنقطع الجلسات لثوانٍ.</string>
+    <string name="usage_session_title">هذه المحادثة</string>
+    <string name="usage_input">الإدخال</string>
+    <string name="usage_output">الإخراج</string>
+    <string name="usage_cache_read">قراءة الذاكرة</string>
+    <string name="usage_cache_write">كتابة الذاكرة</string>
+    <string name="usage_reasoning">الاستدلال</string>
+    <string name="usage_hit_rate">إصابة الذاكرة</string>
+    <string name="usage_cost">التكلفة التقديرية</string>
+    <string name="usage_cost_unknown">لا يوجد سعر مطابق.</string>
+    <string name="usage_total">إجمالي الرموز</string>
+    <string name="attach_limit_count">حتى %1$d مرفقات</string>
+    <string name="attach_limit_size">كل ملف أقل من %1$d م.ب</string>
+    <string name="appearance_local">على هذا الهاتف</string>
+    <string name="appearance_local_note">يُحفظ على هذا الهاتف فقط.</string>
+    <string name="appearance_server">سمة الخادم</string>
+    <string name="appearance_server_note">تُطبق على كل الأجهزة.</string>
 </resources>

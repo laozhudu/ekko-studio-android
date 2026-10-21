@@ -1008,4 +1008,20 @@
     <string name="runtime_active">当前运行</string>
     <string name="runtime_downloaded">已下载</string>
     <string name="restart_webui_confirm">重启 Web UI？正在运行的任务和本机连接会中断几秒。</string>
+    <string name="usage_session_title">本次对话</string>
+    <string name="usage_input">输入</string>
+    <string name="usage_output">输出</string>
+    <string name="usage_cache_read">缓存读取</string>
+    <string name="usage_cache_write">缓存写入</string>
+    <string name="usage_reasoning">推理</string>
+    <string name="usage_hit_rate">缓存命中</string>
+    <string name="usage_cost">估算成本</string>
+    <string name="usage_cost_unknown">没有匹配的价格——在「模型计价」里添加</string>
+    <string name="usage_total">总 token</string>
+    <string name="attach_limit_count">最多 %1$d 个附件</string>
+    <string name="attach_limit_size">单个文件不能超过 %1$d MB</string>
+    <string name="appearance_local">本机</string>
+    <string name="appearance_local_note">只保存在这台手机，不会改动服务端主题。</string>
+    <string name="appearance_server">服务端主题</string>
+    <string name="appearance_server_note">会应用到登录这个 Studio 的所有设备。</string>
 </resources>

@@ -534,3 +534,81 @@ private fun ModelPickerDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
+
+/** The rate row that applies to `model`, or null when the table has no opinion. */
+internal fun matchRate(model: String, rates: List<PricingRate>): PricingRate? {
+    if (model.isBlank()) return null
+    return rates.firstOrNull { it.model == model }
+        ?: rates.firstOrNull { model == "${it.provider}/${it.model}" }
+        ?: rates.firstOrNull {
+            it.provider.isNotBlank() && model.startsWith("${it.provider}/") && model.endsWith("/${it.model}")
+        }
+}
+
+/**
+ * USD for one conversation's token split.
+ *
+ * Cache reads are billed at their own rate when one is set, and at the input
+ * rate otherwise — the same fallback the server applies. Anything unpriced
+ * returns null so the sheet can say "unknown" instead of printing a confident
+ * zero.
+ */
+internal fun estimateCost(usage: SessionUsage, rates: List<PricingRate>): Double? {
+    val rate = matchRate(usage.model, rates) ?: return null
+    val perMillion = 1_000_000.0
+    val inputCost = usage.input * rate.input
+    val outputCost = usage.output * rate.output
+    val readCost = usage.cacheRead * (rate.cacheRead ?: rate.input)
+    val writeCost = usage.cacheWrite * (rate.cacheWrite ?: rate.input)
+    return (inputCost + outputCost + readCost + writeCost) / perMillion
+}
+
+@Composable
+fun SessionUsageDialog(usage: SessionUsage, rates: List<PricingRate>, onDismiss: () -> Unit) {
+    val cost = remember(usage, rates) { estimateCost(usage, rates) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.usage_session_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                usageRow(stringResource(R.string.usage_input), usage.input)
+                usageRow(stringResource(R.string.usage_output), usage.output)
+                usageRow(stringResource(R.string.usage_cache_read), usage.cacheRead)
+                if (usage.cacheWrite > 0) usageRow(stringResource(R.string.usage_cache_write), usage.cacheWrite)
+                if (usage.reasoning > 0) usageRow(stringResource(R.string.usage_reasoning), usage.reasoning)
+                usage.cacheHitRate?.let { rate ->
+                    Text(
+                        "${stringResource(R.string.usage_hit_rate)}  ${"%.0f".format(rate * 100)}%",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                HorizontalDivider(Modifier.padding(vertical = 2.dp))
+                Text(
+                    if (cost == null) {
+                        stringResource(R.string.usage_cost_unknown)
+                    } else {
+                        "${stringResource(R.string.usage_cost)}  $${"%.4f".format(Locale.US, cost)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (cost == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                )
+                if (usage.model.isNotBlank()) {
+                    Text(usage.model, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) } },
+    )
+}
+
+@Composable
+private fun usageRow(label: String, value: Long) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        Text(
+            "%,d".format(value),
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+}

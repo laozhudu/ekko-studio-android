@@ -1009,4 +1009,20 @@
     <string name="runtime_active">Running now</string>
     <string name="runtime_downloaded">Downloaded</string>
     <string name="restart_webui_confirm">Restart the Web UI? Open runs and this phone\'s connection drop for a few seconds.</string>
+    <string name="usage_session_title">This conversation</string>
+    <string name="usage_input">Input</string>
+    <string name="usage_output">Output</string>
+    <string name="usage_cache_read">Cache read</string>
+    <string name="usage_cache_write">Cache write</string>
+    <string name="usage_reasoning">Reasoning</string>
+    <string name="usage_hit_rate">Cache hit</string>
+    <string name="usage_cost">Estimated cost</string>
+    <string name="usage_cost_unknown">No matching rate — add one under Usage pricing</string>
+    <string name="usage_total">Total tokens</string>
+    <string name="attach_limit_count">Up to %1$d attachments</string>
+    <string name="attach_limit_size">Each file must be under %1$d MB</string>
+    <string name="appearance_local">On this phone</string>
+    <string name="appearance_local_note">Saved on this phone only; the server theme is untouched.</string>
+    <string name="appearance_server">Server theme</string>
+    <string name="appearance_server_note">Applies to every device signed in to this Studio.</string>
 </resources>

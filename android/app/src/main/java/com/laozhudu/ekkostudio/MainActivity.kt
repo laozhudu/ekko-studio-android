@@ -3293,7 +3293,7 @@ private fun Composer(
                         leadingIcon = { Icon(Icons.Filled.Stop, null, Modifier.size(15.dp)) },
                     )
                 }
-                ContextUsage(state)
+                ContextUsage(state, viewModel)
             }
             // Send / mic / stop action button
             ComposerActionButton(state, draft, onSend, viewModel) {
@@ -3320,7 +3320,7 @@ private fun Composer(
  * Studio-side control this build does not open, so it is rendered read-only.
  */
 @Composable
-private fun ContextUsage(state: UiState) {
+private fun ContextUsage(state: UiState, vm: AppViewModel) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     // -1 means the provider has not reported a prompt size yet. Showing "0" there
     // claimed an empty context, which is exactly what made the stale meter look
@@ -3337,8 +3337,15 @@ private fun ContextUsage(state: UiState) {
         percent > 60f -> CONTEXT_WARNING
         else -> inkTextMuted(inkDark)
     }
+    // Tapping opens the token split: the ring alone says nothing about cache
+    // reads, and cache reads are most of the bill on a long conversation.
+    state.sessionUsage?.let { usage ->
+        SessionUsageDialog(usage, state.pricingRates, vm::closeSessionUsage)
+    }
     Row(
-        modifier = Modifier.heightIn(min = 28.dp),
+        modifier = Modifier
+            .heightIn(min = 28.dp)
+            .clickable { vm.openSessionUsage() },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

@@ -262,6 +262,20 @@ data class ModelApiKey(
     val lastUsedAt: Long?,
 )
 
+/** Per-session token split from `GET /api/hermes/sessions/{id}/usage`. */
+data class SessionUsage(
+    val input: Long,
+    val output: Long,
+    val cacheRead: Long,
+    val cacheWrite: Long,
+    val reasoning: Long,
+    val model: String,
+    val profile: String,
+) {
+    /** Share of the prompt that came from cache; null when nothing was read. */
+    val cacheHitRate: Double? get() = if (input + cacheRead <= 0) null else cacheRead.toDouble() / (input + cacheRead)
+}
+
 /** The 201 body: metadata plus the one and only copy of the secret. */
 data class CreatedModelApiKey(val key: ModelApiKey, val secret: String)
 data class RuntimeVersions(

@@ -1066,6 +1066,20 @@ class HermesApi(
         }
     }
 
+    /** GET /api/hermes/sessions/{id}/usage — this conversation's token split. */
+    fun sessionUsage(sessionId: String): SessionUsage {
+        val r = call("/api/hermes/sessions/${enc(sessionId)}/usage")
+        return SessionUsage(
+            input = r.optLong("input_tokens"),
+            output = r.optLong("output_tokens"),
+            cacheRead = r.optLong("cache_read_tokens"),
+            cacheWrite = r.optLong("cache_write_tokens"),
+            reasoning = r.optLong("reasoning_tokens"),
+            model = r.optString("model"),
+            profile = r.optString("profile"),
+        )
+    }
+
     fun modelApiKeys(): List<ModelApiKey> {
         val keys = call("/api/studio/models/api-keys").optJSONArray("keys") ?: JSONArray()
         return (0 until keys.length()).mapNotNull { index -> keys.optJSONObject(index)?.let(::toModelApiKey) }
