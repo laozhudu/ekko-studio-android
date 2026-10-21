@@ -1162,4 +1162,9 @@
     <string name="coding_agent_install">安装</string>
     <string name="coding_agent_update">更新</string>
     <string name="coding_agent_models">%1$d 个模型 · %2$s</string>
+    <string name="cron_needs_name">先给任务起个名字</string>
+    <string name="cron_needs_prompt">提示词不能为空</string>
+    <string name="cron_bad_schedule">定时表达式无效：%1$s</string>
+    <string name="cron_schedule_hint">五个字段：分 时 日 月 周</string>
+    <string name="channel_qr_refresh">换一个码</string>
 </resources>

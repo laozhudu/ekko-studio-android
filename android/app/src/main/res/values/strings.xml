@@ -1163,4 +1163,9 @@
     <string name="coding_agent_install">Install</string>
     <string name="coding_agent_update">Update</string>
     <string name="coding_agent_models">%1$d models · %2$s</string>
+    <string name="cron_needs_name">Give the job a name</string>
+    <string name="cron_needs_prompt">The prompt cannot be empty</string>
+    <string name="cron_bad_schedule">Invalid schedule: %1$s</string>
+    <string name="cron_schedule_hint">Five fields: minute hour day month weekday</string>
+    <string name="channel_qr_refresh">New code</string>
 </resources>

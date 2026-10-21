@@ -5830,14 +5830,12 @@ private fun ChannelScreen(state: UiState, viewModel: AppViewModel) {
     var confirmClear by remember(platform) { mutableStateOf(false) }
     var openedQrId by remember(platform) { mutableStateOf("") }
 
-    LaunchedEffect(state.weixinQr.id, state.weixinQr.url) {
+    // The QR is drawn in the app. The server hands back a URL, and opening it in a
+    // browser sends the user to a page that then asks them to scan a code — on a
+    // phone that is a dead end, because the phone cannot scan its own screen.
+    LaunchedEffect(state.weixinQr.id) {
         val qr = state.weixinQr
-        if (platform == "weixin" && qr.id.isNotBlank() && qr.url.isNotBlank() && openedQrId != qr.id) {
-            openedQrId = qr.id
-            runCatching {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(qr.url)))
-            }.onFailure { viewModel.showToolError(it) }
-        }
+        if (platform == "weixin" && qr.id.isNotBlank()) openedQrId = qr.id
     }
 
     if (confirmClear) {
@@ -5919,6 +5917,30 @@ private fun ChannelScreen(state: UiState, viewModel: AppViewModel) {
                         { CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) }
                     } else null,
                 )
+                // When the server has handed back a payload, show it. `url` is what
+                // the code encodes; the poll already tracks scanned/confirmed.
+                val payload = state.weixinQr.url.ifBlank { state.weixinQr.id }
+                if (payload.isNotBlank() && state.weixinQr.status != "error") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            QrCode(payload)
+                            Text(
+                                stringResource(qrStatus),
+                                modifier = Modifier.padding(top = 8.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (state.weixinQr.status == "expired" || state.weixinQr.status == "error") {
+                                TextButton(onClick = viewModel::startWeixinQr) {
+                                    Text(stringResource(R.string.channel_qr_refresh))
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if (spec.fields.none {

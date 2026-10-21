@@ -301,6 +301,6 @@ fun ConnectionsScreen(state: UiState, vm: AppViewModel) {
     }
 }
 
-@Composable private fun QrCode(value: String) { if (value.isBlank()) return; val image = remember(value) { val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 420, 420); Bitmap.createBitmap(420, 420, Bitmap.Config.ARGB_8888).apply { for (y in 0 until 420) for (x in 0 until 420) setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE) }.asImageBitmap() }; Image(image, null, Modifier.size(190.dp)) }
+@Composable internal fun QrCode(value: String) { if (value.isBlank()) return; val image = remember(value) { val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 420, 420); Bitmap.createBitmap(420, 420, Bitmap.Config.ARGB_8888).apply { for (y in 0 until 420) for (x in 0 until 420) setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE) }.asImageBitmap() }; Image(image, null, Modifier.size(190.dp)) }
 
 @Composable private fun SimpleNameDialog(title: String, initial: String, dismiss: () -> Unit, save: (String) -> Unit) { var value by remember { mutableStateOf(initial) }; AlertDialog(onDismissRequest = dismiss, title = { Text(title) }, text = { OutlinedTextField(value, { value = it }) }, confirmButton = { TextButton(enabled = value.isNotBlank(), onClick = { save(value) }) { Text(stringResource(R.string.action_save)) } }, dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) } }) }

@@ -1162,4 +1162,9 @@
     <string name="coding_agent_install">تثبيت</string>
     <string name="coding_agent_update">تحديث</string>
     <string name="coding_agent_models">%1$d طرازات · %2$s</string>
+    <string name="cron_needs_name">أعط المهمة اسمًا</string>
+    <string name="cron_needs_prompt">الموجّه مطلوب</string>
+    <string name="cron_bad_schedule">تعبير غير صالح: %1$s</string>
+    <string name="cron_schedule_hint">خمسة حقول</string>
+    <string name="channel_qr_refresh">رمز جديد</string>
 </resources>

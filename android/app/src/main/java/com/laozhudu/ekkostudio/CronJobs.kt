@@ -489,6 +489,28 @@ private fun CronJobForm(state: UiState, viewModel: AppViewModel) {
                 textDirection = TextDirection.Ltr,
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            // The alias expansion and a plain-language reading sit under the field:
+            // "0 9 * * 1" is not self-explanatory on a phone, and a typo is worse
+            // than an ugly expression.
+            supportingText = {
+                val expanded = CronExpression.describe(schedule)
+                val plain = CronExpression.describeSchedule(schedule)
+                val message = when {
+                    schedule.isBlank() -> stringResource(R.string.cron_schedule_hint)
+                    CronExpression.validate(schedule) != null -> CronExpression.validate(schedule).orEmpty()
+                    plain != null -> "$expanded · $plain"
+                    else -> expanded
+                }
+                Text(
+                    message,
+                    fontSize = 9.sp,
+                    color = if (!schedule.isBlank() && CronExpression.validate(schedule) != null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
@@ -561,6 +583,15 @@ private fun CronJobForm(state: UiState, viewModel: AppViewModel) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             modifier = Modifier.fillMaxWidth(),
         )
+        // The server rejects anything that is not a five-field expression, so the
+        // form says why before the request is made rather than after.
+        val scheduleError = if (schedule.isBlank()) null else CronExpression.validate(schedule)
+        val promptMissing = prompt.isBlank()
+        val nameMissing = name.isBlank()
+        val canSubmit = !state.savingSetting &&
+            schedule.isNotBlank() && scheduleError == null &&
+            !promptMissing && !nameMissing
+
         Button(
             onClick = {
                 viewModel.saveCronJob(
@@ -576,11 +607,25 @@ private fun CronJobForm(state: UiState, viewModel: AppViewModel) {
                     ),
                 )
             },
-            enabled = !state.savingSetting,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 20.dp),
+            enabled = canSubmit,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp),
         ) {
             Text(stringResource(if (job == null) R.string.action_create else R.string.action_save))
         }
+        // One line explaining a disabled button beats a button that is grey for
+        // no visible reason.
+        val blocking = when {
+            nameMissing -> stringResource(R.string.cron_needs_name)
+            promptMissing -> stringResource(R.string.cron_needs_prompt)
+            scheduleError != null -> stringResource(R.string.cron_bad_schedule, scheduleError)
+            else -> null
+        }
+        Text(
+            blocking ?: "",
+            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (blocking == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+        )
     }
 }
 
