@@ -1,0 +1,778 @@
+{
+  "apk": "EkkoStudio.apk",
+  "package": "__UNI__1F41684",
+  "name": "Ekko Studio",
+  "pages": [
+    "about",
+    "background-settings",
+    "bootstrap",
+    "change-password",
+    "devices",
+    "index",
+    "location-picker",
+    "login",
+    "login-devices",
+    "session-share"
+  ],
+  "permissions": [
+    "Barcode",
+    "Camera",
+    "Geolocation",
+    "OAuth",
+    "Push",
+    "Record",
+    "Share",
+    "UniNView",
+    "VideoPlayer",
+    "Zip"
+  ],
+  "modules": [
+    {
+      "area": "shell",
+      "module": "login",
+      "label": "登录/服务器地址",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": true,
+      "our_files": [
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "shell",
+      "module": "devices",
+      "label": "已保存设备",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "DevicesScreen.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioWorkspaceScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "shell",
+      "module": "bootstrap",
+      "label": "首次连接引导",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "Intro.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "shell",
+      "module": "about",
+      "label": "关于/条款/检查更新",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "DevicesScreen.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioUpdateScreen.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "shell",
+      "module": "network-mode",
+      "label": "局域网/P2P/云端模式",
+      "css_prefix": "network",
+      "official_css_classes": 175,
+      "official_present": true,
+      "our_files": [],
+      "status": "missing"
+    },
+    {
+      "area": "chat",
+      "module": "drawer",
+      "label": "会话抽屉/账户菜单",
+      "css_prefix": "drawer",
+      "official_css_classes": 59,
+      "official_present": true,
+      "our_files": [],
+      "status": "missing"
+    },
+    {
+      "area": "chat",
+      "module": "session",
+      "label": "会话列表/分类/文件夹/搜索",
+      "css_prefix": "session",
+      "official_css_classes": 175,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "new-chat",
+      "label": "新建会话/分类",
+      "css_prefix": "new",
+      "official_css_classes": 54,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "composer",
+      "label": "输入区/附件/工具条",
+      "css_prefix": "composer",
+      "official_css_classes": 131,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "ChatMetrics.kt",
+        "ChatWidgets.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "SlashCommands.kt",
+        "Theme.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "input-context",
+      "label": "上下文计量",
+      "css_prefix": "input",
+      "official_css_classes": 83,
+      "official_present": true,
+      "our_files": [
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "messages",
+      "label": "消息气泡/元信息",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "markdown",
+      "label": "Markdown/图片/链接卡",
+      "css_prefix": "markdown",
+      "official_css_classes": 204,
+      "official_present": true,
+      "our_files": [
+        "ChatMarkdown.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "tool",
+      "label": "工具调用卡片",
+      "css_prefix": "tool",
+      "official_css_classes": 136,
+      "official_present": true,
+      "our_files": [
+        "MainActivity.kt",
+        "Theme.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "file-preview",
+      "label": "文件预览",
+      "css_prefix": "file-preview",
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "voice",
+      "label": "语音录制/朗读",
+      "css_prefix": "voice",
+      "official_css_classes": 211,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "Recorder.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "usage",
+      "label": "用量/缓存/成本",
+      "css_prefix": "usage",
+      "official_css_classes": 117,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatSocket.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "SlashCommands.kt",
+        "StudioParityScreens.kt",
+        "UsageScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "chat",
+      "module": "session-share",
+      "label": "会话分享",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "DevicesScreen.kt",
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "group",
+      "module": "group",
+      "label": "群聊/群成员/头像",
+      "css_prefix": "group",
+      "official_css_classes": 421,
+      "official_present": true,
+      "our_files": [
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "group",
+      "module": "presets",
+      "label": "智能体预设",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [],
+      "status": "missing"
+    },
+    {
+      "area": "work",
+      "module": "workspace",
+      "label": "工作区浏览器",
+      "css_prefix": "workspace",
+      "official_css_classes": 268,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatSocket.kt",
+        "ChatWidgets.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioOperationsScreens.kt",
+        "StudioWorkspaceScreens.kt",
+        "WorkspaceScreen.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "work",
+      "module": "terminal",
+      "label": "终端",
+      "css_prefix": "terminal",
+      "official_css_classes": 102,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "MainActivity.kt",
+        "TerminalClient.kt",
+        "TerminalScreen.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "work",
+      "module": "workflow",
+      "label": "工作流编排",
+      "css_prefix": "workflow",
+      "official_css_classes": 235,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioOperationsScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "work",
+      "module": "edge",
+      "label": "工作流连线/条件",
+      "css_prefix": "edge",
+      "official_css_classes": 39,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatMarkdown.kt",
+        "ChatMetrics.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioOperationsScreens.kt",
+        "StudioParityScreens.kt",
+        "TaskPlanCard.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "agent",
+      "label": "智能体徽标/运行态",
+      "css_prefix": "agent",
+      "official_css_classes": 170,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "skills",
+      "label": "技能库/编辑",
+      "css_prefix": "skills",
+      "official_css_classes": 128,
+      "official_present": true,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "CronJobs.kt",
+        "EkkoHubScreen.kt",
+        "HermesApi.kt",
+        "KanbanScreens.kt",
+        "MainActivity.kt",
+        "SlashCommands.kt",
+        "StudioParityScreens.kt",
+        "StudioSettings.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "skill-detail",
+      "label": "技能详情",
+      "css_prefix": "skill-",
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "bundles",
+      "label": "技能包",
+      "css_prefix": "bundle",
+      "official_css_classes": 78,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatSocket.kt",
+        "DevicesScreen.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "SlashCommands.kt",
+        "TerminalClient.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "mcp",
+      "label": "MCP 服务",
+      "css_prefix": "mcp",
+      "official_css_classes": 125,
+      "official_present": true,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "AppViewModel.kt",
+        "EkkoHubScreen.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "SlashCommands.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "coding",
+      "label": "编码代理配置",
+      "css_prefix": "coding",
+      "official_css_classes": 52,
+      "official_present": true,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatSocket.kt",
+        "HermesApi.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "aux",
+      "label": "辅助模型/委派",
+      "css_prefix": "aux",
+      "official_css_classes": 88,
+      "official_present": true,
+      "our_files": [
+        "ChatSocket.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "moa",
+      "label": "MoA 混合智能体",
+      "css_prefix": "moa",
+      "official_css_classes": 82,
+      "official_present": true,
+      "our_files": [
+        "HermesApi.kt",
+        "SlashCommands.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "pets",
+      "label": "宠物/吉祥物",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatWidgets.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "agent",
+      "module": "journey",
+      "label": "技能旅程图",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioParityScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "auto",
+      "module": "jobs",
+      "label": "定时任务",
+      "css_prefix": "job",
+      "official_css_classes": 93,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "CronJobs.kt",
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "auto",
+      "module": "kanban",
+      "label": "看板",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "ChatWidgets.kt",
+        "HermesApi.kt",
+        "KanbanScreens.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "auto",
+      "module": "webhooks",
+      "label": "Webhook",
+      "css_prefix": "webhook",
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "StudioParityScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "auto",
+      "module": "channels",
+      "label": "消息渠道/微信",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AppViewModel.kt",
+        "Channels.kt",
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "model",
+      "module": "model",
+      "label": "模型面板/API 协议",
+      "css_prefix": "model",
+      "official_css_classes": 235,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "ModelSettingsScreen.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "model",
+      "module": "provider",
+      "label": "Provider 授权",
+      "css_prefix": "provider",
+      "official_css_classes": 102,
+      "official_present": true,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "AgentTools.kt",
+        "AppUpdater.kt",
+        "AppViewModel.kt",
+        "ChatSocket.kt",
+        "ChatWidgets.kt",
+        "CronJobs.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "ModelSettingsScreen.kt",
+        "Recorder.kt",
+        "StudioSettings.kt",
+        "UsageScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "model",
+      "module": "api",
+      "label": "API 地址/Key",
+      "css_prefix": "api-",
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt",
+        "UsageScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "model",
+      "module": "hermes",
+      "label": "Hermes 配置",
+      "css_prefix": "hermes",
+      "official_css_classes": 59,
+      "official_present": true,
+      "our_files": [
+        "HermesApi.kt",
+        "ModelSettingsScreen.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "obs",
+      "module": "performance",
+      "label": "性能面板",
+      "css_prefix": "performance",
+      "official_css_classes": 66,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "HermesApi.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "obs",
+      "module": "logs",
+      "label": "日志",
+      "css_prefix": "log",
+      "official_css_classes": 57,
+      "official_present": true,
+      "our_files": [
+        "MainActivity.kt",
+        "StudioWorkspaceScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "obs",
+      "module": "health",
+      "label": "健康检查",
+      "css_prefix": "active-health",
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "Theme.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "obs",
+      "module": "insights",
+      "label": "洞察",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AppViewModel.kt",
+        "ChatWidgets.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "look",
+      "module": "theme",
+      "label": "主题/字号/颜色",
+      "css_prefix": "theme",
+      "official_css_classes": 142,
+      "official_present": true,
+      "our_files": [
+        "AppearanceScreen.kt",
+        "DevicesScreen.kt",
+        "MainActivity.kt",
+        "Theme.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "look",
+      "module": "background",
+      "label": "聊天背景图",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [
+        "AgentToolScreens.kt",
+        "AgentTools.kt",
+        "AppViewModel.kt",
+        "AppearanceScreen.kt",
+        "Avatars.kt",
+        "Branding.kt",
+        "ChatMarkdown.kt",
+        "ChatSocket.kt",
+        "ChatWidgets.kt",
+        "DesignSystem.kt",
+        "DevicesScreen.kt",
+        "HermesApi.kt",
+        "Intro.kt",
+        "KanbanScreens.kt",
+        "MainActivity.kt",
+        "StudioWorkspaceScreens.kt",
+        "TaskPlanCard.kt",
+        "TerminalScreen.kt",
+        "Theme.kt",
+        "UsageScreens.kt"
+      ],
+      "status": "have"
+    },
+    {
+      "area": "look",
+      "module": "inbox",
+      "label": "通知收件箱",
+      "css_prefix": "inbox",
+      "official_css_classes": 60,
+      "official_present": true,
+      "our_files": [],
+      "status": "missing"
+    },
+    {
+      "area": "look",
+      "module": "location",
+      "label": "位置发送",
+      "css_prefix": null,
+      "official_css_classes": 0,
+      "official_present": false,
+      "our_files": [],
+      "status": "missing"
+    },
+    {
+      "area": "look",
+      "module": "search",
+      "label": "全局搜索",
+      "css_prefix": "search",
+      "official_css_classes": 54,
+      "official_present": true,
+      "our_files": [
+        "AppViewModel.kt",
+        "DesignSystem.kt",
+        "MainActivity.kt"
+      ],
+      "status": "have"
+    }
+  ]
+}
