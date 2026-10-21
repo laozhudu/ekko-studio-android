@@ -200,6 +200,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.painter.Painter
@@ -3694,7 +3695,8 @@ private fun ContextUsage(state: UiState, vm: AppViewModel) {
 /** `.input-context-status--warning { color: #d59a2d }` — the official literal. */
 private val CONTEXT_WARNING = Color(0xFFD59A2D)
 
-private fun compactNumber(value: Long): String = when {
+/** Shared with the usage ring; the Insights screen and the composer agree on units. */
+internal fun compactNumber(value: Long): String = when {
     value >= 1_000_000 -> "%.1fM".format(Locale.US, value / 1_000_000.0)
     value >= 1_000 -> "%.1fk".format(Locale.US, value / 1_000.0)
     else -> value.toString()
