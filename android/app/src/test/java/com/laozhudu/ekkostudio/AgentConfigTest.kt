@@ -147,10 +147,15 @@ class AgentConfigTest {
         val delegation = api.delegationConfig("default")
         assertEquals("openrouter", delegation.provider)
         assertEquals("high", delegation.reasoningEffort)
+        // Consume the GET, or the next takeRequest() returns it instead of the PUT.
+        assertEquals("/api/hermes/config/delegation-model?profile=default", server.takeRequest().path)
 
         enqueue("""{"success":true}""")
         api.saveDelegationConfig("default", delegation)
-        val body = JSONObject(server.takeRequest().body.readUtf8()).getJSONObject("delegation")
+        val put = server.takeRequest()
+        assertEquals("PUT", put.method)
+        assertEquals("/api/hermes/config/delegation-model", put.path.substringBefore('?'))
+        val body = JSONObject(put.body.readUtf8()).getJSONObject("delegation")
         assertEquals("m2", body.getString("model"))
         assertEquals("high", body.getString("reasoning_effort"))
     }
