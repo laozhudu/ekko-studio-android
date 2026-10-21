@@ -121,3 +121,25 @@ does not have them — the user asked for them earlier.
 - **Last-message preview text** — same missing field. The preview slot shows
   source / profile / model instead of inventing text.
 - **960dp readable cap** — a phone never reaches it; only matters on a tablet.
+
+## Correction: `inbox` is a file queue, not a notification centre
+
+The module inventory labelled `.inbox-*` as a notification inbox. The official
+copy says otherwise:
+
+- 「待添加文件」 — the title, with a count beside it
+- 「选择文件添加到当前聊天，确认发送后才会上传。」
+- 「添加到当前聊天 (N)」 and, with no chat open, 「请先选择一个聊天」
+- 「清空全部」, and 「仅移除 App 暂存的副本，不会删除原文件。」
+- per-row 「移除文件」
+
+Its classes are `.inbox-trigger` (44dp floating button), `.inbox-drawer` (max 78vh,
+560dp), `.inbox-check` (18dp, 6dp radius), `.inbox-add` (46dp, 13dp radius,
+inverted). Nothing in it is a notification list.
+
+So the parity work became the thing the official client actually does: accept
+`ACTION_SEND` / `ACTION_SEND_MULTIPLE`, copy every stream into the app's own
+cache, and hold them in a drawer until they are attached. The copy's promise —
+that clearing does not touch the original — is only true because the app keeps
+its own copy, so the code does exactly that, and a failed upload keeps the file
+in the queue rather than dropping it.

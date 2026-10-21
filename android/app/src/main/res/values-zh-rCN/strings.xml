@@ -1125,4 +1125,19 @@
     <string name="workflow_run_nodes">节点（%1$d）</string>
     <string name="workflow_run_approve">批准</string>
     <string name="workflow_graph_hint">只读。节点排布在桌面端编辑。</string>
+    <string name="inbox_title">待添加文件</string>
+    <string name="inbox_help">选择文件添加到当前聊天，确认发送后才会上传。</string>
+    <string name="inbox_select_all">全选</string>
+    <string name="inbox_deselect_all">取消全选</string>
+    <string name="inbox_clear_all">清空全部</string>
+    <string name="inbox_add_to_chat">添加到当前聊天</string>
+    <string name="inbox_need_chat">请先选择一个聊天</string>
+    <string name="inbox_footer_help">仅移除 App 暂存的副本，不会删除原文件。</string>
+    <string name="inbox_remove">移除文件</string>
+    <string name="inbox_staged">已加入 %1$d 个文件</string>
+    <string name="inbox_stage_failed">无法读取分享的文件。</string>
+    <string name="inbox_added">已添加 %1$d 个文件到输入框</string>
+    <string name="inbox_add_failed">%1$d 个文件添加失败，已保留</string>
+    <string name="inbox_cleared">已清空待添加文件</string>
+    <string name="inbox_trigger">待添加</string>
 </resources>

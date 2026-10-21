@@ -20,6 +20,7 @@
 
 - 页面：`about, background-settings, bootstrap, change-password, devices, index, location-picker, login, login-devices, session-share`
 - 权限：`Barcode, Camera, Geolocation, OAuth, Push, Record, Share, Zip`
+- **一处更正**：`inbox` 一度被我记成「通知收件箱」。扒官方 `.inbox-*` 与文案后确认它是「待添加文件」——外部 App 分享进来的文件暂存队列，与通知无关。已按实际实现，未凭猜测做通知中心。
 - 50 个模块分两类：
 
   **官方有、我方完全没有**（5 个，CI 盯着这个集合只许变小）：`network-mode, drawer, presets, inbox, location`
@@ -123,7 +124,7 @@
 | --- | --- | --- | --- | --- |
 | 主题 | 字号、颜色、深浅、跟随设备 | 已拆分本机/服务端 | have | — |
 | 聊天背景 | 背景图（本机） | 服务端背景 | partial | 本机背景图 |
-| 通知收件箱 | 应用内通知列表 | — | **missing** | `app.notification` 已能收到，只缺落地页 |
+| 待添加文件 inbox | 「待添加文件」抽屉：外部分享进来的文件暂存、全选、清空、添加到当前聊天 | **已完成**：ACTION_SEND/SEND_MULTIPLE + 抽屉（官方尺寸与文案语义） | have | 原文案「仅移除 App 暂存的副本」在代码里成立 |
 | 位置发送 | 位置选择器、附近、发送 | — | **missing** | `Geolocation` 权限 + 地图选点（第三方 SDK 体积大，需决策） |
 | 全局搜索 | 会话+消息级命中 | **已完成 P2**：`/api/studio/search/sessions` 带 snippet 与 matched_message_id，打开后滚动到命中消息 | have | 技能/工作流未纳入 |
 

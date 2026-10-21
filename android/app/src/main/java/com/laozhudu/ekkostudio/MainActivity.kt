@@ -234,6 +234,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import java.util.Locale
@@ -256,17 +257,56 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(AppLocale.wrap(newBase))
     }
 
+    /**
+     * The view model cannot be reached from `onNewIntent` before the content is
+     * set, so a share that arrives while the activity is already running is held
+     * here until the composable collects it.
+     */
+    private val incomingShare = MutableStateFlow<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { App() }
+        // A cold start from a share: the intent is already here.
+        incomingShare.value = intent?.takeIf { it.isShareIntent() }
+        setContent { App(sharedIntent = incomingShare) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.isShareIntent()) {
+            setIntent(intent)
+            incomingShare.value = intent
+        }
     }
 }
 
+/** `ACTION_SEND` / `ACTION_SEND_MULTIPLE` with at least one stream. */
+internal fun Intent.isShareIntent(): Boolean =
+    (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) &&
+        ShareIntake.streamUris(this).isNotEmpty()
+
 @Composable
-private fun App(viewModel: AppViewModel = viewModel()) {
+private fun App(
+    sharedIntent: MutableStateFlow<Intent?>? = null,
+    viewModel: AppViewModel = viewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+
+    // Files shared in from another app: copied into the app's cache, then the
+    // 「待添加文件」 drawer opens. A nullable flow keeps this usable from previews
+    // and tests, where there is no activity to hand one over.
+    val share = sharedIntent?.collectAsState()?.value
+    LaunchedEffect(share) {
+        val intent = share ?: return@LaunchedEffect
+        viewModel.acceptSharedFiles(
+            uris = ShareIntake.streamUris(intent),
+            mimeOf = { uri -> context.contentResolver.getType(uri) ?: "application/octet-stream" },
+            caption = ShareIntake.caption(intent),
+        )
+        sharedIntent?.value = null
+    }
     val scope = rememberCoroutineScope()
     var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
     var downloadingUpdate by remember { mutableStateOf(false) }
@@ -2103,6 +2143,22 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
             Spacer(Modifier.height(18.dp))
         }
     }
+    if (state.pendingSheetOpen) {
+        PendingFilesSheet(
+            files = state.pendingFiles,
+            selected = state.pendingSelected,
+            busy = state.pendingBusy,
+            // A file needs a conversation to belong to; the official client says
+            // 「请先选择一个聊天」 rather than silently doing nothing.
+            canAttach = state.openSession != null,
+            onToggle = viewModel::togglePendingFile,
+            onSelectAll = viewModel::selectAllPendingFiles,
+            onClearAll = viewModel::clearPendingFiles,
+            onRemove = viewModel::removePendingFile,
+            onAttach = viewModel::attachPendingFiles,
+            onDismiss = viewModel::closePendingFiles,
+        )
+    }
     previewFile?.let { file ->
         FilePreviewDialog(
             file = file,
@@ -3608,6 +3664,13 @@ private fun Composer(
                         onClick = { viewModel.stopSpeaking() },
                         label = { Text(stringResource(R.string.voice_stop_reply)) },
                         leadingIcon = { Icon(Icons.Filled.Stop, null, Modifier.size(15.dp)) },
+                    )
+                }
+                if (state.pendingFiles.isNotEmpty()) {
+                    AssistChip(
+                        onClick = viewModel::openPendingFiles,
+                        label = { Text(stringResource(R.string.inbox_title) + " (${state.pendingFiles.size})") },
+                        leadingIcon = { Icon(Icons.Filled.Description, null, Modifier.size(15.dp)) },
                     )
                 }
                 ContextUsage(state, viewModel)

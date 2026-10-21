@@ -125,6 +125,11 @@ data class UiState(
     /** Set while a group agent add/edit/delete is in flight. */
     val roomAgentBusy: String? = null,
     val roomSaving: Boolean = false,
+    /** 「待添加文件」: files shared into the app, not yet attached to a message. */
+    val pendingFiles: List<PendingFile> = emptyList(),
+    val pendingSelected: Set<String> = emptySet(),
+    val pendingSheetOpen: Boolean = false,
+    val pendingBusy: Boolean = false,
     /** Room workspace browser. */
     val roomFiles: RoomWorkspaceListing = RoomWorkspaceListing("", "", emptyList()),
     val roomFilesPath: String = "",
@@ -2955,6 +2960,133 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Installed into [LocalImageFetcher] so markdown images can authenticate. */
     suspend fun fetchImage(url: String): ByteArray? =
         withContext(Dispatchers.IO) { runCatching { api.fetchImageBytes(url) }.getOrNull() }
+
+    // ── shared files (the official 「待添加文件」 queue) ───────────────────
+
+    /**
+     * Takes the URIs out of a share intent, copies them into the app's cache and
+     * opens the drawer.
+     *
+     * The copy is deliberate: a content:// URI from another app is not guaranteed
+     * to stay readable, and the official client's own copy says the original is
+     * untouched — which is only true if we hold our own.
+     */
+    fun acceptSharedFiles(uris: List<android.net.Uri>, mimeOf: (android.net.Uri) -> String, caption: String) {
+        if (uris.isEmpty()) return
+        val application = getApplication<Application>()
+        val target = java.io.File(application.cacheDir, "shared-inbox")
+        _state.update { it.copy(pendingBusy = true) }
+        viewModelScope.launch {
+            val staged = withContext(Dispatchers.IO) {
+                ShareIntake.stage(application.contentResolver, uris, target, mimeOf)
+            }
+            _state.update { state ->
+                state.copy(
+                    pendingBusy = false,
+                    pendingFiles = (state.pendingFiles + staged).distinctBy { it.file.absolutePath },
+                    // New arrivals start selected: sharing a file means you want it.
+                    pendingSelected = state.pendingSelected + staged.map { it.file.absolutePath },
+                    pendingSheetOpen = state.pendingFiles.isNotEmpty() || staged.isNotEmpty(),
+                )
+            }
+            if (caption.isNotBlank()) {
+                // A share with a caption is a message being written, not just a file.
+                val key = _state.value.openSession?.id ?: "new"
+                val existing = store.draftFor(key)
+                val merged = listOf(existing.trim(), caption.trim()).filter { it.isNotBlank() }.joinToString("\n")
+                store.setDraftFor(key, merged)
+            }
+            if (staged.isEmpty()) _state.update { it.copy(error = str(R.string.inbox_stage_failed)) }
+            if (staged.isNotEmpty()) _state.update { it.copy(notice = str(R.string.inbox_staged, staged.size)) }
+        }
+    }
+
+    fun openPendingFiles() = _state.update { it.copy(pendingSheetOpen = true) }
+
+    fun closePendingFiles() = _state.update { it.copy(pendingSheetOpen = false) }
+
+    fun togglePendingFile(pending: PendingFile) {
+        _state.update { state ->
+            val key = pending.file.absolutePath
+            state.copy(
+                pendingSelected = if (key in state.pendingSelected) state.pendingSelected - key else state.pendingSelected + key,
+            )
+        }
+    }
+
+    fun selectAllPendingFiles() = _state.update { state ->
+        val all = state.pendingFiles.map { it.file.absolutePath }.toSet()
+        state.copy(pendingSelected = if (state.pendingSelected == all) emptySet() else all)
+    }
+
+    /** Removes only the app's copies; the shared originals are not ours to delete. */
+    fun removePendingFile(pending: PendingFile) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { ShareIntake.clear(listOf(pending)) }
+            _state.update { state ->
+                val key = pending.file.absolutePath
+                state.copy(
+                    pendingFiles = state.pendingFiles.filterNot { it.file.absolutePath == key },
+                    pendingSelected = state.pendingSelected - key,
+                )
+            }
+        }
+    }
+
+    fun clearPendingFiles() {
+        val files = _state.value.pendingFiles
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { ShareIntake.clear(files) }
+            _state.update { it.copy(pendingFiles = emptyList(), pendingSelected = emptySet(), pendingSheetOpen = false) }
+            _state.update { it.copy(notice = str(R.string.inbox_cleared)) }
+        }
+    }
+
+    /**
+     * Uploads the selected files into the current conversation's attachments.
+     *
+     * Each upload goes through the same `attach` path the picker uses, so the
+     * attachment bar and the 9-file/20MB caps apply here too. A file that fails is
+     * kept in the queue instead of being dropped — the official copy promises
+     * exactly that: 「添加失败，文件已保留」.
+     */
+    fun attachPendingFiles() {
+        val selected = _state.value.pendingFiles.filter { it.file.absolutePath in _state.value.pendingSelected }
+        if (selected.isEmpty()) return
+        val application = getApplication<Application>()
+        _state.update { it.copy(pendingBusy = true) }
+        viewModelScope.launch {
+            val failed = mutableListOf<PendingFile>()
+            selected.forEach { pending ->
+                val bytes = runCatching { pending.file.readBytes() }.getOrNull()
+                if (bytes == null) {
+                    failed += pending
+                } else {
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            api.upload(currentProfile(), bytes, pending.name, pending.mime.ifBlank { "application/octet-stream" })
+                        }
+                    }
+                    if (result.isSuccess) {
+                        val upload = result.getOrThrow()
+                        _state.update { it.copy(attachments = it.attachments + upload) }
+                        withContext(Dispatchers.IO) { pending.file.delete() }
+                    } else {
+                        failed += pending
+                    }
+                }
+            }
+            _state.update { state ->
+                state.copy(
+                    pendingBusy = false,
+                    pendingFiles = failed,
+                    pendingSelected = failed.map { it.file.absolutePath }.toSet(),
+                    pendingSheetOpen = failed.isNotEmpty(),
+                    notice = if (failed.isEmpty()) str(R.string.inbox_added, selected.size) else str(R.string.inbox_add_failed, failed.size),
+                )
+            }
+        }
+    }
 
     /** A short confirmation after a copy; the clipboard gives no feedback itself. */
     fun notifyCopied() = _state.update { it.copy(notice = str(R.string.message_copied)) }

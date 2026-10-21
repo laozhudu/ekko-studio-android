@@ -1126,4 +1126,19 @@
     <string name="workflow_run_nodes">Nodes (%1$d)</string>
     <string name="workflow_run_approve">Approve</string>
     <string name="workflow_graph_hint">Read-only. Node layout is edited on the desktop.</string>
+    <string name="inbox_title">Files to attach</string>
+    <string name="inbox_help">Pick files to add to the current chat. Nothing is uploaded until you send.</string>
+    <string name="inbox_select_all">Select all</string>
+    <string name="inbox_deselect_all">Deselect all</string>
+    <string name="inbox_clear_all">Clear all</string>
+    <string name="inbox_add_to_chat">Add to this chat</string>
+    <string name="inbox_need_chat">Open a chat first</string>
+    <string name="inbox_footer_help">Clearing removes only the app\'s own copy, never the original file.</string>
+    <string name="inbox_remove">Remove file</string>
+    <string name="inbox_staged">Added %1$d files to the queue</string>
+    <string name="inbox_stage_failed">Could not read the shared file.</string>
+    <string name="inbox_added">Added %1$d files to the message</string>
+    <string name="inbox_add_failed">%1$d files could not be added and were kept</string>
+    <string name="inbox_cleared">Cleared the queue</string>
+    <string name="inbox_trigger">Pending files</string>
 </resources>

@@ -17,14 +17,30 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HermesStudio">
 
+        <!-- singleTask so a share from another app lands in the running
+             instance instead of opening a second one with no chat selected. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/launcher_name"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- The official client's "待添加文件" queue starts here: files shared
+                 from another app wait in a drawer until they are attached. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 

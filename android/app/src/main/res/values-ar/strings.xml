@@ -1125,4 +1125,19 @@
     <string name="workflow_run_nodes">العقد (%1$d)</string>
     <string name="workflow_run_approve">موافقة</string>
     <string name="workflow_graph_hint">للقراءة فقط.</string>
+    <string name="inbox_title">ملفات للإرفاق</string>
+    <string name="inbox_help">اختر ملفات لإضافتها؛ لا يُرفع شيء قبل الإرسال.</string>
+    <string name="inbox_select_all">تحديد الكل</string>
+    <string name="inbox_deselect_all">إلغاء التحديد</string>
+    <string name="inbox_clear_all">مسح الكل</string>
+    <string name="inbox_add_to_chat">أضف إلى هذه المحادثة</string>
+    <string name="inbox_need_chat">افتح محادثة أولاً</string>
+    <string name="inbox_footer_help">يمسح نسخة التطبيق فقط، لا الملف الأصلي.</string>
+    <string name="inbox_remove">إزالة الملف</string>
+    <string name="inbox_staged">تمت إضافة %1$d ملفات</string>
+    <string name="inbox_stage_failed">تعذرت قراءة الملف.</string>
+    <string name="inbox_added">تمت إضافة %1$d ملفات</string>
+    <string name="inbox_add_failed">تعذرت إضافة %1$d ملفات</string>
+    <string name="inbox_cleared">تم مسح القائمة</string>
+    <string name="inbox_trigger">ملفات معلقة</string>
 </resources>
