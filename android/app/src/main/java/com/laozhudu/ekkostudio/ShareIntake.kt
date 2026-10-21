@@ -34,18 +34,33 @@ data class PendingFile(
  */
 object ShareIntake {
 
+    /**
+     * The order-preserving de-duplication a share needs.
+     *
+     * String in, string out, so this is testable: `android.net.Uri` is a stub in
+     * the JVM test runtime, and enabling `returnDefaultValues` to work around that
+     * would make every other Android stub silently return null too.
+     */
+    fun dedupe(uris: List<String>): List<String> = uris.filter { it.isNotBlank() }.distinct()
+
+    /** A caption is trimmed, and a blank one is no caption at all. */
+    fun cleanCaption(raw: String?): String = raw?.trim().orEmpty()
+
     /** The URIs a share intent carries, in order, de-duplicated. */
     fun streamUris(intent: Intent?): List<Uri> {
         if (intent == null) return emptyList()
         val single = @Suppress("DEPRECATION") intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
         val multiple = @Suppress("DEPRECATION") intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-        return (listOfNotNull(single) + multiple.orEmpty())
-            .distinctBy { it.toString() }
+        val all = listOfNotNull(single) + multiple.orEmpty()
+        // De-duplicated by string, then mapped back to the original Uri objects so
+        // the caller never sees a re-parsed one.
+        val keep = dedupe(all.map { it.toString() }).toSet()
+        return all.filter { it.toString() in keep }.distinctBy { it.toString() }
     }
 
     /** A caption sent alongside the files, when the sender included one. */
     fun caption(intent: Intent?): String =
-        intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+        cleanCaption(intent?.getStringExtra(Intent.EXTRA_TEXT))
 
     /** The display name a picker shows, falling back to the last path segment. */
     fun displayName(resolver: ContentResolver, uri: Uri): String {

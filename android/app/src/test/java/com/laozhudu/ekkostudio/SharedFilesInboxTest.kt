@@ -1,9 +1,6 @@
 package com.laozhudu.ekkostudio
 
-import android.content.Intent
-import android.net.Uri
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -21,50 +18,30 @@ class SharedFilesInboxTest {
 
     // ── intake rules ─────────────────────────────────────────────────────
 
-    @Test
-    fun `a single stream and a multiple stream are both read`() {
-        val one = Intent(Intent.ACTION_SEND).apply {
-            putExtra(Intent.EXTRA_STREAM, Uri.parse("content://p/1"))
-        }
-        assertEquals(listOf("content://p/1"), ShareIntake.streamUris(one).map { it.toString() })
+    // `android.content.Intent` and `android.net.Uri` are stubs in the JVM test
+    // runtime, so the rules that matter are pure string functions and are tested
+    // as such. Turning on returnDefaultValues to test the Intent adapter instead
+    // would make every other Android stub silently return null.
 
-        val many = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-            putParcelableArrayListExtra(
-                Intent.EXTRA_STREAM,
-                arrayListOf(Uri.parse("content://p/1"), Uri.parse("content://p/2")),
-            )
-        }
+    @Test
+    fun `streams keep their order and drop duplicates`() {
         assertEquals(
-            listOf("content://p/1", "content://p/2"),
-            ShareIntake.streamUris(many).map { it.toString() },
+            listOf("content://p/2", "content://p/1"),
+            ShareIntake.dedupe(listOf("content://p/2", "content://p/1", "content://p/2")),
         )
     }
 
     @Test
-    fun `the same uri twice is staged once`() {
-        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-            putParcelableArrayListExtra(
-                Intent.EXTRA_STREAM,
-                arrayListOf(Uri.parse("content://p/1"), Uri.parse("content://p/1")),
-            )
-        }
-
-        assertEquals(1, ShareIntake.streamUris(intent).size)
+    fun `a blank uri entry is not a file`() {
+        assertEquals(listOf("content://p/1"), ShareIntake.dedupe(listOf("", "content://p/1", "   ")))
+        assertEquals(emptyList<String>(), ShareIntake.dedupe(emptyList()))
     }
 
     @Test
-    fun `a caption rides along and an empty one does not`() {
-        assertEquals("look at this", ShareIntake.caption(Intent(Intent.ACTION_SEND).apply { putExtra(Intent.EXTRA_TEXT, "look at this") }))
-        assertEquals("", ShareIntake.caption(Intent(Intent.ACTION_SEND)))
-        assertEquals("", ShareIntake.caption(null))
-    }
-
-    @Test
-    fun `only share intents with a stream count`() {
-        assertTrue(Intent(Intent.ACTION_SEND).apply { putExtra(Intent.EXTRA_STREAM, Uri.parse("content://p/1")) }.isShareIntent())
-        assertFalse("a share with no file is not a file share", Intent(Intent.ACTION_SEND).isShareIntent())
-        assertFalse(Intent(Intent.ACTION_VIEW, Uri.parse("content://p/1")).isShareIntent())
-        assertFalse(Intent().isShareIntent())
+    fun `a caption is trimmed, and a blank one is no caption`() {
+        assertEquals("look at this", ShareIntake.cleanCaption("  look at this \n"))
+        assertEquals("", ShareIntake.cleanCaption("   "))
+        assertEquals("", ShareIntake.cleanCaption(null))
     }
 
     @Test
