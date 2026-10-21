@@ -1013,4 +1013,6 @@
     <string name="bundle_skill_count">%1$d مهارات</string>
     <string name="bundle_created">تم إنشاء الحزمة %1$s</string>
     <string name="bundle_deleted">تم حذف الحزمة %1$s</string>
+    <string name="task_plan_state_running">قيد التنفيذ</string>
+    <string name="task_plan_state_paused">متوقف</string>
 </resources>

@@ -2177,8 +2177,9 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
                                 val secs = if (state.runStartedAtMillis > 0) {
                                     (tick - state.runStartedAtMillis).coerceAtLeast(0) / 1000
                                 } else 0
-                                Text(
-                                    buildString {
+                                // Same sweep the web uses for its live status label.
+                                ShimmerText(
+                                    text = buildString {
                                         append(stringResource(R.string.run_status_working))
                                         if (secs >= 1) append(" ").append(secs).append("s")
                                         state.lines.lastOrNull()?.tools
@@ -2186,9 +2187,7 @@ private fun ConversationTopBar(state: UiState, profile: String, avatar: AvatarSp
                                             ?.let { append(" · ").append(it.name) }
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    dark = MaterialTheme.colorScheme.isInkDark(),
                                 )
                             } else {
                                 Text(
@@ -2497,26 +2496,38 @@ private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()
                     tint = inkTextMuted(inkDark),
                 )
             }
-            Text(
-                buildString {
-                    if (line.streaming) {
-                        append(stringResource(R.string.run_status_working))
-                        elapsed?.let { append(" · ").append(it) }
-                        runningTool?.let { append(" · ").append(it.name) }
-                    } else {
-                        append(stringResource(R.string.process_title))
-                        if (line.tools.isNotEmpty()) {
-                            append(" · ").append(stringResource(R.string.process_tools, line.tools.size))
-                        }
-                        elapsed?.let { append(" · ").append(it) }
+            val headerStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+            val headerText = buildString {
+                if (line.streaming) {
+                    append(stringResource(R.string.run_status_working))
+                    elapsed?.let { append(" · ").append(it) }
+                    runningTool?.let { append(" · ").append(it.name) }
+                } else {
+                    append(stringResource(R.string.process_title))
+                    if (line.tools.isNotEmpty()) {
+                        append(" · ").append(stringResource(R.string.process_tools, line.tools.size))
                     }
-                },
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = inkTextMuted(inkDark),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
+                    elapsed?.let { append(" · ").append(it) }
+                }
+            }
+            if (line.streaming) {
+                // The web applies the sweep only while the answer is arriving.
+                ShimmerText(
+                    text = headerText,
+                    style = headerStyle.copy(color = inkTextMuted(inkDark)),
+                    dark = inkDark,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Text(
+                    text = headerText,
+                    style = headerStyle,
+                    color = inkTextMuted(inkDark),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             if (hasDetails) {
                 val chevronDeg by animateFloatAsState(
                     targetValue = if (expanded) 0f else 180f,

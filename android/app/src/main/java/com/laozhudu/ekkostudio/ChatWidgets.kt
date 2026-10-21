@@ -471,6 +471,67 @@ internal fun ApprovalBanner(count: Int, onClick: () -> Unit, modifier: Modifier 
 }
 
 
+
+/**
+ * The web's "thinking" shimmer, ported to Compose.
+ *
+ * Official implementation (MessageList CSS, `.thinking-status-label`):
+ *   background: linear-gradient(105deg,
+ *       var(--text-secondary) 0% 39%, #fff 48% 52%, var(--text-secondary) 61% 100%)
+ *   background-size: 300% 100%; background-clip: text; color: transparent;
+ *   animation: thinking-label-shimmer 2.2s linear infinite  (100% -> 0%)
+ *
+ * In Compose the same effect is a text brush whose gradient slides across the
+ * glyphs. Dark mode swaps the highlight for #2f3540, exactly like the web.
+ */
+@Composable
+internal fun rememberShimmerBrush(dark: Boolean): androidx.compose.ui.graphics.Brush {
+    val transition = rememberInfiniteTransition(label = "statusShimmer")
+    val shift by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2_200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "statusShimmerShift",
+    )
+    val base = if (dark) Color(0xFFF0F0F0) else Color(0xFF666666)
+    val highlight = if (dark) Color(0xFF2F3540) else Color(0xFFFFFFFF)
+    // 300% of a nominal label width, so the bright band sweeps the whole line.
+    val width = 900f
+    val startX = shift * width
+    return Brush.linearGradient(
+        colorStops = arrayOf(
+            0.00f to base,
+            0.39f to base,
+            0.48f to highlight,
+            0.52f to highlight,
+            0.61f to base,
+            1.00f to base,
+        ),
+        start = androidx.compose.ui.geometry.Offset(startX, 0f),
+        end = androidx.compose.ui.geometry.Offset(startX + width, 0f),
+    )
+}
+
+/** One-line label with the official shimmer sweep. */
+@Composable
+internal fun ShimmerText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    dark: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = style.copy(brush = rememberShimmerBrush(dark)),
+        modifier = modifier,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
 /**
  * Global run status pill — shown on every screen while a run is in flight.
  *
@@ -498,12 +559,15 @@ internal fun GlobalRunStatusStrip(
     val title = state.sessions.firstOrNull { it.id == state.runSessionId }?.title
     val notice = state.runNotices.lastOrNull()
 
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
     Surface(
         modifier = modifier.clickable(onClick = onOpen),
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        tonalElevation = 4.dp,
+        // The web shows the live status on the assistant bubble surface with a
+        // hairline; a tinted pill would fight the shimmer it sits behind.
+        color = inkMessageBg(inkDark),
+        border = androidx.compose.foundation.BorderStroke(1.dp, inkSystemBorder(inkDark)),
+        tonalElevation = 0.dp,
         shadowElevation = 6.dp,
     ) {
         Row(
@@ -514,18 +578,18 @@ internal fun GlobalRunStatusStrip(
             CircularProgressIndicator(
                 modifier = Modifier.size(12.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = inkTextSecondary(inkDark),
             )
-            Text(
-                buildString {
-                    append(stringResource(R.string.run_status_working))
-                    if (elapsed >= 1) append(" ").append("%.0fs".format(Locale.US, elapsed))
-                    (tool?.name ?: title)?.let { append(" · ").append(it) }
-                    notice?.let { append(" · ").append(it.take(28)) }
-                },
+            val label = buildString {
+                append(stringResource(R.string.run_status_working))
+                if (elapsed >= 1) append(" ").append("%.0fs".format(Locale.US, elapsed))
+                (tool?.name ?: title)?.let { append(" · ").append(it) }
+                notice?.let { append(" · ").append(it.take(28)) }
+            }
+            ShimmerText(
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                dark = inkDark,
                 modifier = Modifier.widthIn(max = 260.dp),
             )
         }

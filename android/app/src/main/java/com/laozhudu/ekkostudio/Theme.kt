@@ -214,6 +214,26 @@ fun telegramBubbleShape(isUser: Boolean) = androidx.compose.foundation.shape.Rou
     bottomStart = if (isUser) 16.dp else 4.dp,
 )
 
+// ── Semantic colours missing from the old palette ─────────────────────────
+// Values taken from the official 0.7.38 tokens (--success / --warning /
+// --accent-info); docs/design-tokens-0.7.38.tsv is the source of truth.
+
+/** --success: completed steps, healthy probes. */
+fun inkSuccess(dark: Boolean): Color =
+    if (dark) Color(0xFF66BB6A) else Color(0xFF2E7D32)
+
+/** --warning: degraded but usable. */
+fun inkWarning(dark: Boolean): Color =
+    if (dark) Color(0xFFFFB74D) else Color(0xFFF57F17)
+
+/** --accent-info: informational accents. */
+fun inkInfo(dark: Boolean): Color =
+    if (dark) Color(0xFF6BA3D6) else Color(0xFF4A90D9)
+
+/** --msg-system-border: hairline around system rows. */
+fun inkSystemBorder(dark: Boolean): Color =
+    if (dark) Color(0xFF555555) else Color(0xFFBDBDBD)
+
 /** --ink-bg-card-hover: tool-call rows, attach chips, avatar discs. */
 fun inkCardHover(dark: Boolean): Color =
     if (dark) Color(0xFF222323) else Color(0xFFFAFAFA)
