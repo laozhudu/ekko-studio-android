@@ -850,6 +850,31 @@ class HermesApi(
     fun importProfile(bytes: ByteArray, filename: String) { multipart("/api/hermes/profiles/import", "file", bytes, filename, "application/gzip", emptyMap(), null) }
     fun profileExportUrl(name: String): String = url("/api/hermes/profiles/${enc(name)}/export?token=${enc(token)}")
 
+    // ── workspace directories ───────────────────────────────────────────
+    // Saved folders the workspace picker offers. `favorite` is the only mutable
+    // field; the path itself is the identity.
+
+    fun workspaceDirectories(): List<WorkspaceDirectory> {
+        val array = call("/api/studio/workspace/directories").optJSONArray("directories") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val path = firstNonBlank(item, "path", "directory", "fullPath") ?: return@mapNotNull null
+            WorkspaceDirectory(path = path, favorite = item.optBoolean("favorite"))
+        }
+    }
+
+    fun addWorkspaceDirectory(path: String) {
+        call("/api/studio/workspace/directories", "POST", JSONObject().put("path", path))
+    }
+
+    fun setWorkspaceDirectoryFavorite(path: String, favorite: Boolean) {
+        call(
+            "/api/studio/workspace/directories",
+            "PATCH",
+            JSONObject().put("path", path).put("favorite", favorite),
+        )
+    }
+
     // ── skill bundles ───────────────────────────────────────────────────
     // A bundle is a named group of skills invoked with its own slash command.
     // Create takes {name, description, skills[]}; list returns the same objects,
@@ -2402,6 +2427,12 @@ data class Message(
     /** Rows that belong to the agent's machinery rather than to the conversation. */
     val isToolRow: Boolean get() = role == "tool"
 }
+
+/** A folder offered by the workspace picker. */
+data class WorkspaceDirectory(
+    val path: String,
+    val favorite: Boolean,
+)
 
 data class SkillBundle(
     val name: String,

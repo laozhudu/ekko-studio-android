@@ -961,4 +961,7 @@
     <string name="bundle_deleted">已删除技能包 %1$s</string>
     <string name="task_plan_state_running">执行中</string>
     <string name="task_plan_state_paused">已暂停</string>
+    <string name="workspace_save_shortcut">收藏此目录</string>
+    <string name="workspace_saved">已收藏该目录</string>
+    <string name="workspace_shortcut_updated">收藏已更新</string>
 </resources>

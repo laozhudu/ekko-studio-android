@@ -962,4 +962,7 @@
     <string name="bundle_deleted">Bundle %1$s deleted</string>
     <string name="task_plan_state_running">Running</string>
     <string name="task_plan_state_paused">Paused</string>
+    <string name="workspace_save_shortcut">Save this folder</string>
+    <string name="workspace_saved">Folder saved</string>
+    <string name="workspace_shortcut_updated">Shortcut updated</string>
 </resources>

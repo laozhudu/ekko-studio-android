@@ -961,4 +961,7 @@
     <string name="bundle_deleted">تم حذف الحزمة %1$s</string>
     <string name="task_plan_state_running">قيد التنفيذ</string>
     <string name="task_plan_state_paused">متوقف</string>
+    <string name="workspace_save_shortcut">احفظ هذا المجلد</string>
+    <string name="workspace_saved">تم حفظ المجلد</string>
+    <string name="workspace_shortcut_updated">تم تحديث الاختصار</string>
 </resources>

@@ -590,6 +590,8 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
             WorkspaceScreen(
                 path = state.workspacePath,
                 entries = state.workspaceEntries,
+                directories = state.workspaceDirectories,
+                onToggleFavorite = viewModel::toggleWorkspaceFavorite,
                 loading = state.workspaceLoading,
                 fileName = state.workspaceFileName.takeIf { state.workspaceFile != null },
                 fileContent = state.workspaceFile,

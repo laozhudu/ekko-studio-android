@@ -37,6 +37,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.AssistChip
 
 /**
  * Read-only browser for the folder the current conversation works in.
@@ -50,6 +54,8 @@ import androidx.compose.ui.res.stringResource
 fun WorkspaceScreen(
     path: String,
     entries: List<WorkspaceEntry>,
+    directories: List<WorkspaceDirectory>,
+    onToggleFavorite: (String) -> Unit,
     loading: Boolean,
     fileName: String?,
     fileContent: String?,
@@ -99,6 +105,14 @@ fun WorkspaceScreen(
                 },
                 actions = {
                     if (!previewing) {
+                        // Saving the folder you are looking at is the whole point of
+                        // the directory list; the star reflects whether it is saved.
+                        IconButton(onClick = { onToggleFavorite(path) }, enabled = path.isNotBlank()) {
+                            Icon(
+                                if (directories.any { it.path == path }) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                contentDescription = stringResource(R.string.workspace_save_shortcut),
+                            )
+                        }
                         IconButton(onClick = onRefresh, enabled = !loading) {
                             Icon(Icons.Filled.Refresh, contentDescription = null)
                         }
@@ -148,6 +162,41 @@ fun WorkspaceScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 6.dp),
                     ) {
+                        if (directories.isNotEmpty()) {
+                            item(key = "shortcuts") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    directories.forEach { directory ->
+                                        AssistChip(
+                                            onClick = {
+                                                onOpenDir(
+                                                    WorkspaceEntry(
+                                                        name = directory.path.substringAfterLast('/'),
+                                                        path = directory.path,
+                                                        isDir = true,
+                                                        size = 0,
+                                                        modified = "",
+                                                    ),
+                                                )
+                                            },
+                                            label = {
+                                                Text(
+                                                    if (directory.favorite) "★ " else "" +
+                                                        directory.path.substringAfterLast('/').ifBlank { directory.path },
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         items(entries, key = { it.path }) { entry ->
                             WorkspaceRow(
                                 entry = entry,

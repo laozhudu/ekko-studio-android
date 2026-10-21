@@ -232,6 +232,8 @@ data class UiState(
     /** 0..100, or -1 when the update reports no progress of its own. */
     val updateProgress: Int = -1,
     val agentPolicies: List<AgentPolicy> = emptyList(),
+    /** Saved workspace folders offered as shortcuts. */
+    val workspaceDirectories: List<WorkspaceDirectory> = emptyList(),
     /** Skill bundles, shown in the slash-command sheet. */
     val bundles: List<SkillBundle> = emptyList(),
     val bundlesLoading: Boolean = false,
@@ -802,6 +804,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun openWorkspace() {
         _state.update { it.copy(screen = Screen.Workspace, workspaceLoading = true, error = null, workspaceFile = null) }
+        loadWorkspaceDirectories()
         viewModelScope.launch {
             val root = filesRootCache ?: runCatching {
                 withContext(Dispatchers.IO) { api.filesRoot() }
@@ -1106,6 +1109,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(studioLoading = false, error = failure.readableMessage(localized))
                 }
             }
+        }
+    }
+
+    // ---- Workspace directories ------------------------------------------
+
+    fun loadWorkspaceDirectories() {
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.workspaceDirectories() } }
+                .onSuccess { list -> _state.update { it.copy(workspaceDirectories = list) } }
+                .onFailure { /* shortcuts are optional; the browser still works */ }
+        }
+    }
+
+    /** Saves the folder currently open in the browser, or removes it again. */
+    fun toggleWorkspaceFavorite(path: String) {
+        if (path.isBlank()) return
+        val current = _state.value.workspaceDirectories.firstOrNull { it.path == path }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    if (current == null) {
+                        api.addWorkspaceDirectory(path)
+                        api.setWorkspaceDirectoryFavorite(path, true)
+                    } else {
+                        api.setWorkspaceDirectoryFavorite(path, !current.favorite)
+                    }
+                }
+            }
+                .onSuccess {
+                    _state.update {
+                        it.copy(notice = str(if (current == null) R.string.workspace_saved else R.string.workspace_shortcut_updated))
+                    }
+                    loadWorkspaceDirectories()
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.readableMessage(localized)) }
+                }
         }
     }
 

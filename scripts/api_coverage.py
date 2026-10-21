@@ -38,6 +38,12 @@ OUT_OF_SCOPE = {
     "Petdex": "asset catalogue; only the manifest and adopt/active calls matter",
     "Announcements": "desktop release notes",
     "Performance": "server metrics; the app shows the runtime summary only",
+    # Verified on 0.7.38: creating or listing a share requires an app-device
+    # (`app_access`) token — GET /sessions/{id}/shares answers
+    # share_app_device_required, and there is no claim endpoint on a self-hosted
+    # server (POST /api/app-connections/claim is 404), so a direct-connect client
+    # cannot obtain one. Not a UI gap; unreachable by design.
+    "Session Shares": "requires an app-device token issued by the vendor cloud; unreachable for a self-hosted direct client",
 }
 
 # Operations that exist but are meaningless on a phone, per module.
