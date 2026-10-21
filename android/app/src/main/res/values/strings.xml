@@ -844,9 +844,9 @@
     <string name="devices_route_lan">Direct LAN</string>
     <string name="devices_route_cloud">Cloud relay</string>
     <string name="devices_route_title">Network route</string>
-    <string name="devices_route_description">Choose how this app reaches your device. Direct LAN is the only route this build supports.</string>
+    <string name="devices_route_description">Pick how this app reaches your Studio. Only a direct LAN or internet address works: peer-to-peer and cloud relay both need a pairing code issued by the vendor\'s cloud.</string>
     <string name="devices_route_switch_description">Choose the route used to reach Ekko Studio</string>
-    <string name="devices_route_cloud_unavailable">Cloud relay is not available in this build; the app only connects directly over your network.</string>
+    <string name="devices_route_cloud_unavailable">Unavailable: peer-to-peer and cloud relay need a device pairing token that only the vendor\'s cloud can issue. A self-hosted Studio cannot mint one.</string>
     <string name="devices_endpoint_desktop">Desktop</string>
     <string name="devices_endpoint_web">Web</string>
     <string name="devices_studio_version">Studio %1$s</string>
@@ -1028,4 +1028,17 @@
     <string name="run_stopping">Stopping…</string>
     <string name="run_stop_timeout">The server did not confirm the stop — the run may still be working.</string>
     <string name="workspace_changed_files">The agent changed %1$d files in the workspace</string>
+    <string name="about_check_update">Check for updates</string>
+    <string name="about_studio_version">Studio version</string>
+    <string name="about_hermes_version">Hermes Agent version</string>
+    <string name="about_unknown">Unknown</string>
+    <string name="about_source">Source code</string>
+    <string name="about_licences">Licences</string>
+    <string name="devices_tag_current">Current</string>
+    <string name="intro_background_title">Keep it running</string>
+    <string name="intro_background_body">Android stops background apps to save power. Without the three settings below, a long answer can finish on the server while your phone never hears about it.</string>
+    <string name="intro_background_notify">Allow notifications, so a finished run can tell you</string>
+    <string name="intro_background_battery">Turn off battery optimisation for this app</string>
+    <string name="intro_background_autostart">On MIUI / ColorOS / EMUI, also allow autostart</string>
+    <string name="intro_background_open">Open app settings</string>
 </resources>

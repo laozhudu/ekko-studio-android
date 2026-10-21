@@ -843,9 +843,9 @@
     <string name="devices_route_lan">اتصال مباشر بالشبكة المحلية</string>
     <string name="devices_route_cloud">ترحيل سحابي</string>
     <string name="devices_route_title">مسار الشبكة</string>
-    <string name="devices_route_description">اختر كيفية وصول هذا التطبيق إلى جهازك. الاتصال المباشر بالشبكة المحلية هو المسار الوحيد المدعوم في هذا الإصدار.</string>
+    <string name="devices_route_description">اختر طريقة الاتصال. الاتصال المباشر فقط متاح.</string>
     <string name="devices_route_switch_description">اختر المسار المستخدم للوصول إلى Ekko Studio</string>
-    <string name="devices_route_cloud_unavailable">الترحيل السحابي غير متوفر في هذا الإصدار؛ يتصل التطبيق مباشرة عبر شبكتك فقط.</string>
+    <string name="devices_route_cloud_unavailable">غير متاح: يتطلب رمز اقتران من سحابة المزوّد.</string>
     <string name="devices_endpoint_desktop">سطح المكتب</string>
     <string name="devices_endpoint_web">الويب</string>
     <string name="devices_studio_version">Studio %1$s</string>
@@ -1027,4 +1027,17 @@
     <string name="run_stopping">جارٍ الإيقاف…</string>
     <string name="run_stop_timeout">لم يؤكد الخادم الإيقاف.</string>
     <string name="workspace_changed_files">غيّر الوكيل %1$d ملفات</string>
+    <string name="about_check_update">التحقق من التحديثات</string>
+    <string name="about_studio_version">إصدار Studio</string>
+    <string name="about_hermes_version">إصدار Hermes Agent</string>
+    <string name="about_unknown">غير معروف</string>
+    <string name="about_source">الشيفرة المصدرية</string>
+    <string name="about_licences">التراخيص</string>
+    <string name="devices_tag_current">الحالي</string>
+    <string name="intro_background_title">أبقه يعمل</string>
+    <string name="intro_background_body">يوقف Android التطبيقات الخلفية لتوفير الطاقة.</string>
+    <string name="intro_background_notify">اسمح بالإشعارات</string>
+    <string name="intro_background_battery">أوقف تحسين البطارية</string>
+    <string name="intro_background_autostart">اسمح بالتشغيل التلقائي</string>
+    <string name="intro_background_open">افتح إعدادات التطبيق</string>
 </resources>

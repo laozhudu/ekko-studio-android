@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -98,6 +100,8 @@ private data class IntroPage(
     @StringRes val title: Int,
     @StringRes val body: Int,
     val points: List<Int> = emptyList(),
+    /** Shown as a button under the points; only the background page sets it. */
+    @StringRes val action: Int? = null,
 )
 
 private val INTRO_PAGES = listOf(
@@ -116,6 +120,21 @@ private val INTRO_PAGES = listOf(
             R.string.intro_server_step_return,
         ),
     ),
+    // The official client spends a whole settings section on this, because it is
+    // the difference between "the answer arrived" and "the answer arrived while
+    // the phone was in a pocket". It is not optional advice: several vendors kill
+    // background work no matter what the app does.
+    IntroPage(
+        icon = Icons.Filled.NotificationsActive,
+        title = R.string.intro_background_title,
+        body = R.string.intro_background_body,
+        points = listOf(
+            R.string.intro_background_notify,
+            R.string.intro_background_battery,
+            R.string.intro_background_autostart,
+        ),
+        action = R.string.intro_background_open,
+    ),
     IntroPage(
         icon = Icons.Filled.Lock,
         title = R.string.intro_privacy_title,
@@ -127,6 +146,7 @@ private val INTRO_PAGES = listOf(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(languageAction: @Composable () -> Unit = {}, onDone: () -> Unit) {
+    val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { INTRO_PAGES.size })
     val scope = rememberCoroutineScope()
     val isLast = pagerState.currentPage == INTRO_PAGES.lastIndex
@@ -214,6 +234,14 @@ fun OnboardingScreen(languageAction: @Composable () -> Unit = {}, onDone: () -> 
                             }
                         }
                     }
+                    page.action?.let { label ->
+                        Spacer(Modifier.height(20.dp))
+                        // Opens this app's own settings page: the one place where the
+                        // notification toggle and the battery exemption both live.
+                        TextButton(onClick = { openAppSettings(context) }) {
+                            Text(stringResource(label))
+                        }
+                    }
                 }
             }
 
@@ -246,4 +274,19 @@ fun OnboardingScreen(languageAction: @Composable () -> Unit = {}, onDone: () -> 
             }
         }
     }
+}
+
+/**
+ * Opens this app's row in the system settings.
+ *
+ * Notification permission and battery exemption both live behind that one
+ * screen, and neither can be toggled from inside the app. The vendors that kill
+ * background work (MIUI, ColorOS, EMUI) add their own entries beside it.
+ */
+internal fun openAppSettings(context: android.content.Context) {
+    val intent = android.content.Intent(
+        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        android.net.Uri.fromParts("package", context.packageName, null),
+    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

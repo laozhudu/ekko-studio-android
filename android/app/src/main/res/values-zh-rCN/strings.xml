@@ -843,9 +843,9 @@
     <string name="devices_route_lan">局域网直连</string>
     <string name="devices_route_cloud">云端中继</string>
     <string name="devices_route_title">网络线路</string>
-    <string name="devices_route_description">选择本应用连接设备的方式。本版本仅支持局域网直连。</string>
+    <string name="devices_route_description">选择本应用连接设备的方式。只有直连可用：P2P 与云端中继都需要厂商云端签发的配对码。</string>
     <string name="devices_route_switch_description">选择访问 Ekko Studio 的线路</string>
-    <string name="devices_route_cloud_unavailable">本版本未接入云端中继，应用只通过局域网直连。</string>
+    <string name="devices_route_cloud_unavailable">不可用：P2P 与云端中继需要厂商云端签发的设备配对令牌，自建 Studio 无法签发。</string>
     <string name="devices_endpoint_desktop">桌面端</string>
     <string name="devices_endpoint_web">Web 端</string>
     <string name="devices_studio_version">Studio %1$s</string>
@@ -1027,4 +1027,17 @@
     <string name="run_stopping">正在停止…</string>
     <string name="run_stop_timeout">服务端没有确认停止——任务可能还在跑。</string>
     <string name="workspace_changed_files">智能体改动了工作区的 %1$d 个文件</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_studio_version">Studio 版本</string>
+    <string name="about_hermes_version">Hermes Agent 版本</string>
+    <string name="about_unknown">未知</string>
+    <string name="about_source">源代码</string>
+    <string name="about_licences">开源许可</string>
+    <string name="devices_tag_current">当前设备</string>
+    <string name="intro_background_title">让它在后台活下来</string>
+    <string name="intro_background_body">Android 会为省电停掉后台应用。下面三项不开，长回答可能在服务端跑完了，手机却一直没收到。</string>
+    <string name="intro_background_notify">允许通知，任务跑完才通知得到你</string>
+    <string name="intro_background_battery">关掉这个应用的电池优化</string>
+    <string name="intro_background_autostart">小米/OPPO/华为等机型还要允许自启动</string>
+    <string name="intro_background_open">打开应用设置</string>
 </resources>

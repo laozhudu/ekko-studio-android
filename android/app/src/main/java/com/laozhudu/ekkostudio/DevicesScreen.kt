@@ -840,6 +840,18 @@ private fun DeviceCard(
             horizontalArrangement = Arrangement.spacedBy(metrics.versionGap),
             verticalArrangement = Arrangement.spacedBy(metrics.versionGap),
         ) {
+            // "Current device": the one this app is actually talking to. The
+            // official page shows this state as a first-class badge, and without
+            // it a list of five saved Studios gives no clue which one the chat
+            // tab belongs to.
+            if (active) {
+                DeviceTag(
+                    label = stringResource(R.string.devices_tag_current),
+                    tone = DeviceTagTone.Route,
+                    dark = dark,
+                    monospace = false,
+                )
+            }
             // Every device in this app is reached directly, so the official
             // `--local` badge is the only source value that can appear here. The
             // `--cloud` variant exists in DeviceTag and is pinned by the parity

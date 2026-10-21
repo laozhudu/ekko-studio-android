@@ -4981,7 +4981,7 @@ private fun SettingsGroupScreen(state: UiState, viewModel: AppViewModel) {
                     SettingsGroup.Proxy -> ProxyStudioSettings(state, viewModel)
                     SettingsGroup.Display -> DisplayStudioSettings(state, viewModel)
                     SettingsGroup.Device -> DeviceSettings(state, viewModel)
-                    SettingsGroup.About -> AboutSettings()
+                    SettingsGroup.About -> AboutScreen(state, viewModel)
                 }
             }
         }
@@ -5341,20 +5341,6 @@ private fun DeviceSettings(state: UiState, viewModel: AppViewModel) {
     )
 }
 
-@Composable
-private fun AboutSettings() {
-    SettingsRow(
-        icon = Icons.Filled.Info,
-        label = stringResource(R.string.settings_version),
-        value = BuildConfig.VERSION_NAME,
-    )
-    Text(
-        stringResource(R.string.settings_about_note),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-    )
-}
 
 private val TOOL_ENFORCEMENT = listOf(
     "auto" to R.string.agent_tool_auto,
