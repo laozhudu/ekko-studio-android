@@ -128,7 +128,7 @@ private fun RuntimeCard(runtime: AgentRuntimeStatus, viewModel: AppViewModel, st
                     // Computed into locals: `policy` is nullable, so reaching into it
                     // from inside a takeIf lambda does not smart-cast.
                     val currentVersion = policy?.current?.takeIf { it.isNotBlank() }
-                        ?: runtime.version.takeIf { it.isNotBlank() }
+                        ?: runtime.version?.takeIf { it.isNotBlank() }
                     val latestVersion = policy?.latest
                         ?.takeIf { it.isNotBlank() && it != currentVersion }
                     Text(
