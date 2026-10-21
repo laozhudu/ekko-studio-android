@@ -332,11 +332,12 @@ internal fun layoutWorkflowNodes(nodes: List<GraphNode>): Map<String, Pair<Float
     if (withPositions.size == nodes.size && withPositions.isNotEmpty()) {
         val minX = withPositions.minOf { it.x!! }
         val minY = withPositions.minOf { it.y!! }
-        return withPositions.associate { it.id to (it.x!! - minX) to (it.y!! - minY) }
+        // Explicit pairing: `a to b to c` builds Pair<Pair<a,b>,c>, not the point.
+        return withPositions.associate { it.id to ((it.x!! - minX) to (it.y!! - minY)) }
     }
     return nodes.mapIndexed { index, node ->
         val column = index % GRAPH_PER_ROW
         val row = index / GRAPH_PER_ROW
-        node.id to (column * (GRAPH_NODE_W + GRAPH_GAP_X)) to (row * (GRAPH_NODE_H + GRAPH_GAP_Y))
+        node.id to ((column * (GRAPH_NODE_W + GRAPH_GAP_X)) to (row * (GRAPH_NODE_H + GRAPH_GAP_Y)))
     }.toMap()
 }
