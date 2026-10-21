@@ -196,3 +196,49 @@
 | 连接页从未加载真实数据 | `refreshConnections()` 接上真实接口，补了 LAN/云配对二维码 |
 
 仍未处理（需要服务端，或属于结构治理）：消息编辑/撤回、已读回执、草稿同步、typing、消息级搜索；`MainActivity.kt` 拆分；16 个源码文本断言测试转行为测试；剩余 `/api/hermes/*` 调用逐步迁 `/api/studio/*`（新代码已一律使用官方路径）。
+
+
+---
+
+## v0.11.1：路径对齐结果（并更正一处结论）
+
+### 更正："84 处未文档化别名"这个说法是错的
+
+导出的 `openapi.json` 里 `/api/hermes/*` 有 **127 条**、`/api/studio/*` 有 **213 条**、其它 98 条。也就是说绝大多数 `/api/hermes/*` 调用**本来就有文档**，不是"未文档化别名"。重新精确统计：
+
+| 指标 | 数值 |
+|---|---|
+| 客户端不同调用路径 | 173 |
+| 在规范中可定位 | **150** |
+| 真正未文档化 | 23 |
+
+那 23 条里有 16 条是"只以 `/api/studio` 形式存在"的路径，属于应当迁移的，已在本版处理。
+
+### 已迁移（每条都先用真实请求验证过）
+
+`GET` 返回 200、`POST` 返回 400（缺参数）即证明路由存在：
+
+```
+sessions/context-length      sessions/{id}/model        usage/stats
+performance/runtime          petdex/manifest           pets/active
+pets/adopt                   stt/transcribe            stt/settings
+stt/profile-status           tts/synthesize            group-chat/rooms(+/{id}, +/agents)
+files/download
+```
+
+`sessions/{id}/model` 与 `context-length` 保留 `/api/hermes` 作为第二次尝试，旧服务器仍可用。
+
+### 新增的防漂移测试
+
+`ApiPathAlignmentTest` 把 529 条官方路径固化到 `src/test/resources/openapi-paths.txt`，任何 `/api` 字面量若既不在其中、也不在白名单里（白名单每条都要写理由），CI 直接红。
+
+- **静态路径**逐字符比对 —— 这正是能挡住 `/api/devices/*`、`/api/chat-run/runs` 的检查
+- **动态路径**（`kanban$suffix`、`jobs/${id}/$action`）按模块级比对，因为字面量只有运行时才成型
+
+同时新增 `noCommentLineOpensANestedBlockComment`：Kotlin 块注释可嵌套，注释里写 `/api/devices/*` 会吞掉整个文件。这个坑今天踩了三次，现在有测试兜底。
+
+### 仍未做（明确记录，不假装完成）
+
+- **`MainActivity.kt` 拆分**（6,115 行）：机械搬运 + 大量 private 辅助函数要改可见性，属于"高风险、零用户可见收益"，本版**刻意不做**。建议单独一轮、只做搬运、不夹带功能改动。
+- 16 个"读源码字符串"的测试：本版新增了契约式与守卫式测试，但存量文本断言未批量改写。
+- 服务端确无：消息编辑/撤回、已读回执、草稿同步、typing、消息级搜索。
