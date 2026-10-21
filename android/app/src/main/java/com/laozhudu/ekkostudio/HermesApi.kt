@@ -1853,14 +1853,16 @@ class HermesApi(
     /** PUT /api/studio/group-chat/rooms/{id}/config */
     fun updateRoomConfig(
         roomId: String,
-        name: String?,
-        handoffEnabled: Boolean?,
-        handoffUnlimited: Boolean?,
-        handoffMaxDepth: Int?,
-        summaryEveryTurns: Int?,
-        summaryModel: String?,
-        summaryProvider: String?,
-        summaryProfile: String?,
+        // Every field is optional because the route is a partial update: sending
+        // null must leave the server's value alone, not clear it.
+        name: String? = null,
+        handoffEnabled: Boolean? = null,
+        handoffUnlimited: Boolean? = null,
+        handoffMaxDepth: Int? = null,
+        summaryEveryTurns: Int? = null,
+        summaryModel: String? = null,
+        summaryProvider: String? = null,
+        summaryProfile: String? = null,
     ) {
         val body = JSONObject()
         name?.takeIf { it.isNotBlank() }?.let { body.put("name", it) }
