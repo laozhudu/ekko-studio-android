@@ -1092,4 +1092,9 @@
     <string name="room_context_cleared">تم مسح السياق</string>
     <string name="room_workspace">مساحة العمل: %1$s</string>
     <string name="room_settings_readonly">المالك فقط.</string>
+    <string name="preset_manage">إعدادات الوكيل المسبقة</string>
+    <string name="preset_none">لا توجد إعدادات مسبقة</string>
+    <string name="preset_count">%1$d إعدادات</string>
+    <string name="preset_create">إعداد جديد</string>
+    <string name="preset_delete">حذف الإعداد؟</string>
 </resources>

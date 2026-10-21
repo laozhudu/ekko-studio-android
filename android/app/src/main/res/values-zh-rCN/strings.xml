@@ -1092,4 +1092,9 @@
     <string name="room_context_cleared">群上下文已清空</string>
     <string name="room_workspace">工作区：%1$s</string>
     <string name="room_settings_readonly">只有群主可以修改这些设置。</string>
+    <string name="preset_manage">智能体预设</string>
+    <string name="preset_none">还没有预设</string>
+    <string name="preset_count">%1$d 个预设</string>
+    <string name="preset_create">新建预设</string>
+    <string name="preset_delete">删除这个预设？</string>
 </resources>

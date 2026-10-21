@@ -1093,4 +1093,9 @@
     <string name="room_context_cleared">Room context cleared</string>
     <string name="room_workspace">Workspace: %1$s</string>
     <string name="room_settings_readonly">Only the room owner can change these settings.</string>
+    <string name="preset_manage">Agent presets</string>
+    <string name="preset_none">No presets yet</string>
+    <string name="preset_count">%1$d presets</string>
+    <string name="preset_create">New preset</string>
+    <string name="preset_delete">Delete this preset?</string>
 </resources>

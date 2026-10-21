@@ -76,6 +76,7 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
     var addingAgent by remember { mutableStateOf(false) }
     var removingMember by remember { mutableStateOf<RoomMember?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var managingPresets by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
 
     LaunchedEffect(Unit) { viewModel.loadAgentPresets() }
@@ -113,6 +114,15 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
         )
     }
 
+    if (managingPresets) {
+        PresetManagerDialog(
+            presets = state.agentPresets,
+            profiles = state.profiles.map { it.name },
+            onSave = { existing, draft -> viewModel.saveAgentPreset(existing, draft) },
+            onDelete = { viewModel.deleteAgentPreset(it) },
+            onDismiss = { managingPresets = false },
+        )
+    }
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
@@ -155,10 +165,12 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
             when (tab) {
                 0 -> AgentsTab(
                     room = room,
+                    presets = state.agentPresets,
                     canManage = room?.canManage == true,
                     onAdd = { addingAgent = true },
                     onEdit = { editingAgent = it },
                     onDelete = { viewModel.deleteRoomAgent(room?.id.orEmpty(), it.id) },
+                    onManagePresets = { managingPresets = true },
                 )
                 1 -> MembersTab(
                     room = room,
@@ -184,16 +196,35 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
 @Composable
 private fun AgentsTab(
     room: RoomDetail?,
+    presets: List<AgentPreset>,
     canManage: Boolean,
     onAdd: () -> Unit,
     onEdit: (RoomAgent) -> Unit,
     onDelete: (RoomAgent) -> Unit,
+    onManagePresets: () -> Unit,
 ) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val agents = room?.agentList.orEmpty()
     Column(Modifier.fillMaxSize()) {
         if (!canManage) {
             Note(stringResource(R.string.room_agents_readonly))
+        }
+        // Presets are account-wide defaults, so they belong beside the add button
+        // rather than inside it: you set them up once and reuse them per room.
+        if (canManage) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (presets.isEmpty()) stringResource(R.string.preset_none)
+                    else stringResource(R.string.preset_count, presets.size),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 11.sp,
+                    color = inkTextMuted(inkDark),
+                )
+                TextButton(onClick = onManagePresets) { Text(stringResource(R.string.preset_manage)) }
+            }
         }
         if (agents.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -540,5 +571,119 @@ private fun RoomAgentDialog(
             ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+/**
+ * Account-wide agent defaults.
+ *
+ * A preset is a saved (profile, provider, model, effort) bundle that the add-agent
+ * sheet can apply in one tap. The server stores them per account, not per room,
+ * which is why this lives in the same dialog the room agent editor reads from.
+ */
+@Composable
+private fun PresetManagerDialog(
+    presets: List<AgentPreset>,
+    profiles: List<String>,
+    onSave: (AgentPreset?, RoomAgentDraft) -> Unit,
+    onDelete: (AgentPreset) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    var editing by remember { mutableStateOf<AgentPreset?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf<AgentPreset?>(null) }
+
+    if (creating || editing != null) {
+        RoomAgentDialog(
+            initial = editing?.let { preset ->
+                // Reuse the agent editor: the fields are the same ones a preset holds.
+                RoomAgent(
+                    id = preset.id,
+                    name = preset.name,
+                    description = preset.description,
+                    profile = preset.profile,
+                    agent = preset.agent,
+                    agentMode = preset.agentMode,
+                    model = preset.model,
+                    provider = preset.provider,
+                    apiMode = preset.apiMode,
+                    reasoningEffort = preset.reasoningEffort,
+                    avatar = preset.avatar,
+                )
+            },
+            presets = emptyList(),
+            profiles = profiles,
+            onDismiss = { creating = false; editing = null },
+            onConfirm = { draft ->
+                onSave(editing, draft)
+                creating = false
+                editing = null
+            },
+        )
+    }
+
+    confirmDelete?.let { preset ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text(stringResource(R.string.preset_delete)) },
+            text = { Text(preset.name) },
+            confirmButton = {
+                TextButton(onClick = { onDelete(preset); confirmDelete = null }) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.preset_manage)) },
+        text = {
+            Column(
+                Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (presets.isEmpty()) {
+                    Text(
+                        stringResource(R.string.preset_none),
+                        fontSize = 12.sp,
+                        color = inkTextMuted(inkDark),
+                    )
+                }
+                presets.forEach { preset ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(preset.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                listOfNotNull(
+                                    preset.profile.takeIf { it.isNotBlank() },
+                                    preset.model.takeIf { it.isNotBlank() },
+                                    preset.reasoningEffort.takeIf { it.isNotBlank() },
+                                ).joinToString(" · "),
+                                fontSize = 10.sp,
+                                color = inkTextMuted(inkDark),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        TextButton(onClick = { editing = preset }) { Text(stringResource(R.string.action_edit)) }
+                        IconButton(onClick = { confirmDelete = preset }) {
+                            Icon(Icons.Filled.Delete, stringResource(R.string.action_delete), Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { creating = true }) { Text(stringResource(R.string.preset_create)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } },
     )
 }
