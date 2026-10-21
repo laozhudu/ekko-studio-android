@@ -1442,7 +1442,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * The connections screen is built on the endpoints that actually exist on
      * 0.7.x: GET /api/app-connections, GET /api/app-relay/status and the
-     * authorization-code endpoints. The old /api/devices/*, /devices/pairing-link
+     * authorization-code endpoints. The old /api/devices routes, pairing-link
      * and /devices/peer-connections routes all return 404, so the screen used to
      * open empty with an error.
      */
