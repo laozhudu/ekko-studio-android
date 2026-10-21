@@ -875,39 +875,6 @@ class HermesApi(
     }
     fun ekkoSkillFile(profile: String, name: String, path: String): String = call("/api/ekko/skills/${enc(name)}/file?path=${enc(path)}", profile = profile).optString("content")
 
-    fun appConnections(): List<AppConnection> {
-        val array = call("/api/app-connections").optJSONArray("connections") ?: JSONArray()
-        return (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { item -> AppConnection(item.optInt("id"), firstNonBlank(item, "device_name", "device_model") ?: item.optString("device_code"), item.optString("connection_type"), item.optBoolean("active"), item.optBoolean("online")) } }.filter { it.id > 0 }
-    }
-    fun createAppAuthorization(cloud: Boolean): AppAuthorization {
-        val result = call("/api/app-connections/authorization-codes/${if (cloud) "cloud" else "lan"}", "POST", JSONObject())
-        val code = firstNonBlank(result, "matching_code", "authorization_code", "code") ?: ""
-        return AppAuthorization(code, result.firstLong("expires_at", "expiresAt") ?: 0, result.optString("connection_type").ifBlank { if (cloud) "cloud" else "lan" }, firstNonBlank(result, "qr_payload", "qrPayload") ?: code)
-    }
-    fun revokeAppConnection(id: Int) { call("/api/app-connections/$id", "DELETE") }
-
-    fun switchActiveProfile(name: String) { call("/api/hermes/profiles/active", "PUT", JSONObject().put("name", name)) }
-    fun updateProfileAvatar(name: String, dataUrl: String) { call("/api/hermes/profiles/${enc(name)}/avatar", "PUT", JSONObject().put("avatar", JSONObject().put("type", "image").put("dataUrl", dataUrl))) }
-    fun clearProfileAvatar(name: String) { call("/api/hermes/profiles/${enc(name)}/avatar", "DELETE") }
-    fun importProfile(bytes: ByteArray, filename: String) { multipart("/api/hermes/profiles/import", "file", bytes, filename, "application/gzip", emptyMap(), null) }
-    fun profileExportUrl(name: String): String = url("/api/hermes/profiles/${enc(name)}/export?token=${enc(token)}")
-
-    fun ekkoSkillDetail(profile: String, name: String): String {
-        val skill = call("/api/ekko/skills/${enc(name)}", profile = profile).optJSONObject("skill") ?: JSONObject()
-        return skill.optString("content")
-    }
-    fun createEkkoSkill(profile: String, name: String, content: String) { call("/api/ekko/skills", "POST", JSONObject().put("name", name).put("content", content), profile) }
-    fun saveEkkoSkill(profile: String, name: String, content: String) { call("/api/ekko/skills/${enc(name)}", "PUT", JSONObject().put("content", content), profile) }
-    fun deleteEkkoSkill(profile: String, name: String) { call("/api/ekko/skills/${enc(name)}", "DELETE", profile = profile) }
-    fun importEkkoSkill(profile: String, bytes: ByteArray, filename: String) { multipart("/api/ekko/skills/import", "file", bytes, filename, "application/zip", emptyMap(), profile) }
-    fun ekkoExternalDirectories(profile: String): List<String> = strings(call("/api/ekko/skills/external-directories", profile = profile).optJSONArray("directories"))
-    fun saveEkkoExternalDirectories(profile: String, dirs: List<String>) { call("/api/ekko/skills/external-directories", "PUT", JSONObject().put("directories", JSONArray(dirs)), profile) }
-    fun ekkoSkillFiles(profile: String, name: String): List<String> {
-        val array = call("/api/ekko/skills/${enc(name)}/files", profile = profile).optJSONArray("files") ?: JSONArray()
-        return (0 until array.length()).mapNotNull { i -> when (val value = array.opt(i)) { is String -> value; is JSONObject -> firstNonBlank(value, "path", "name"); else -> null } }
-    }
-    fun ekkoSkillFile(profile: String, name: String, path: String): String = call("/api/ekko/skills/${enc(name)}/file?path=${enc(path)}", profile = profile).optString("content")
-
     fun journey(): JourneyGraph {
         val root = call("/api/hermes/journey"); val graph = root.optJSONObject("graph") ?: JSONObject()
         val nodes = graph.optJSONArray("nodes") ?: JSONArray(); val edges = graph.optJSONArray("edges") ?: JSONArray(); val clusters = graph.optJSONArray("clusters") ?: JSONArray()
