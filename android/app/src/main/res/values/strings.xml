@@ -805,11 +805,16 @@
     <string name="action_test">Test</string>
     <string name="action_add">Add</string>
     <string name="profile_runtime_status">Runtime: %1$s</string>
-    <string name="files_title">Studio Files</string><string name="files_hub_note">Browse and edit profile workspace files</string><string name="files_new_folder">New folder</string><string name="files_edit">Read or edit</string>    <string name="logs_title">Logs</string><string name="logs_hub_note">Studio, bridge and agent diagnostics</string>
-    <string name="connections_title">Connections</string><string name="connections_hub_note">App Relay and paired Studio devices</string>    <string name="insights_by_agent">By agent</string><string name="insights_daily">Daily usage</string>
-    <string name="files_upload">Upload</string><string name="files_download">Download or open</string><string name="files_copy_to">Copy to path</string>
+    <string name="files_title">Studio Files</string><string name="files_hub_note">Browse and edit profile workspace files</string><string name="files_new_folder">New folder</string><string name="files_edit">Read or edit</string><string name="files_saved">File saved</string><string name="files_empty">This folder is empty</string><string name="files_directory">Directory</string><string name="files_file">File</string><string name="files_more_actions">More actions</string>
+    <string name="logs_title">Logs</string><string name="logs_hub_note">Studio, bridge and agent diagnostics</string>
+    <string name="connections_title">Connections</string><string name="connections_hub_note">App Relay and paired Studio devices</string><string name="devices_title">My devices</string><string name="connected">Connected</string><string name="disconnected">Disconnected</string><string name="connect">Connect</string><string name="disconnect">Disconnect</string>
+    <string name="insights_by_agent">By agent</string><string name="insights_daily">Daily usage</string>
+    <string name="files_upload">Upload</string><string name="files_download">Download or open</string><string name="files_copy_to">Copy to path</string><string name="authorization_code">Authorization code</string><string name="app_connections_title">Authorized apps</string>
+    <string name="profile_make_active">Make active profile</string><string name="profile_export">Export profile</string>
+    <string name="ekko_skill_new">New Ekko skill</string>
     <string name="profile_import">Import profile</string><string name="profile_avatar">Choose profile avatar</string><string name="profile_avatar_clear">Remove profile avatar</string>
-    <string name="profile_export_started">Profile export started</string><string name="ekko_external_dirs">External directories</string><string name="revoke_connection">Revoke app connection?</string>    <string name="name">Name</string>
+    <string name="profile_export_started">Profile export started</string><string name="ekko_external_dirs">External directories</string><string name="revoke_connection">Revoke app connection?</string><string name="block">Block</string><string name="unblock">Unblock</string>
+    <string name="name">Name</string>
     <string name="journey_title">Journey</string><string name="journey_note">Skill and memory graph with usage</string>
     <string name="webhooks_title">Webhooks</string><string name="webhooks_note">Delivery endpoints, tests, and local events</string><string name="webhooks_add">Add webhook</string><string name="clear_events">Clear events</string><string name="local_events">Local test events</string>
     <string name="runtime_versions_title">Runtime versions</string><string name="runtime_versions_note">Install, activate, and restart managed runtimes</string><string name="restart_webui">Restart Web UI</string><string name="activate">Activate</string>

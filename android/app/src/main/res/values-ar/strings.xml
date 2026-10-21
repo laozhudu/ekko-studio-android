@@ -804,11 +804,16 @@
     <string name="action_test">اختبار</string>
     <string name="action_add">إضافة</string>
     <string name="profile_runtime_status">حالة المحرك: %1$s</string>
-    <string name="files_title">ملفات الاستديو</string><string name="files_hub_note">تصفح ملفات مساحة عمل البروفايل وتعديلها</string><string name="files_new_folder">مجلد جديد</string><string name="files_edit">قراءة أو تعديل</string>    <string name="logs_title">السجلات</string><string name="logs_hub_note">تشخيصات الاستديو والجسر والوكلاء</string>
-    <string name="connections_title">الاتصالات</string><string name="connections_hub_note">ترحيل التطبيق وأجهزة الاستديو المرتبطة</string>    <string name="insights_by_agent">حسب الوكيل</string><string name="insights_daily">الاستهلاك اليومي</string>
-    <string name="files_upload">رفع ملف</string><string name="files_download">تنزيل أو فتح</string><string name="files_copy_to">نسخ إلى مسار</string>
+    <string name="files_title">ملفات الاستديو</string><string name="files_hub_note">تصفح ملفات مساحة عمل البروفايل وتعديلها</string><string name="files_new_folder">مجلد جديد</string><string name="files_edit">قراءة أو تعديل</string><string name="files_saved">تم حفظ الملف</string><string name="files_empty">هذا المجلد فارغ</string><string name="files_directory">مجلد</string><string name="files_file">ملف</string><string name="files_more_actions">إجراءات إضافية</string>
+    <string name="logs_title">السجلات</string><string name="logs_hub_note">تشخيصات الاستديو والجسر والوكلاء</string>
+    <string name="connections_title">الاتصالات</string><string name="connections_hub_note">ترحيل التطبيق وأجهزة الاستديو المرتبطة</string><string name="devices_title">أجهزتي</string><string name="connected">متصل</string><string name="disconnected">غير متصل</string><string name="connect">اتصال</string><string name="disconnect">قطع الاتصال</string>
+    <string name="insights_by_agent">حسب الوكيل</string><string name="insights_daily">الاستهلاك اليومي</string>
+    <string name="files_upload">رفع ملف</string><string name="files_download">تنزيل أو فتح</string><string name="files_copy_to">نسخ إلى مسار</string><string name="authorization_code">رمز التفويض</string><string name="app_connections_title">التطبيقات المفوّضة</string>
+    <string name="profile_make_active">جعله البروفايل النشط</string><string name="profile_export">تصدير البروفايل</string>
+    <string name="ekko_skill_new">مهارة Ekko جديدة</string>
     <string name="profile_import">استيراد بروفايل</string><string name="profile_avatar">اختيار صورة البروفايل</string><string name="profile_avatar_clear">حذف صورة البروفايل</string>
-    <string name="profile_export_started">بدأ تنزيل البروفايل</string><string name="ekko_external_dirs">المجلدات الخارجية</string><string name="revoke_connection">إلغاء تفويض التطبيق؟</string>    <string name="name">الاسم</string>
+    <string name="profile_export_started">بدأ تنزيل البروفايل</string><string name="ekko_external_dirs">المجلدات الخارجية</string><string name="revoke_connection">إلغاء تفويض التطبيق؟</string><string name="block">حظر</string><string name="unblock">إلغاء الحظر</string>
+    <string name="name">الاسم</string>
     <string name="journey_title">الرحلة</string><string name="journey_note">مخطط المهارات والذاكرة مع الاستخدام</string>
     <string name="webhooks_title">خطافات الويب</string><string name="webhooks_note">نقاط الإرسال والاختبارات والأحداث المحلية</string><string name="webhooks_add">إضافة خطاف ويب</string><string name="clear_events">مسح الأحداث</string><string name="local_events">أحداث الاختبار المحلية</string>
     <string name="runtime_versions_title">إصدارات التشغيل</string><string name="runtime_versions_note">تنزيل وتفعيل وإعادة تشغيل البيئات المدارة</string><string name="restart_webui">إعادة تشغيل واجهة الويب</string><string name="activate">تفعيل</string>

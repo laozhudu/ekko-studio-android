@@ -765,11 +765,14 @@
     <string name="devices_title">我的设备</string>
     <string name="connected">已连接</string>
     <string name="disconnected">已断开</string>
+    <string name="connect">连接</string>
+    <string name="disconnect">断开</string>
     <string name="insights_by_agent">按智能体</string>
     <string name="insights_daily">每日用量</string>
     <string name="files_upload">上传</string>
     <string name="files_download">下载或打开</string>
     <string name="files_copy_to">复制到路径</string>
+    <string name="authorization_code">授权码</string>
     <string name="app_connections_title">已授权应用</string>
     <string name="profile_make_active">设为当前配置文件</string>
     <string name="profile_export">导出配置文件</string>

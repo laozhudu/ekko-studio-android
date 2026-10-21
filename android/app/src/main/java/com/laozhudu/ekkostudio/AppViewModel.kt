@@ -3230,6 +3230,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loadMcp()
     }
 
+    private fun loadMcp() {
+        _state.update { it.copy(mcpUi = it.mcpUi.copy(loading = true)) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.mcpServers() } }
+                .onSuccess { servers ->
+                    _state.update { it.copy(mcpUi = it.mcpUi.copy(loading = false, actionName = null, servers = servers)) }
+                }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(mcpUi = it.mcpUi.copy(loading = false, actionName = null), error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
     fun saveMcpServer(originalName: String?, name: String, config: String) {
         if (name.isBlank()) return
         _state.update { it.copy(mcpUi = it.mcpUi.copy(actionName = originalName ?: "new"), error = null) }
@@ -4088,6 +4103,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(instances = updated) }
     }
 
+    /** The login form doubles as "add another instance". */
     /**
      * Official `.pairing-submit` in the manual-add panel: 设备连接 + 设备名称 +
      * Studio 账号 + Studio 密码 → "登录并添加设备".
@@ -4371,6 +4387,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Whether the gateway comes up with the server, written server-side. */
     /** Writes the profile default, which is what new conversations start from. */
     fun setDefaultModel(option: ModelOption) {
         val profile = _state.value.activeProfile.ifBlank { "default" }
