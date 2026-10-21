@@ -221,7 +221,7 @@ class HermesApiContractTest {
     }
 
     @Test
-    fun `connections and pairing use the endpoints that exist on 0.7 x`() {
+    fun `connections and pairing use the endpoints that exist on 0_7_x`() {
         // /api/devices, /devices/pairing-link, /devices/manual-request and
         // /devices/peer-connections all return 404 on 0.7.38; the screen is built
         // on app-connections and the authorization-code routes instead.
