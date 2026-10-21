@@ -70,7 +70,9 @@ class ShellParityTest {
         val intro = read("Intro.kt")
         val pages = Regex("IntroPage\\(([^)]*)\\)", RegexOption.DOT_MATCHES_ALL).findAll(intro)
             .map { it.groupValues[1] }
-            .filter { it.contains("title") }
+            // The data-class declaration also matches the pattern; an actual
+            // page always names an icon.
+            .filter { it.contains("icon = ") }
             .toList()
 
         assertTrue("expected at least four intro pages, found ${pages.size}", pages.size >= 4)
