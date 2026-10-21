@@ -1450,6 +1450,7 @@ private fun SessionRow(
     }
 }
 
+@Composable
 private fun SessionRunningBar() {
     val transition = rememberInfiniteTransition(label = "running")
     val progress by transition.animateFloat(
