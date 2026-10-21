@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.CircularProgressIndicator
@@ -166,7 +167,7 @@ fun PendingFilesSheet(
                                         Icons.Filled.Check,
                                         contentDescription = null,
                                         modifier = Modifier.size(12.dp),
-                                        tint = inkBgPrimary(inkDark),
+                                        tint = MaterialTheme.colorScheme.background,
                                     )
                                 }
                             }
@@ -236,7 +237,7 @@ fun PendingFilesSheet(
                         CircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
                             strokeWidth = 2.dp,
-                            color = inkBgPrimary(inkDark),
+                            color = MaterialTheme.colorScheme.background,
                         )
                     }
                     Text(
@@ -245,7 +246,7 @@ fun PendingFilesSheet(
                         modifier = Modifier.padding(start = if (busy) 8.dp else 0.dp),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = inkBgPrimary(inkDark),
+                        color = MaterialTheme.colorScheme.background,
                     )
                 }
                 if (!canAttach) {
