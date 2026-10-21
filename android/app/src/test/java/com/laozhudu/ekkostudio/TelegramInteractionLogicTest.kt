@@ -56,7 +56,7 @@ class TelegramInteractionLogicTest {
     @Test
     fun swipingAMessageQuotesIt() {
         assertTrue(chatWidgets.contains("SwipeToReply("))
-        assertTrue(activity.contains("detectHorizontalDragGestures("))
+        assertTrue(chatWidgets.contains("detectHorizontalDragGestures("))
         assertTrue(
             "the gesture is wrapped around each bubble",
             conversation.contains("SwipeToReply(enabled = true, onReply = { replyingTo = line })"),
