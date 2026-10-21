@@ -1,0 +1,530 @@
+tag	method	path	summary
+API Docs	GET	/api/openapi.json	Get openapi.json
+Agent Status	GET	/api/agents/availability	Get availability
+Agent Status	GET	/api/agents/status	Get status
+Announcements	GET	/api/studio/announcements	Get announcements
+Anthropic Auth	GET	/api/hermes/auth/anthropic/status	Get status
+Anthropic Auth	POST	/api/hermes/auth/anthropic/start	Create start
+Anthropic Auth	POST	/api/hermes/auth/anthropic/submit/{sessionId}	Create :sessionId
+App Connections	DELETE	/api/app-connections/{id}	Delete :id
+App Connections	DELETE	/api/studio/live-activities/registration	Delete registration
+App Connections	DELETE	/api/studio/push/registration	Delete registration
+App Connections	GET	/api/app-connections	Get app-connections
+App Connections	PATCH	/api/studio/app-connections/{id}/push	Update push
+App Connections	POST	/api/app-connections/authorization-codes/cloud	Create cloud
+App Connections	POST	/api/app-connections/authorization-codes/lan	Create lan
+App Connections	PUT	/api/studio/live-activities/registration	Update registration
+App Connections	PUT	/api/studio/push/registration	Update registration
+App Relay	GET	/api/app-relay/status	Get status
+App Relay	POST	/api/app-relay/connect	Create connect
+App Relay	POST	/api/app-relay/disconnect	Create disconnect
+App Relay	POST	/api/app-relay/pairing-code	Create pairing-code
+App Relay	PUT	/api/app-relay/route	Update route
+Auth	DELETE	/api/auth/locked-ips	Delete locked-ips
+Auth	DELETE	/api/auth/password	Delete password
+Auth	DELETE	/api/auth/users/{id}	Delete :id
+Auth	GET	/api/auth/avatar	Get avatar
+Auth	GET	/api/auth/locked-ips	Get locked-ips
+Auth	GET	/api/auth/me	Get me
+Auth	GET	/api/auth/status	Get status
+Auth	GET	/api/auth/users	Get users
+Auth	POST	/api/auth/app-login	Create app-login
+Auth	POST	/api/auth/change-password	Create change-password
+Auth	POST	/api/auth/change-username	Create change-username
+Auth	POST	/api/auth/login	Create login
+Auth	POST	/api/auth/mcu-login	Create mcu-login
+Auth	POST	/api/auth/setup	Create setup
+Auth	POST	/api/auth/users	Create users
+Auth	PUT	/api/auth/avatar	Update avatar
+Auth	PUT	/api/auth/users/{id}	Update :id
+Chat Run	POST	/api/studio/chat-run/runs	Run chat and wait for completion
+Chat Run	POST	/api/studio/clarifications/request	Ask a user clarification in the current coding-agent turn
+Chat Run	POST	/api/studio/mobile-calendar/request	Request one-time mobile calendar or reminder access
+Chat Run	POST	/api/studio/mobile-health/request	Create request
+Chat Run	POST	/api/studio/mobile-location/request	Create request
+Chat Run	POST	/api/studio/task-plans/update	Update the current turn task plan
+Chat Webhooks	DELETE	/api/studio/webhooks/endpoints/{id}	Delete :id
+Chat Webhooks	DELETE	/api/studio/webhooks/local-test-events	Delete local-test-events
+Chat Webhooks	GET	/api/studio/webhooks/endpoints	Get endpoints
+Chat Webhooks	GET	/api/studio/webhooks/local-test-events	Get local-test-events
+Chat Webhooks	GET	/api/studio/webhooks/local-test-target	Get local-test-target
+Chat Webhooks	PATCH	/api/studio/webhooks/endpoints/{id}	Update :id
+Chat Webhooks	POST	/api/studio/webhooks/endpoints	Create endpoints
+Chat Webhooks	POST	/api/studio/webhooks/endpoints/{id}/test	Create test
+Chat Webhooks	POST	/webhook-test/{token}	Create :token
+Codex Auth	GET	/api/hermes/auth/codex/poll/{sessionId}	Get :sessionId
+Codex Auth	GET	/api/hermes/auth/codex/status	Get status
+Codex Auth	POST	/api/hermes/auth/codex/start	Create start
+Coding Agents	DELETE	/api/coding-agents/dsh/agent-presets/{presetId}	Delete a custom preset directory through DSH
+Coding Agents	DELETE	/api/coding-agents/dsh/ui-session/{id}	Revoke a native plugin frame session
+Coding Agents	DELETE	/api/coding-agents/runs/{sessionId}	Delete :sessionId
+Coding Agents	DELETE	/api/coding-agents/{id}	Delete :id
+Coding Agents	DELETE	/api/coding-agents/{id}/mcp/servers/{name}	Delete :name
+Coding Agents	GET	/api/coding-agents	Get coding-agents
+Coding Agents	GET	/api/coding-agents/dsh/agent-presets	List the live native Agent preset roster
+Coding Agents	GET	/api/coding-agents/dsh/agent-presets/{presetId}	Read a native preset composition
+Coding Agents	GET	/api/coding-agents/dsh/plugin-inventory	Discover native DSH preset plugin entries
+Coding Agents	GET	/api/coding-agents/dsh/session-presets	List DSH modes available when creating a chat
+Coding Agents	GET	/api/coding-agents/models	Discover native models for one or all Coding Agents
+Coding Agents	GET	/api/coding-agents/update-policies	Get update-policies
+Coding Agents	GET	/api/coding-agents/{id}/config-files/{key}	Get :key
+Coding Agents	GET	/api/coding-agents/{id}/mcp/servers	Get servers
+Coding Agents	PATCH	/api/coding-agents/{id}/mcp/servers/{name}	Update :name
+Coding Agents	POST	/api/coding-agents/dsh/agent-presets	Duplicate a native Agent preset into its writable source root
+Coding Agents	POST	/api/coding-agents/dsh/agent-presets/{presetId}/location	Open a custom preset directory on the DSH host or return its path
+Coding Agents	POST	/api/coding-agents/dsh/ui-session	Open an authenticated native DSH configuration slot
+Coding Agents	POST	/api/coding-agents/dsh/web-plugins	Install or remove packages in the native Web profile
+Coding Agents	POST	/api/coding-agents/runs/{sessionId}/input	Create input
+Coding Agents	POST	/api/coding-agents/{id}/check-update	Create check-update
+Coding Agents	POST	/api/coding-agents/{id}/install	Create install
+Coding Agents	POST	/api/coding-agents/{id}/launch/native	Create native
+Coding Agents	POST	/api/coding-agents/{id}/launch/prepare	Create prepare
+Coding Agents	POST	/api/coding-agents/{id}/mcp/servers	Create servers
+Coding Agents	POST	/api/coding-agents/{id}/mcp/servers/{name}/test	Create test
+Coding Agents	POST	/api/coding-agents/{id}/runs	Create runs
+Coding Agents	PUT	/api/coding-agents/dsh/agent-presets/{presetId}/default	Set the native preset default for new sessions
+Coding Agents	PUT	/api/coding-agents/{id}/config-files/{key}	Update :key
+Coding Agents	PUT	/api/coding-agents/{id}/update-policy	Update update-policy
+Config	DELETE	/api/hermes/config/credentials/{platform}	Delete :platform
+Config	GET	/api/hermes/config	Get config
+Config	GET	/api/hermes/config/auxiliary-models	Get auxiliary-models
+Config	GET	/api/hermes/config/delegation-model	Get delegation-model
+Config	GET	/api/hermes/config/fallback-providers	Get fallback-providers
+Config	GET	/api/hermes/config/moa	Get moa
+Config	PUT	/api/hermes/config	Update config
+Config	PUT	/api/hermes/config/auxiliary-models	Update auxiliary-models
+Config	PUT	/api/hermes/config/credentials	Update credentials
+Config	PUT	/api/hermes/config/delegation-model	Update delegation-model
+Config	PUT	/api/hermes/config/fallback-providers	Update fallback-providers
+Config	PUT	/api/hermes/config/moa	Update moa
+Copilot Auth	GET	/api/hermes/auth/copilot/check-token	Get check-token
+Copilot Auth	GET	/api/hermes/auth/copilot/poll/{sessionId}	Get :sessionId
+Copilot Auth	POST	/api/hermes/auth/copilot/disable	Create disable
+Copilot Auth	POST	/api/hermes/auth/copilot/enable	Create enable
+Copilot Auth	POST	/api/hermes/auth/copilot/start	Create start
+Data Migration	GET	/api/hermes/data-migrations/windows-appdata	Get windows-appdata
+Data Migration	POST	/api/hermes/data-migrations/windows-appdata	Create windows-appdata
+Ekko Config	GET	/api/ekko/config	Get config
+Ekko Config	PUT	/api/ekko/config	Update config
+Ekko MCP	DELETE	/api/ekko/mcp/servers/{name}	Delete :name
+Ekko MCP	GET	/api/ekko/mcp/servers	List servers
+Ekko MCP	PATCH	/api/ekko/mcp/servers/{name}	Update :name
+Ekko MCP	POST	/api/ekko/mcp/servers	Create servers
+Ekko MCP	POST	/api/ekko/mcp/servers/{name}/test	Create test
+Ekko Memory	DELETE	/api/ekko/memory/{id}	Delete :id
+Ekko Memory	GET	/api/ekko/memory	List memory
+Ekko Memory	PATCH	/api/ekko/memory/{id}	Update :id
+Ekko Skills	DELETE	/api/ekko/skills/{name}	Delete :name
+Ekko Skills	GET	/api/ekko/skills	List skills
+Ekko Skills	GET	/api/ekko/skills/external-directories	Get external-directories
+Ekko Skills	GET	/api/ekko/skills/{name}	Get :name
+Ekko Skills	GET	/api/ekko/skills/{name}/file	Get file
+Ekko Skills	GET	/api/ekko/skills/{name}/files	Get files
+Ekko Skills	POST	/api/ekko/skills	Create skills
+Ekko Skills	POST	/api/ekko/skills/import	Create import
+Ekko Skills	PUT	/api/ekko/skills/external-directories	Update external-directories
+Ekko Skills	PUT	/api/ekko/skills/{name}	Update :name
+Ekko Skills	PUT	/api/ekko/skills/{name}/toggle	Update toggle
+Group Chat	DELETE	/api/studio/group-chat/agent-presets/{presetId}	Delete :presetId
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}	Delete :roomId
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}/agent-connectors/{connectorId}	Delete :connectorId
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}/agents/{agentId}	Delete :agentId
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}/attachment-uploads/{id}	Delete :id
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}/members/{userId}	Delete :userId
+Group Chat	DELETE	/api/studio/group-chat/rooms/{roomId}/workspace-file/delete	Delete delete
+Group Chat	GET	/api/studio/group-chat-link/v1/agents	Get agents
+Group Chat	GET	/api/studio/group-chat-link/v1/capabilities	Get capabilities
+Group Chat	GET	/api/studio/group-chat-link/v1/connections	Get connections
+Group Chat	GET	/api/studio/group-chat/agent-presets	List agent-presets
+Group Chat	GET	/api/studio/group-chat/invites/{code}/agent-links/{requestId}	Get :requestId
+Group Chat	GET	/api/studio/group-chat/invites/{code}/attachments/{file}	Get :file
+Group Chat	GET	/api/studio/group-chat/remote-workspace/v1/file	Get file
+Group Chat	GET	/api/studio/group-chat/rooms	Get rooms
+Group Chat	GET	/api/studio/group-chat/rooms/join/{code}	Get :code
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}	Get :roomId
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/agent-link-requests	Get agent-link-requests
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/agents	Get agents
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/attachments/{file}	Get :file
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/handoffs	Get handoffs
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/message-selection	Get message-selection
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/summary	Get summary
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/workspace-file/content	Get content
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/workspace-file/diff	Get diff
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/workspace-file/read	Get read
+Group Chat	GET	/api/studio/group-chat/rooms/{roomId}/workspace-files/list	Get list
+Group Chat	POST	/api/studio/group-chat-link/v1/connect	Create connect
+Group Chat	POST	/api/studio/group-chat-link/v1/connect-handoff	Create connect-handoff
+Group Chat	POST	/api/studio/group-chat-link/v1/connections/{connectorId}/leave-room	Create leave-room
+Group Chat	POST	/api/studio/group-chat-link/v1/disconnect	Create disconnect
+Group Chat	POST	/api/studio/group-chat/agent-presets	Create agent-presets
+Group Chat	POST	/api/studio/group-chat/invites/{code}/agent-link-handoffs	Create agent-link-handoffs
+Group Chat	POST	/api/studio/group-chat/invites/{code}/agent-links	Create agent-links
+Group Chat	POST	/api/studio/group-chat/invites/{code}/agent-links/{requestId}/failure	Create failure
+Group Chat	POST	/api/studio/group-chat/invites/{code}/agent-links/{requestId}/submit	Create submit
+Group Chat	POST	/api/studio/group-chat/invites/{code}/attachments	Create attachments
+Group Chat	POST	/api/studio/group-chat/remote-workspace/v1	Create v1
+Group Chat	POST	/api/studio/group-chat/rooms	Create rooms
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/agent-link-requests/{requestId}/decision	Create decision
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/agents	Create agents
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/attachment-uploads	Create attachment-uploads
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/attachment-uploads/{id}/complete	Create complete
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/attachments	Create attachments
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/clear-context	Create clear-context
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/clone	Create clone
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/handoffs/{chainId}/continue	Create continue
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/messages/delete	Create delete
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/workspace-file/copy	Create copy
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/workspace-file/mkdir	Create mkdir
+Group Chat	POST	/api/studio/group-chat/rooms/{roomId}/workspace-file/rename	Create rename
+Group Chat	PUT	/api/studio/group-chat-link/v1/connections/{connectorId}	Update :connectorId
+Group Chat	PUT	/api/studio/group-chat-link/v1/connections/{connectorId}/room-alias	Update room-alias
+Group Chat	PUT	/api/studio/group-chat/agent-presets/{presetId}	Update :presetId
+Group Chat	PUT	/api/studio/group-chat/remote-workspace/v1/file	Update file
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/agents/{agentId}	Update :agentId
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/attachment-uploads/{id}/chunks	Update chunks
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/config	Update config
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/guest-agent-policy	Update guest-agent-policy
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/invite-code	Update invite-code
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/summary	Update summary
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/workspace	Update workspace
+Group Chat	PUT	/api/studio/group-chat/rooms/{roomId}/workspace-file/write	Update write
+Health	GET	/health	Get health
+Health	GET	/livez	Get livez
+JEV	DELETE	/api/studio/jev/settings	Delete settings
+JEV	GET	/api/studio/jev/settings	Get settings
+JEV	POST	/api/studio/jev/browser/match	Create match
+JEV	POST	/api/studio/jev/browser/verify	Create verify
+JEV	POST	/api/studio/jev/evaluate	Create evaluate
+JEV	POST	/api/studio/jev/test	Create test
+JEV	PUT	/api/studio/jev/settings	Update settings
+Jobs	DELETE	/api/hermes/jobs/{id}	Delete :id
+Jobs	GET	/api/cron-history	Get cron-history
+Jobs	GET	/api/cron-history/{jobId}/{fileName}	Get :fileName
+Jobs	GET	/api/hermes/jobs	List jobs
+Jobs	GET	/api/hermes/jobs/delivery-targets	Get delivery-targets
+Jobs	GET	/api/hermes/jobs/{id}	Get :id
+Jobs	PATCH	/api/hermes/jobs/{id}	Update :id
+Jobs	POST	/api/hermes/jobs	Create jobs
+Jobs	POST	/api/hermes/jobs/{id}/pause	Pause pause
+Jobs	POST	/api/hermes/jobs/{id}/resume	Resume resume
+Jobs	POST	/api/hermes/jobs/{id}/run	Run run
+Journey	GET	/api/hermes/journey	Get journey
+Kanban	DELETE	/api/hermes/kanban/boards/{slug}	Delete :slug
+Kanban	DELETE	/api/hermes/kanban/links	Delete links
+Kanban	GET	/api/hermes/kanban	List kanban
+Kanban	GET	/api/hermes/kanban/artifact	Get artifact
+Kanban	GET	/api/hermes/kanban/assignees	Get assignees
+Kanban	GET	/api/hermes/kanban/boards	Get boards
+Kanban	GET	/api/hermes/kanban/capabilities	Get capabilities
+Kanban	GET	/api/hermes/kanban/diagnostics	Get diagnostics
+Kanban	GET	/api/hermes/kanban/search-sessions	Get search-sessions
+Kanban	GET	/api/hermes/kanban/stats	Get stats
+Kanban	GET	/api/hermes/kanban/{id}	Get :id
+Kanban	GET	/api/hermes/kanban/{id}/attachments	Get attachments
+Kanban	GET	/api/hermes/kanban/{id}/attachments/{attachmentId}	Get :attachmentId
+Kanban	GET	/api/hermes/kanban/{id}/log	Get log
+Kanban	POST	/api/hermes/kanban	Create kanban
+Kanban	POST	/api/hermes/kanban/boards	Create boards
+Kanban	POST	/api/hermes/kanban/complete	Create complete
+Kanban	POST	/api/hermes/kanban/dispatch	Create dispatch
+Kanban	POST	/api/hermes/kanban/links	Create links
+Kanban	POST	/api/hermes/kanban/tasks/bulk	Create bulk
+Kanban	POST	/api/hermes/kanban/unblock	Create unblock
+Kanban	POST	/api/hermes/kanban/{id}/assign	Create assign
+Kanban	POST	/api/hermes/kanban/{id}/block	Create block
+Kanban	POST	/api/hermes/kanban/{id}/comments	Create comments
+Kanban	POST	/api/hermes/kanban/{id}/reassign	Create reassign
+Kanban	POST	/api/hermes/kanban/{id}/reclaim	Create reclaim
+Kanban	POST	/api/hermes/kanban/{id}/specify	Create specify
+Logs	GET	/api/studio/logs	List logs
+Logs	GET	/api/studio/logs/{name}	Get :name
+MCP	DELETE	/api/hermes/mcp/servers/{name}	Delete :name
+MCP	GET	/api/hermes/mcp/servers	Get servers
+MCP	GET	/api/hermes/mcp/tools	Get tools
+MCP	PATCH	/api/hermes/mcp/servers/{name}	Update :name
+MCP	POST	/api/hermes/mcp/reload	Create reload
+MCP	POST	/api/hermes/mcp/servers	Create servers
+MCP	POST	/api/hermes/mcp/servers/{name}/test	Create test
+MCU Devices	DELETE	/api/mcu-devices/{id}	Delete :id
+MCU Devices	GET	/api/devices/link-info	Get link-info
+MCU Devices	GET	/api/mcu-devices	Get mcu-devices
+MCU Devices	PATCH	/api/mcu-devices/{id}	Update :id
+MCU Devices	POST	/api/mcu-devices	Create mcu-devices
+MCU Devices	POST	/api/mcu-devices/{id}/remote-connect	Create remote-connect
+MCU Devices	POST	/api/mcu-devices/{id}/remote-disconnect	Create remote-disconnect
+MCU Firmware	GET	/api/studio/mcu/firmware.bin	Get firmware.bin
+MCU Firmware	GET	/api/studio/mcu/firmware/manifest	Get manifest
+MCU Firmware	GET	/api/studio/mcu/firmware/{version}/firmware.bin	Get firmware.bin
+MCU Firmware	GET	/api/studio/mcu/firmware/{version}/manifest	Get manifest
+Media	POST	/api/studio/media/apikey-image-generate	Create apikey-image-generate
+Media	POST	/api/studio/media/grok-image-to-video	Create grok-image-to-video
+Media	POST	/api/studio/media/minimax-image-to-video	Create minimax-image-to-video
+Memory	GET	/api/hermes/memory	Get memory
+Memory	POST	/api/hermes/memory	Create memory
+MiniMax Auth	GET	/api/hermes/auth/minimax/poll/{sessionId}	Get :sessionId
+MiniMax Auth	GET	/api/hermes/auth/minimax/status	Get status
+MiniMax Auth	POST	/api/hermes/auth/minimax/start	Create start
+Model API	DELETE	/api/studio/models/api-keys/{id}	Revoke my Model API key
+Model API	DELETE	/api/studio/models/cloud-link	Revoke my dual-route cloud Model API link
+Model API	GET	/api/ekko-studio/models/v1/models	List configured models with provider-qualified IDs
+Model API	GET	/api/studio/models/api-keys	List my account-wide Model API keys
+Model API	GET	/api/studio/models/cloud-link	Get my dual-route cloud Model API link
+Model API	PATCH	/api/studio/models/api-keys/{id}	Edit my Model API key name, allowed models and USD budget
+Model API	POST	/api/ekko-studio/models/v1/responses	Request a configured model using OpenAI Responses format
+Model API	POST	/api/studio/models/api-keys	Create an account-wide Model API key
+Model API	POST	/api/studio/models/cloud-link	Create my dual-route cloud Model API link
+Models	DELETE	/api/hermes/custom-model	Delete custom-model
+Models	GET	/api/hermes/available-models	Get available-models
+Models	GET	/api/hermes/config/models	Get models
+Models	GET	/api/hermes/model-context	Get model-context
+Models	GET	/api/hermes/model-context/{provider}/{model}	Get :model
+Models	GET	/api/hermes/provider-models	Read the full model directory for one Provider
+Models	POST	/api/hermes/provider-models	Create provider-models
+Models	POST	/api/hermes/provider-models/cache/refresh	Create refresh
+Models	PUT	/api/hermes/config/model	Update model
+Models	PUT	/api/hermes/custom-model	Update custom-model
+Models	PUT	/api/hermes/model-alias	Update model-alias
+Models	PUT	/api/hermes/model-context	Update model-context
+Models	PUT	/api/hermes/model-context/{provider}/{model}	Update :model
+Models	PUT	/api/hermes/model-visibility	Update model-visibility
+Nous Auth	GET	/api/hermes/auth/nous/poll/{sessionId}	Get :sessionId
+Nous Auth	GET	/api/hermes/auth/nous/status	Get status
+Nous Auth	POST	/api/hermes/auth/nous/start	Create start
+Performance	GET	/api/studio/performance/runtime	Get runtime
+Petdex	GET	/api/studio/petdex/asset	Get asset
+Petdex	GET	/api/studio/petdex/manifest	Get manifest
+Pets	GET	/api/studio/pets/active	Get active
+Pets	PATCH	/api/studio/pets/active	Update active
+Pets	POST	/api/studio/pets/adopt	Create adopt
+Plugins	GET	/api/hermes/plugins	List plugins
+Plugins	POST	/api/hermes/plugins/{key}/disable	Create disable
+Plugins	POST	/api/hermes/plugins/{key}/enable	Create enable
+Profiles	DELETE	/api/hermes/profiles/{name}	Delete :name
+Profiles	DELETE	/api/hermes/profiles/{name}/avatar	Delete avatar
+Profiles	GET	/api/app/profiles	Get profiles
+Profiles	GET	/api/hermes/profiles	List profiles
+Profiles	GET	/api/hermes/profiles/runtime-statuses	Get runtime-statuses
+Profiles	GET	/api/hermes/profiles/{name}	Get :name
+Profiles	GET	/api/hermes/profiles/{name}/runtime-status	Get runtime-status
+Profiles	POST	/api/hermes/profiles	Create profiles
+Profiles	POST	/api/hermes/profiles/import	Create import
+Profiles	POST	/api/hermes/profiles/{name}/export	Create export
+Profiles	POST	/api/hermes/profiles/{name}/gateway/restart	Create restart
+Profiles	POST	/api/hermes/profiles/{name}/rename	Rename rename
+Profiles	POST	/api/hermes/profiles/{name}/restart	Create restart
+Profiles	PUT	/api/hermes/profiles/active	Update active
+Profiles	PUT	/api/hermes/profiles/{name}/avatar	Update avatar
+Providers	DELETE	/api/hermes/config/providers/{poolKey}	Delete :poolKey
+Providers	GET	/api/hermes/api-relay/usage	Get usage
+Providers	GET	/api/hermes/config/providers/{poolKey}/editor	Get editor
+Providers	PATCH	/api/hermes/config/providers/{poolKey}/editor	Update editor
+Providers	PATCH	/api/hermes/config/providers/{poolKey}/editor/contexts	Update contexts
+Providers	POST	/api/hermes/config/providers	Create providers
+Providers	POST	/api/hermes/config/providers/{poolKey}/editor/test	Create test
+Providers	POST	/api/hermes/config/providers/{poolKey}/models/refresh	Create refresh
+Providers	POST	/api/hermes/config/providers/{poolKey}/models/restore	Create restore
+Providers	PUT	/api/hermes/config/providers/{poolKey}	Update :poolKey
+Runtime Versions	DELETE	/api/hermes/runtime-versions/runtime/{version}	Delete :version
+Runtime Versions	DELETE	/api/hermes/runtime-versions/webui/{version}	Delete :version
+Runtime Versions	GET	/api/hermes/runtime-versions	Get runtime-versions
+Runtime Versions	GET	/api/hermes/runtime-versions/jobs	Get jobs
+Runtime Versions	GET	/api/hermes/runtime-versions/jobs/{id}	Get :id
+Runtime Versions	POST	/api/hermes/runtime-versions/active-runtime	Create active-runtime
+Runtime Versions	POST	/api/hermes/runtime-versions/active-webui	Create active-webui
+Runtime Versions	POST	/api/hermes/runtime-versions/restart-webui	Create restart-webui
+Runtime Versions	POST	/api/hermes/runtime-versions/runtime-root	Create runtime-root
+Runtime Versions	POST	/api/hermes/runtime-versions/runtime/download	Create download
+Runtime Versions	POST	/api/hermes/runtime-versions/webui/download	Create download
+STT	DELETE	/api/studio/stt/local-stream/{sessionId}	Delete :sessionId
+STT	DELETE	/api/studio/stt/settings/{provider}	Delete :provider
+STT	DELETE	/api/studio/stt/settings/{provider}/base-url-preset	Delete base-url-preset
+STT	DELETE	/api/studio/stt/settings/{provider}/secret/{secretName}	Delete :secretName
+STT	GET	/api/studio/stt/local-model	Get local-model
+STT	GET	/api/studio/stt/profile-status	Get profile-status
+STT	GET	/api/studio/stt/profile-status/missing-audio	Get missing-audio
+STT	GET	/api/studio/stt/settings	Get settings
+STT	POST	/api/studio/mcu/voice-turn	Create voice-turn
+STT	POST	/api/studio/stt/local-model/download	Create download
+STT	POST	/api/studio/stt/local-stream	Create local-stream
+STT	POST	/api/studio/stt/local-stream/{sessionId}/chunk	Create chunk
+STT	POST	/api/studio/stt/local-stream/{sessionId}/finish	Create finish
+STT	POST	/api/studio/stt/transcribe	Create transcribe
+STT	POST	/api/studio/voice/proxy/{profile}/v1/audio/transcriptions	Create transcriptions
+STT	PUT	/api/studio/stt/settings/active	Update active
+STT	PUT	/api/studio/stt/settings/{provider}	Update :provider
+Session Shares	DELETE	/api/studio/sessions/{sessionId}/shares/{shareId}	Delete :shareId
+Session Shares	GET	/api/studio/session-shares/access	Get access
+Session Shares	GET	/api/studio/sessions/{sessionId}/shares	List shares
+Session Shares	PATCH	/api/studio/sessions/{sessionId}/shares/{shareId}	Update :shareId
+Session Shares	POST	/api/studio/session-shares/check	Create check
+Session Shares	POST	/api/studio/session-shares/claim	Create claim
+Session Shares	POST	/api/studio/sessions/{sessionId}/shares	Create shares
+Sessions	DELETE	/api/studio/session-categories/{id}	Delete :id
+Sessions	DELETE	/api/studio/sessions/{id}	Delete :id
+Sessions	DELETE	/api/studio/sessions/{id}/workspace-file/delete	Delete delete
+Sessions	DELETE	/api/studio/workspace/folders	Delete folders
+Sessions	GET	/api/studio/search/sessions	Search sessions
+Sessions	GET	/api/studio/session-categories	Get session-categories
+Sessions	GET	/api/studio/sessions	List sessions
+Sessions	GET	/api/studio/sessions/context-length	Get context-length
+Sessions	GET	/api/studio/sessions/conversations	Get conversations
+Sessions	GET	/api/studio/sessions/conversations/{id}/messages	Get messages
+Sessions	GET	/api/studio/sessions/conversations/{id}/messages/paginated	Get paginated
+Sessions	GET	/api/studio/sessions/count	Get count
+Sessions	GET	/api/studio/sessions/hermes	Get hermes
+Sessions	GET	/api/studio/sessions/hermes/groups	Get groups
+Sessions	GET	/api/studio/sessions/hermes/{id}	Get :id
+Sessions	GET	/api/studio/sessions/search	Search search
+Sessions	GET	/api/studio/sessions/usage	Get usage
+Sessions	GET	/api/studio/sessions/{id}	Get :id
+Sessions	GET	/api/studio/sessions/{id}/context	Get context
+Sessions	GET	/api/studio/sessions/{id}/export	Get export
+Sessions	GET	/api/studio/sessions/{id}/message-selection	Get message-selection
+Sessions	GET	/api/studio/sessions/{id}/share-context-length	Get share-context-length
+Sessions	GET	/api/studio/sessions/{id}/share-models	Get share-models
+Sessions	GET	/api/studio/sessions/{id}/share-workspaces	Get share-workspaces
+Sessions	GET	/api/studio/sessions/{id}/usage	Get usage
+Sessions	GET	/api/studio/sessions/{id}/workspace-file/content	Get content
+Sessions	GET	/api/studio/sessions/{id}/workspace-file/diff	Get diff
+Sessions	GET	/api/studio/sessions/{id}/workspace-file/read	Get read
+Sessions	GET	/api/studio/sessions/{id}/workspace-files/list	Get list
+Sessions	GET	/api/studio/sessions/{id}/workspace-run-changes	Get workspace-run-changes
+Sessions	GET	/api/studio/sessions/{id}/workspace-run-changes/{changeId}/files/{fileId}	Get :fileId
+Sessions	GET	/api/studio/usage/pricing	Get pricing
+Sessions	GET	/api/studio/usage/stats	Get stats
+Sessions	GET	/api/studio/workspace/directories	List directories
+Sessions	GET	/api/studio/workspace/folders	Get folders
+Sessions	PATCH	/api/studio/session-categories/{id}	Update :id
+Sessions	PATCH	/api/studio/workspace/directories	Update directories
+Sessions	POST	/api/studio/session-categories	Create session-categories
+Sessions	POST	/api/studio/sessions/batch-delete	Create batch-delete
+Sessions	POST	/api/studio/sessions/hermes/{id}/import	Create import
+Sessions	POST	/api/studio/sessions/{id}/archive	Create archive
+Sessions	POST	/api/studio/sessions/{id}/category	Create category
+Sessions	POST	/api/studio/sessions/{id}/messages/batch-delete	Create batch-delete
+Sessions	POST	/api/studio/sessions/{id}/model	Create model
+Sessions	POST	/api/studio/sessions/{id}/pin	Create pin
+Sessions	POST	/api/studio/sessions/{id}/push-enabled	Create push-enabled
+Sessions	POST	/api/studio/sessions/{id}/reasoning-effort	Create reasoning-effort
+Sessions	POST	/api/studio/sessions/{id}/rename	Rename rename
+Sessions	POST	/api/studio/sessions/{id}/share-voice/synthesize	Create synthesize
+Sessions	POST	/api/studio/sessions/{id}/share-voice/transcribe	Create transcribe
+Sessions	POST	/api/studio/sessions/{id}/unarchive	Create unarchive
+Sessions	POST	/api/studio/sessions/{id}/workspace	Create workspace
+Sessions	POST	/api/studio/sessions/{id}/workspace-file/copy	Create copy
+Sessions	POST	/api/studio/sessions/{id}/workspace-file/mkdir	Create mkdir
+Sessions	POST	/api/studio/sessions/{id}/workspace-file/rename	Create rename
+Sessions	POST	/api/studio/workspace/directories	Create directories
+Sessions	POST	/api/studio/workspace/folders	Create folders
+Sessions	POST	/api/studio/workspace/folders/rename	Create rename
+Sessions	PUT	/api/studio/sessions/{id}/share-context-length	Update share-context-length
+Sessions	PUT	/api/studio/sessions/{id}/workspace-file/write	Update write
+Sessions	PUT	/api/studio/usage/pricing	Update pricing
+Skill Bundles	DELETE	/api/hermes/bundles/{commandName}	Delete :commandName
+Skill Bundles	GET	/api/hermes/bundles	List bundles
+Skill Bundles	POST	/api/hermes/bundles	Create bundles
+Skills	DELETE	/api/hermes/skills/{category}/{skill}	Delete :skill
+Skills	GET	/api/hermes/skills	List skills
+Skills	GET	/api/hermes/skills/external-dirs	Get external-dirs
+Skills	GET	/api/hermes/skills/usage/stats	Get stats
+Skills	GET	/api/hermes/skills/{category}/{skill}/files	Get files
+Skills	GET	/api/hermes/skills/{path}	Get skills by *path
+Skills	POST	/api/hermes/skills/import	Create import
+Skills	PUT	/api/hermes/skills/external-dirs	Update external-dirs
+Skills	PUT	/api/hermes/skills/pin	Update pin
+Skills	PUT	/api/hermes/skills/toggle	Update toggle
+Skills	PUT	/api/hermes/skills/{category}/{skill}	Update :skill
+Social Messages	DELETE	/api/social-messages/credentials/{platform}	Delete :platform
+Social Messages	GET	/api/social-messages/feishu/qrcode	Get qrcode
+Social Messages	GET	/api/social-messages/feishu/qrcode/status	Get status
+Social Messages	GET	/api/social-messages/feishu/recipients	Get recipients
+Social Messages	GET	/api/social-messages/platforms	Get platforms
+Social Messages	GET	/api/social-messages/telegram/recipients	Get recipients
+Social Messages	GET	/api/social-messages/weixin/qrcode	Get qrcode
+Social Messages	GET	/api/social-messages/weixin/qrcode/status	Get status
+Social Messages	GET	/api/social-messages/weixin/recipients	Get recipients
+Social Messages	POST	/api/social-messages/send	Create send
+Social Messages	POST	/api/social-messages/weixin/credentials	Create credentials
+Social Messages	PUT	/api/social-messages/active/{platform}	Update :platform
+Social Messages	PUT	/api/social-messages/credentials/{platform}	Update :platform
+Social Messages	PUT	/api/social-messages/locale/{platform}	Update :platform
+Studio Files	DELETE	/api/studio/app-uploads/{id}	Delete :id
+Studio Files	DELETE	/api/studio/files/delete	Delete delete
+Studio Files	GET	/api/studio/files/download	Get download
+Studio Files	GET	/api/studio/files/list	List list
+Studio Files	GET	/api/studio/files/preview	Get preview
+Studio Files	GET	/api/studio/files/read	Get read
+Studio Files	GET	/api/studio/files/stat	Get stat
+Studio Files	POST	/api/studio/app-uploads	Create app-uploads
+Studio Files	POST	/api/studio/app-uploads/{id}/complete	Create complete
+Studio Files	POST	/api/studio/files/copy	Create copy
+Studio Files	POST	/api/studio/files/mkdir	Create mkdir
+Studio Files	POST	/api/studio/files/rename	Rename rename
+Studio Files	POST	/api/studio/files/upload	Create upload
+Studio Files	POST	/api/studio/uploads	Create uploads
+Studio Files	PUT	/api/studio/app-uploads/{id}/chunks	Update chunks
+Studio Files	PUT	/api/studio/files/write	Update write
+TTS	DELETE	/api/studio/tts/settings/{provider}	Delete :provider
+TTS	DELETE	/api/studio/tts/settings/{provider}/base-url-preset	Delete base-url-preset
+TTS	DELETE	/api/studio/tts/settings/{provider}/secret/{secretName}	Delete :secretName
+TTS	GET	/api/studio/mcu/audio/{file}	Get :file
+TTS	GET	/api/studio/tts/settings	Get settings
+TTS	POST	/api/studio/tts	Create tts
+TTS	POST	/api/studio/tts/synthesize	Create synthesize
+TTS	POST	/api/studio/voice/proxy/{profile}/v1/audio/speech	Create speech
+TTS	POST	/api/studio/voice/proxy/{profile}/v1/tts	Create tts
+TTS	POST	/api/tts/proxy/audio/speech	Create speech
+TTS	POST	/api/voice/providers/probe	Create probe
+TTS	PUT	/api/studio/tts/settings/active	Update active
+TTS	PUT	/api/studio/tts/settings/{provider}	Update :provider
+Terminal	GET	/api/hermes/terminal	WebSocket terminal connection
+Theme	DELETE	/api/theme/background	Delete background
+Theme	DELETE	/api/theme/presets/{id}	Delete :id
+Theme	GET	/api/theme	Get theme
+Theme	GET	/api/theme/background	Get background
+Theme	GET	/api/theme/presets	Get presets
+Theme	GET	/api/theme/presets/{id}/export	Export an owned theme as a ZIP file
+Theme	PATCH	/api/theme/presets/{id}	Update :id
+Theme	POST	/api/theme/background	Create background
+Theme	POST	/api/theme/presets	Create presets
+Theme	POST	/api/theme/presets/import	Import and activate a theme ZIP as a new theme
+Theme	POST	/api/theme/presets/{id}/activate	Create activate
+Theme	PUT	/api/theme	Update theme
+Update	GET	/api/studio/update/preview	Get preview
+Update	GET	/api/studio/update/preview/tags	Get tags
+Update	POST	/api/studio/update	Create update
+Update	POST	/api/studio/update/preview/install	Create install
+Update	POST	/api/studio/update/preview/prepare	Create prepare
+Update	POST	/api/studio/update/preview/start	Create start
+Update	POST	/api/studio/update/preview/stop	Create stop
+Weixin	GET	/api/hermes/weixin/qrcode	Get qrcode
+Weixin	GET	/api/hermes/weixin/qrcode/status	Get status
+Weixin	POST	/api/hermes/weixin/save	Create save
+Workflows	DELETE	/api/studio/workflows/{id}	Delete :id
+Workflows	DELETE	/api/studio/workflows/{id}/runs/{runId}	Delete :runId
+Workflows	DELETE	/api/studio/workflows/{id}/schedules/{scheduleId}	Delete :scheduleId
+Workflows	GET	/api/studio/workflows	List workflows
+Workflows	GET	/api/studio/workflows/{id}	Get :id
+Workflows	GET	/api/studio/workflows/{id}/export	Get export
+Workflows	GET	/api/studio/workflows/{id}/runs	Get runs
+Workflows	GET	/api/studio/workflows/{id}/runs/{runId}	Get :runId
+Workflows	GET	/api/studio/workflows/{id}/schedules	Get schedules
+Workflows	PATCH	/api/studio/workflows/{id}	Update :id
+Workflows	PATCH	/api/studio/workflows/{id}/schedules/{scheduleId}	Update :scheduleId
+Workflows	POST	/api/studio/workflows	Create workflows
+Workflows	POST	/api/studio/workflows/batch-delete	Create batch-delete
+Workflows	POST	/api/studio/workflows/import/cancel	Create cancel
+Workflows	POST	/api/studio/workflows/import/confirm	Create confirm
+Workflows	POST	/api/studio/workflows/import/preview	Create preview
+Workflows	POST	/api/studio/workflows/{id}/run	Create run
+Workflows	POST	/api/studio/workflows/{id}/runs/{runId}/nodes/{nodeId}/approval	Create approval
+Workflows	POST	/api/studio/workflows/{id}/runs/{runId}/rerun-from-node	Create rerun-from-node
+Workflows	POST	/api/studio/workflows/{id}/runs/{runId}/stop	Create stop
+Workflows	POST	/api/studio/workflows/{id}/schedules	Create schedules
+Write Gate	GET	/api/hermes/write-gate/pending	List pending
+Write Gate	GET	/api/hermes/write-gate/pending/{subsystem}/{id}/diff	Get diff
+Write Gate	POST	/api/hermes/write-gate/pending/{subsystem}/{id}/approve	Create approve
+Write Gate	POST	/api/hermes/write-gate/pending/{subsystem}/{id}/reject	Create reject
+xAI Auth	GET	/api/hermes/auth/xai/poll/{sessionId}	Get :sessionId
+xAI Auth	GET	/api/hermes/auth/xai/status	Get status
+xAI Auth	POST	/api/hermes/auth/xai/start	Create start

@@ -1013,4 +1013,9 @@
     <string name="workspace_open_failed">没有能打开这个文件的应用</string>
     <string name="compression_running">正在压缩上下文…</string>
     <string name="compression_done">上下文已压缩</string>
+    <string name="sheet_bundles">技能包</string>
+    <string name="sheet_bundles_detail">点选插入技能包命令</string>
+    <string name="bundle_skill_count">%1$d 个技能</string>
+    <string name="bundle_created">已创建技能包 %1$s</string>
+    <string name="bundle_deleted">已删除技能包 %1$s</string>
 </resources>

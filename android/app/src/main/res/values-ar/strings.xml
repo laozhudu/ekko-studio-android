@@ -1008,4 +1008,9 @@
     <string name="workspace_open_failed">لا يوجد تطبيق لفتح هذا الملف</string>
     <string name="compression_running">جارٍ ضغط السياق…</string>
     <string name="compression_done">تم ضغط السياق</string>
+    <string name="sheet_bundles">حزم المهارات</string>
+    <string name="sheet_bundles_detail">اضغط لإدراج أمر الحزمة</string>
+    <string name="bundle_skill_count">%1$d مهارات</string>
+    <string name="bundle_created">تم إنشاء الحزمة %1$s</string>
+    <string name="bundle_deleted">تم حذف الحزمة %1$s</string>
 </resources>

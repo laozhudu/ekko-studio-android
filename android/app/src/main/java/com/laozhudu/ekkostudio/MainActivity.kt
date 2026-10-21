@@ -2998,6 +2998,7 @@ private fun Composer(
             onDismissRequest = { sheet = null },
             sheetState = rememberModalBottomSheetState(),
         ) {
+            LaunchedEffect(Unit) { viewModel.loadBundles() }
             LazyColumn(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
                 item {
                     SheetTitle(stringResource(R.string.sheet_slash_commands))
@@ -3007,6 +3008,44 @@ private fun Composer(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                     )
+                }
+                if (state.bundles.isNotEmpty()) {
+                    item {
+                        SheetTitle(stringResource(R.string.sheet_bundles))
+                        Text(
+                            stringResource(R.string.sheet_bundles_detail),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                        )
+                    }
+                    items(state.bundles, key = { "bundle-" + it.command }) { bundle ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val prefix = if (draft.isBlank()) "" else draft.trimEnd() + " "
+                                    onDraftChange(prefix + "/" + bundle.command.removePrefix("/") + " ")
+                                    sheet = null
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text(
+                                "/" + bundle.command.removePrefix("/"),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                                modifier = Modifier.widthIn(min = 96.dp),
+                            )
+                            Text(
+                                bundle.description.ifBlank {
+                                    stringResource(R.string.bundle_skill_count, bundle.skills.size)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
                 items(SlashCommands.suggestions, key = { it.name }) { command ->
                     Row(

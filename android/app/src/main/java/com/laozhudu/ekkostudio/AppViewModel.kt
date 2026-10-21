@@ -232,6 +232,9 @@ data class UiState(
     /** 0..100, or -1 when the update reports no progress of its own. */
     val updateProgress: Int = -1,
     val agentPolicies: List<AgentPolicy> = emptyList(),
+    /** Skill bundles, shown in the slash-command sheet. */
+    val bundles: List<SkillBundle> = emptyList(),
+    val bundlesLoading: Boolean = false,
     val textScale: Float = 1f,
     /** Bumped by the "check for updates" action to trigger a manual check. */
     val appUpdateCheckTick: Int = 0,
@@ -1103,6 +1106,51 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(studioLoading = false, error = failure.readableMessage(localized))
                 }
             }
+        }
+    }
+
+    // ---- Skill bundles --------------------------------------------------
+
+    fun loadBundles() {
+        if (_state.value.bundlesLoading) return
+        _state.update { it.copy(bundlesLoading = true) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.bundles() } }
+                .onSuccess { list -> _state.update { it.copy(bundles = list, bundlesLoading = false) } }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(bundlesLoading = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    fun createBundle(name: String, description: String, skills: List<String>) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.createBundle(name.trim(), description.trim(), skills) }
+            }
+                .onSuccess {
+                    _state.update { it.copy(notice = str(R.string.bundle_created, name.trim())) }
+                    loadBundles()
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    fun deleteBundle(bundle: SkillBundle) {
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.deleteBundle(bundle.command) } }
+                .onSuccess {
+                    _state.update { it.copy(notice = str(R.string.bundle_deleted, bundle.name)) }
+                    loadBundles()
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.readableMessage(localized)) }
+                }
         }
     }
 

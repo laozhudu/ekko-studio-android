@@ -859,6 +859,51 @@ class HermesApi(
     fun importProfile(bytes: ByteArray, filename: String) { multipart("/api/hermes/profiles/import", "file", bytes, filename, "application/gzip", emptyMap(), null) }
     fun profileExportUrl(name: String): String = url("/api/hermes/profiles/${enc(name)}/export?token=${enc(token)}")
 
+    // ── skill bundles ───────────────────────────────────────────────────
+    // A bundle is a named group of skills invoked with its own slash command.
+    // Create takes {name, description, skills[]}; list returns the same objects,
+    // and the command is derived from the name when the server omits it.
+
+    fun bundles(): List<SkillBundle> {
+        val array = call("/api/hermes/bundles").optJSONArray("bundles") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val name = firstNonBlank(item, "name", "commandName", "command")
+                ?: return@mapNotNull null
+            val skills = item.optJSONArray("skills")?.let { array ->
+                (0 until array.length()).mapNotNull { i ->
+                    when (val value = array.opt(i)) {
+                        is String -> value.takeIf(String::isNotBlank)
+                        is JSONObject -> firstNonBlank(value, "name", "skill")
+                        else -> null
+                    }
+                }
+            }.orEmpty()
+            SkillBundle(
+                name = name,
+                description = firstNonBlank(item, "description", "summary").orEmpty(),
+                skills = skills,
+                command = firstNonBlank(item, "commandName", "command").orEmpty()
+                    .ifBlank { name.removePrefix("/") },
+            )
+        }.sortedBy { it.name.lowercase() }
+    }
+
+    fun createBundle(name: String, description: String, skills: List<String>) {
+        call(
+            "/api/hermes/bundles",
+            "POST",
+            JSONObject()
+                .put("name", name)
+                .put("description", description)
+                .put("skills", JSONArray(skills)),
+        )
+    }
+
+    fun deleteBundle(commandName: String) {
+        call("/api/hermes/bundles/${enc(commandName)}", "DELETE")
+    }
+
     fun ekkoSkillDetail(profile: String, name: String): String {
         val skill = call("/api/ekko/skills/${enc(name)}", profile = profile).optJSONObject("skill") ?: JSONObject()
         return skill.optString("content")
@@ -2371,6 +2416,14 @@ data class Message(
     /** Rows that belong to the agent's machinery rather than to the conversation. */
     val isToolRow: Boolean get() = role == "tool"
 }
+
+data class SkillBundle(
+    val name: String,
+    val description: String,
+    val skills: List<String>,
+    /** Slash command that runs the bundle; defaults to its name. */
+    val command: String,
+)
 
 data class ConversationHistory(
     val messages: List<Message>,
