@@ -1,0 +1,76 @@
+# Ekko Studio 官方安卓 App 1.0.8（uni-app）调用的接口清单
+# 来源：assets/apps/__UNI__1F41684/www/app-service.js，正则抽取 /api/... 字面量
+# 用途：仅作「手机端应当调用哪些接口」的事实参考；不含任何官方代码或素材。
+# 分组说明：
+#   /api/studio/*  /api/hermes/*  -> 自托管 Studio 本体
+#   /api/app/*     /api/website/* -> 厂商云端（自托管实例上 404，直连客户端用不到）
+#   其它（/api/v3、/api/voice）   -> 第三方语音服务
+
+self-hosted /api/agents/status
+cloud       /api/app/announcements
+cloud       /api/app/auth/devices
+cloud       /api/app/auth/me
+cloud       /api/app/auth/session-share-proof
+cloud       /api/app/connections/claim
+self-hosted /api/auth/me
+self-hosted /api/coding-agents/update-policies
+self-hosted /api/devices/link-info
+self-hosted /api/ekko-studio/models/v1
+self-hosted /api/ekko/config
+self-hosted /api/ekko/mcp/servers
+self-hosted /api/ekko/memory
+self-hosted /api/ekko/skills
+self-hosted /api/hermes/auth/copilot/check-token
+self-hosted /api/hermes/auth/copilot/enable
+self-hosted /api/hermes/auth/{}/start
+self-hosted /api/hermes/config
+self-hosted /api/hermes/download
+self-hosted /api/hermes/jobs
+self-hosted /api/hermes/jobs/delivery-targets
+self-hosted /api/hermes/mcp/reload
+self-hosted /api/hermes/mcp/servers
+self-hosted /api/hermes/mcp/tools
+self-hosted /api/hermes/memory
+self-hosted /api/hermes/runtime-versions
+self-hosted /api/hermes/runtime-versions/active-runtime
+self-hosted /api/hermes/runtime-versions/jobs
+self-hosted /api/hermes/runtime-versions/restart-webui
+self-hosted /api/hermes/runtime-versions/runtime/download
+self-hosted /api/hermes/skills/pin
+self-hosted /api/hermes/skills/toggle
+self-hosted /api/hermes/skills/usage/stats
+self-hosted /api/hermes/skills{}
+self-hosted /api/studio
+self-hosted /api/studio/files/download
+self-hosted /api/studio/group-chat
+self-hosted /api/studio/group-chat-link/v1/connect
+self-hosted /api/studio/group-chat-link/v1/connections
+self-hosted /api/studio/group-chat/agent-presets
+self-hosted /api/studio/group-chat/agent-presets{}
+self-hosted /api/studio/group-chat/remote-resources
+self-hosted /api/studio/group-chat/rooms
+self-hosted /api/studio/jev/settings
+self-hosted /api/studio/jev/test
+self-hosted /api/studio/live-activities/registration
+self-hosted /api/studio/logs
+self-hosted /api/studio/models/api-keys
+self-hosted /api/studio/performance/runtime
+self-hosted /api/studio/push/registration
+self-hosted /api/studio/session-shares/access
+self-hosted /api/studio/session-shares/claim
+self-hosted /api/studio/sessions/conversations/{}/messages/paginated
+self-hosted /api/studio/stt/local-model
+self-hosted /api/studio/stt/local-model/download
+self-hosted /api/studio/uploads
+self-hosted /api/studio/usage/pricing
+self-hosted /api/studio/usage/stats
+self-hosted /api/studio/versions
+self-hosted /api/studio/workflows
+self-hosted /api/studio/workspace/directories
+self-hosted /api/studio/{}/settings
+self-hosted /api/studio/{}/settings/active
+3rd-party   /api/v3/auc/bigmodel
+3rd-party   /api/v3/tts/unidirectional
+3rd-party   /api/voice/providers/probe
+cloud       /api/website/app/qr/approve
+cloud       /api/website/app/qr/inspect
