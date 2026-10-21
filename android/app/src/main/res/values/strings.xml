@@ -1168,4 +1168,22 @@
     <string name="cron_bad_schedule">Invalid schedule: %1$s</string>
     <string name="cron_schedule_hint">Five fields: minute hour day month weekday</string>
     <string name="channel_qr_refresh">New code</string>
+    <string name="providers_title">Provider sign-in</string>
+    <string name="providers_hub_note">Sign in to Anthropic, Codex, Copilot, xAI, Nous, MiniMax.</string>
+    <string name="providers_note">Each provider signs in on its own account. A device code is typed on another device; an authorization link is approved in a browser.</string>
+    <string name="provider_unknown">Status unknown</string>
+    <string name="provider_signed_in_short">Signed in</string>
+    <string name="provider_relogin">Sign-in expired — sign in again</string>
+    <string name="provider_signed_out">Not signed in</string>
+    <string name="provider_sign_in">Sign in</string>
+    <string name="provider_sign_in_again">Sign in again</string>
+    <string name="provider_device_code_note">Type this code on the provider\'s page. The phone cannot approve it for you.</string>
+    <string name="provider_authorize_note">Open the link, approve the app, then come back. This screen keeps checking.</string>
+    <string name="provider_copy_code">Tap the code to copy it</string>
+    <string name="provider_open_browser">Open in browser</string>
+    <string name="provider_paste_code">Paste the code from the page</string>
+    <string name="provider_submit">Submit code</string>
+    <string name="provider_waiting">Waiting for approval…</string>
+    <string name="provider_done">Signed in</string>
+    <string name="provider_signed_in">%1$s signed in</string>
 </resources>

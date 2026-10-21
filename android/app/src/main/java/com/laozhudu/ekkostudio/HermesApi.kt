@@ -1607,6 +1607,86 @@ class HermesApi(
         )
     }
 
+    // ── provider sign-in (OAuth) ─────────────────────────────────────────
+
+    /**
+     * The providers that own a sign-in flow, and which shape each uses.
+     *
+     * Two shapes exist on the server. `nous` and `copilot` are device-code flows:
+     * the start call returns a short code to type on another device. `anthropic`,
+     * `codex`, `xai` and `minimax` are authorization-URL flows: the start call
+     * returns a URL to open, and the server finishes the exchange; only anthropic
+     * additionally requires the user to paste a code back.
+     */
+
+    /**
+     * GET /api/hermes/auth/{provider}/status
+     *
+     * Copilot answers a different shape (`has_token` / `enabled`), which is why
+     * both sets of fields are read here instead of assuming one.
+     */
+    fun providerAuthStatus(provider: String, profile: String): ProviderStatus {
+        val root = call("/api/hermes/auth/${enc(provider)}/status", profile = profile)
+        return ProviderStatus(
+            provider = provider,
+            authenticated = root.optBoolean("authenticated", false) || root.optBoolean("has_token", false),
+            reloginRequired = root.optBoolean("relogin_required", false),
+            enabled = root.optBoolean("enabled", true),
+            source = root.optString("source").ifBlank { null },
+        )
+    }
+
+    /** POST /api/hermes/auth/{provider}/start */
+    fun startProviderAuth(provider: String, profile: String): ProviderAuthStart {
+        val root = call("/api/hermes/auth/${enc(provider)}/start", "POST", JSONObject(), profile = profile)
+        return ProviderAuthStart(
+            sessionId = root.optString("session_id"),
+            userCode = root.optString("user_code").ifBlank { null },
+            verificationUrl = root.optString("verification_url"),
+            authorizationUrl = root.optString("authorization_url").ifBlank { null }.orEmpty(),
+            expiresIn = root.optInt("expires_in", 0),
+            interval = root.optInt("interval", 3),
+        )
+    }
+
+    /**
+     * GET /api/hermes/auth/{provider}/poll/{sessionId}
+     *
+     * Every provider except anthropic exposes this. Anthropic's flow has no poll
+     * route at all, so its completion is observed by re-reading status after the
+     * code is submitted.
+     */
+    fun pollProviderAuth(provider: String, sessionId: String, profile: String): ProviderAuthPoll {
+        val root = call(
+            "/api/hermes/auth/${enc(provider)}/poll/${enc(sessionId)}",
+            profile = profile,
+        )
+        return ProviderAuthPoll(
+            status = root.optString("status"),
+            error = root.optString("error").ifBlank { null },
+        )
+    }
+
+    /** POST /api/hermes/auth/anthropic/submit/{sessionId} — the pasted code. */
+    fun submitProviderCode(provider: String, sessionId: String, code: String, profile: String) {
+        call(
+            "/api/hermes/auth/${enc(provider)}/submit/${enc(sessionId)}",
+            "POST",
+            JSONObject().put("code", code.trim()),
+            profile = profile,
+        )
+    }
+
+    /** POST /api/hermes/auth/copilot/{enable|disable} */
+    fun setCopilotEnabled(enabled: Boolean, profile: String) {
+        call(
+            "/api/hermes/auth/copilot/${if (enabled) "enable" else "disable"}",
+            "POST",
+            JSONObject(),
+            profile = profile,
+        )
+    }
+
     /** GET /api/hermes/config/delegation-model — the subagent default. */
     fun delegationConfig(profile: String): DelegationConfig {
         val item = call("/api/hermes/config/delegation-model?profile=${enc(profile)}", profile = profile)
@@ -3028,6 +3108,68 @@ data class AuxiliaryConfig(
     val assignments: Map<String, AuxiliaryAssignment>,
 ) {
     fun assignmentFor(key: String): AuxiliaryAssignment = assignments[key] ?: AuxiliaryAssignment()
+}
+
+/**
+ * The providers that own a sign-in flow, and which shape each uses.
+ *
+ * Two shapes exist on the server. `nous` and `copilot` are device-code flows: the
+ * start call returns a short code to type on another device. `anthropic`, `codex`,
+ * `xai` and `minimax` are authorization-URL flows: the start call returns a URL to
+ * approve, and the server finishes the exchange. Only anthropic also needs the user
+ * to paste a code back, and it is the only one with no poll route.
+ *
+ * Kept at file level rather than inside the client so the screen can list the
+ * providers without needing an API instance.
+ */
+val OAUTH_PROVIDERS: List<OAuthProvider> = listOf(
+    OAuthProvider("nous", "Nous Portal", OAuthFlow.DeviceCode, supportsSubmit = false),
+    OAuthProvider("copilot", "GitHub Copilot", OAuthFlow.DeviceCode, supportsSubmit = false, toggles = true),
+    OAuthProvider("anthropic", "Anthropic", OAuthFlow.AuthorizationUrl, supportsSubmit = true),
+    OAuthProvider("codex", "OpenAI Codex", OAuthFlow.AuthorizationUrl, supportsSubmit = false),
+    OAuthProvider("xai", "xAI", OAuthFlow.AuthorizationUrl, supportsSubmit = false),
+    OAuthProvider("minimax", "MiniMax", OAuthFlow.AuthorizationUrl, supportsSubmit = false),
+)
+
+enum class OAuthFlow { DeviceCode, AuthorizationUrl }
+
+data class OAuthProvider(
+    val id: String,
+    val label: String,
+    val flow: OAuthFlow,
+    /** Only anthropic asks the user to paste a code back. */
+    val supportsSubmit: Boolean,
+    /** Copilot can also be switched off without signing out. */
+    val toggles: Boolean = false,
+)
+
+data class ProviderStatus(
+    val provider: String,
+    val authenticated: Boolean,
+    val reloginRequired: Boolean = false,
+    val enabled: Boolean = true,
+    val source: String? = null,
+)
+
+data class ProviderAuthStart(
+    val sessionId: String,
+    /** Device-code flows return this; it is what the user types elsewhere. */
+    val userCode: String? = null,
+    /** Where to type the code, or where to approve the app. */
+    val verificationUrl: String = "",
+    val authorizationUrl: String = "",
+    val expiresIn: Int = 0,
+    val interval: Int = 3,
+) {
+    val isDeviceCode: Boolean get() = !userCode.isNullOrBlank()
+}
+
+data class ProviderAuthPoll(
+    val status: String,
+    val error: String? = null,
+) {
+    val finished: Boolean get() = status in setOf("completed", "authenticated", "success")
+    val failed: Boolean get() = status in setOf("error", "expired", "denied", "failed")
 }
 
 data class DelegationConfig(

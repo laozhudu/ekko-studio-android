@@ -108,6 +108,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Group
@@ -547,7 +548,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
     // The system back gesture belongs to the app while there is somewhere to go
     // back to. Only the two root lists let it fall through and close the app.
     when (state.screen) {
-        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.RoomFiles, Screen.WorkflowRun, Screen.AuxiliaryModels, Screen.Profiles, Screen.Settings,
+        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.RoomFiles, Screen.WorkflowRun, Screen.AuxiliaryModels, Screen.Providers, Screen.Profiles, Screen.Settings,
         Screen.MoreSettings, Screen.SettingsGroup, Screen.Channels, Screen.Channel, Screen.CronJobs,
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
@@ -614,6 +615,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.RoomFiles -> RoomFilesScreen(state, viewModel)
         Screen.WorkflowRun -> WorkflowRunScreen(state, viewModel)
         Screen.AuxiliaryModels -> AuxiliaryModelsScreen(state, viewModel)
+        Screen.Providers -> ProvidersScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
         Screen.Terminal -> TerminalScreen(
@@ -4686,6 +4688,14 @@ private fun AgentHubScreen(state: UiState, viewModel: AppViewModel) {
                         title = stringResource(R.string.auxiliary_title),
                         subtitle = stringResource(R.string.auxiliary_hub_note),
                         onClick = { viewModel.openAuxiliaryModels() },
+                    )
+                    StudioCardDivider()
+                    StudioDestinationRow(
+                        icon = Icons.Filled.VpnKey,
+                        color = Color(0xFFC28A30),
+                        title = stringResource(R.string.providers_title),
+                        subtitle = stringResource(R.string.providers_hub_note),
+                        onClick = { viewModel.openProviders() },
                     )
                     StudioCardDivider()
                     StudioDestinationRow(

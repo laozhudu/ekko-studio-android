@@ -1167,4 +1167,22 @@
     <string name="cron_bad_schedule">定时表达式无效：%1$s</string>
     <string name="cron_schedule_hint">五个字段：分 时 日 月 周</string>
     <string name="channel_qr_refresh">换一个码</string>
+    <string name="providers_title">Provider 登录</string>
+    <string name="providers_hub_note">登录 Anthropic / Codex / Copilot / xAI / Nous / MiniMax。</string>
+    <string name="providers_note">每个 Provider 各自登录。设备码需要在另一台设备上输入；授权链接需在浏览器里确认。</string>
+    <string name="provider_unknown">状态未知</string>
+    <string name="provider_signed_in_short">已登录</string>
+    <string name="provider_relogin">登录已过期，请重新登录</string>
+    <string name="provider_signed_out">未登录</string>
+    <string name="provider_sign_in">登录</string>
+    <string name="provider_sign_in_again">重新登录</string>
+    <string name="provider_device_code_note">在 Provider 页面上输入这个码。手机自己无法替你确认。</string>
+    <string name="provider_authorize_note">打开链接、确认授权，然后回来。这个页面会一直检查。</string>
+    <string name="provider_copy_code">点代码即可复制</string>
+    <string name="provider_open_browser">在浏览器打开</string>
+    <string name="provider_paste_code">粘贴页面上的授权码</string>
+    <string name="provider_submit">提交授权码</string>
+    <string name="provider_waiting">等待授权…</string>
+    <string name="provider_done">登录成功</string>
+    <string name="provider_signed_in">%1$s 已登录</string>
 </resources>

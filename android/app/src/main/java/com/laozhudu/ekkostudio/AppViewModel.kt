@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles, WorkflowRun, AuxiliaryModels,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles, WorkflowRun, AuxiliaryModels, Providers,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -266,6 +266,10 @@ data class UiState(
     val auxiliaryConfig: AuxiliaryConfig = AuxiliaryConfig(emptyList(), emptyMap()),
     val delegation: DelegationConfig = DelegationConfig(),
     val loadingAuxiliary: Boolean = false,
+    /** Provider sign-in: one status per provider, plus the flow in progress. */
+    val providerStatuses: List<ProviderStatus> = emptyList(),
+    val loadingProviders: Boolean = false,
+    val authFlow: ProviderAuthFlow? = null,
     /** Server whose live tool inventory is open in a dialog, plus the data. */
     val mcpToolsFor: String? = null,
     val mcpLiveTools: List<McpServerTools> = emptyList(),
@@ -379,6 +383,29 @@ data class UiState(
     val kanbanAttachments: List<String> = emptyList(),
 )
 
+/**
+ * A sign-in in progress.
+ *
+ * `status` is the server's own word (`pending` / `error` / `expired`), so the UI
+ * never has to invent one. `polling` is local: true until the first terminal state
+ * arrives or the user closes the sheet.
+ */
+data class ProviderAuthFlow(
+    val provider: String,
+    val label: String,
+    val sessionId: String,
+    val userCode: String? = null,
+    val verificationUrl: String = "",
+    val authorizationUrl: String = "",
+    val supportsSubmit: Boolean = false,
+    val status: String = "pending",
+    val error: String? = null,
+    val polling: Boolean = true,
+) {
+    val finished: Boolean get() = status in setOf("completed", "authenticated", "success")
+    val failed: Boolean get() = status in setOf("error", "expired", "denied", "failed")
+}
+
 /** Numbers from `compression.started|completed`; wording is the UI's job. */
 data class CompressionUi(
     val running: Boolean,
@@ -449,6 +476,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val recorder = Recorder(app)
     private var speechPlayer: MediaPlayer? = null
     private var runJob: kotlinx.coroutines.Job? = null
+    /** The sign-in poller; cancelled when the sheet closes or a new flow starts. */
+    private var authJob: Job? = null
+
     /** Set when another device posts while this phone is elsewhere. */
     private var peerMessagePending = false
     private var historyJob: kotlinx.coroutines.Job? = null
@@ -834,6 +864,140 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 updateProgress = -1,
                 notice = str(R.string.update_still_pending),
             )
+        }
+    }
+
+    // ── provider sign-in ─────────────────────────────────────────────────
+
+    fun openProviders() {
+        _state.update { it.copy(screen = Screen.Providers, error = null, notice = null, authFlow = null) }
+        loadProviders()
+    }
+
+    /** Every status is read independently: one failing provider must not hide the rest. */
+    fun loadProviders() {
+        val profile = currentProfile()
+        _state.update { it.copy(loadingProviders = true) }
+        viewModelScope.launch {
+            val statuses = withContext(Dispatchers.IO) {
+                OAUTH_PROVIDERS.mapNotNull { provider ->
+                    runCatching { api.providerAuthStatus(provider.id, profile) }.getOrNull()
+                }
+            }
+            _state.update { it.copy(providerStatuses = statuses, loadingProviders = false) }
+        }
+    }
+
+    fun startProviderAuth(provider: OAuthProvider) {
+        val profile = currentProfile()
+        authJob?.cancel()
+        _state.update { it.copy(authFlow = null, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.startProviderAuth(provider.id, profile) } }
+                .onSuccess { start ->
+                    _state.update {
+                        it.copy(
+                            authFlow = ProviderAuthFlow(
+                                provider = provider.id,
+                                label = provider.label,
+                                sessionId = start.sessionId,
+                                userCode = start.userCode,
+                                verificationUrl = start.verificationUrl,
+                                authorizationUrl = start.authorizationUrl,
+                                supportsSubmit = provider.supportsSubmit,
+                            ),
+                        )
+                    }
+                    pollProviderAuth(provider)
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    /**
+     * Polls until the flow finishes.
+     *
+     * Anthropic has no poll route — its exchange completes after the pasted code is
+     * submitted — so for that provider the loop re-reads *status* instead, which is
+     * the only signal it offers.
+     */
+    private fun pollProviderAuth(provider: OAuthProvider) {
+        val profile = currentProfile()
+        authJob = viewModelScope.launch {
+            repeat(AUTH_POLL_ATTEMPTS) {
+                delay(AUTH_POLL_INTERVAL_MS)
+                val flow = _state.value.authFlow ?: return@launch
+                if (!flow.polling || flow.finished || flow.failed) return@launch
+                if (!provider.supportsSubmit) {
+                    val poll = runCatching {
+                        withContext(Dispatchers.IO) { api.pollProviderAuth(provider.id, flow.sessionId, profile) }
+                    }.getOrNull()
+                    if (poll != null) {
+                        _state.update { state ->
+                            state.copy(
+                                authFlow = state.authFlow?.copy(
+                                    status = poll.status.ifBlank { state.authFlow.status },
+                                    error = poll.error,
+                                    polling = !(poll.finished || poll.failed),
+                                ),
+                            )
+                        }
+                    }
+                }
+                if (_state.value.authFlow?.finished != true) {
+                    val status = runCatching {
+                        withContext(Dispatchers.IO) { api.providerAuthStatus(provider.id, profile) }
+                    }.getOrNull()
+                    if (status?.authenticated == true) {
+                        _state.update { state ->
+                            state.copy(
+                                authFlow = state.authFlow?.copy(status = "authenticated", polling = false),
+                                providerStatuses = state.providerStatuses.map {
+                                    if (it.provider == provider.id) status else it
+                                },
+                                notice = str(R.string.provider_signed_in, provider.label),
+                            )
+                        }
+                        return@launch
+                    }
+                }
+            }
+            // Running out of attempts is not an error: the flow may simply need the
+            // user to finish in a browser. The sheet keeps its last known state.
+            _state.update { state -> state.copy(authFlow = state.authFlow?.copy(polling = false)) }
+        }
+    }
+
+    /** The pasted code for anthropic's flow. */
+    fun submitProviderCode(code: String) {
+        val flow = _state.value.authFlow ?: return
+        val profile = currentProfile()
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.submitProviderCode(flow.provider, flow.sessionId, code, profile) }
+            }.onSuccess {
+                _state.update { state -> state.copy(authFlow = state.authFlow?.copy(status = "submitted")) }
+                startProviderAuth(OAUTH_PROVIDERS.first { it.id == flow.provider })
+            }.onFailure { failure ->
+                _state.update { it.copy(error = failure.readableMessage(localized)) }
+            }
+        }
+    }
+
+    fun closeProviderAuth() {
+        authJob?.cancel()
+        _state.update { it.copy(authFlow = null) }
+    }
+
+    /** Copilot can be switched off without signing out; nothing else can. */
+    fun setCopilotEnabled(enabled: Boolean) {
+        val profile = currentProfile()
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.setCopilotEnabled(enabled, profile) } }
+                .onSuccess { loadProviders() }
+                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
         }
     }
 
@@ -5404,6 +5568,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.RoomFiles -> _state.update { it.copy(screen = Screen.RoomSettings) }
             Screen.WorkflowRun -> _state.update { it.copy(screen = Screen.AgentHub, openWorkflowRun = null, openWorkflowRunId = null) }
             Screen.AuxiliaryModels -> Screen.AgentHub
+            Screen.Providers -> Screen.AgentHub
             else -> Unit
         }
         _state.update { state ->
@@ -5596,3 +5761,9 @@ private fun Throwable.readableMessage(context: android.content.Context): String 
     is javax.net.ssl.SSLException -> context.getString(R.string.error_tls)
     else -> message ?: this::class.java.simpleName
 }
+
+/** Twice a second would hammer the server; the codes are valid for minutes. */
+private const val AUTH_POLL_INTERVAL_MS = 3_000L
+
+/** About five minutes, which is longer than any of these codes live. */
+private const val AUTH_POLL_ATTEMPTS = 100
