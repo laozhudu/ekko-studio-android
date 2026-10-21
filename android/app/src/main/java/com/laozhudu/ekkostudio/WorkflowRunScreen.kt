@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -286,11 +287,11 @@ internal data class GraphEdge(val from: String, val to: String)
 
 @Composable
 private fun rememberNodes(json: String): List<GraphNode> =
-    androidx.compose.runtime.remember(json) { parseGraphNodes(json) }
+    remember(json) { parseGraphNodes(json) }
 
 @Composable
 private fun rememberEdges(json: String): List<GraphEdge> =
-    androidx.compose.runtime.remember(json) { parseGraphEdges(json) }
+    remember(json) { parseGraphEdges(json) }
 
 internal fun parseGraphNodes(json: String): List<GraphNode> {
     val array = runCatching { org.json.JSONArray(json) }.getOrNull() ?: return emptyList()
