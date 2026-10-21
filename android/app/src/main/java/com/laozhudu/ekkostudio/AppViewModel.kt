@@ -3230,23 +3230,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loadMcp()
     }
 
-    fun refreshMcp() = loadMcp()
-
-    private fun loadMcp() {
-        _state.update { it.copy(mcpUi = it.mcpUi.copy(loading = true)) }
-        viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { api.mcpServers() } }
-                .onSuccess { servers ->
-                    _state.update { it.copy(mcpUi = it.mcpUi.copy(loading = false, actionName = null, servers = servers)) }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(mcpUi = it.mcpUi.copy(loading = false, actionName = null), error = failure.readableMessage(localized))
-                    }
-                }
-        }
-    }
-
     fun saveMcpServer(originalName: String?, name: String, config: String) {
         if (name.isBlank()) return
         _state.update { it.copy(mcpUi = it.mcpUi.copy(actionName = originalName ?: "new"), error = null) }
@@ -3278,11 +3261,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
         }
-    }
-
-    fun openPets() {
-        _state.update { it.copy(screen = Screen.Pets, error = null, notice = null) }
-        loadPets()
     }
 
     fun openInsights(days: Int = _state.value.usageDays) {
@@ -4110,11 +4088,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(instances = updated) }
     }
 
-    /** The login form doubles as "add another instance". */
-    fun addInstance() {
-        _state.update { it.copy(screen = Screen.Login, error = null) }
-    }
-
     /**
      * Official `.pairing-submit` in the manual-add panel: 设备连接 + 设备名称 +
      * Studio 账号 + Studio 密码 → "登录并添加设备".
@@ -4395,30 +4368,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 .onFailure { failure ->
                     _state.update { it.copy(savingSetting = false, error = failure.readableMessage(localized)) }
                 }
-        }
-    }
-
-    /** Whether the gateway comes up with the server, written server-side. */
-    fun setGatewayAutoStart(enabled: Boolean) {
-        val profile = _state.value.activeProfile.ifBlank { "default" }
-        val previous = _state.value.serverConfig
-        _state.update { it.copy(serverConfig = previous?.copy(gatewayAutoStart = enabled), savingSetting = true) }
-        viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    api.updateConfigSection(
-                        profile,
-                        "gatewayAutoStart",
-                        org.json.JSONObject().put("enabled", enabled),
-                    )
-                }
-            }.onSuccess {
-                _state.update { it.copy(savingSetting = false, notice = str(R.string.notice_saved)) }
-            }.onFailure { failure ->
-                _state.update {
-                    it.copy(savingSetting = false, serverConfig = previous, error = failure.readableMessage(localized))
-                }
-            }
         }
     }
 

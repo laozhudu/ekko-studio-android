@@ -18,16 +18,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * HStudio 视觉规范移植（令牌取自 HStudio App 的 app.css）。
+ * 应用调色板（自有命名），取值对齐 Ekko Studio 0.7.38 的官方令牌。
  *
- * 深色（默认）：--UI-BG #000 / --UI-BG-0 #191919 / --UI-BG-1 #1f1f1f /
- *               --UI-BG-2 #232323 / --UI-BG-3 #2f2f2f / --UI-BORDER-COLOR-1 #373737
- *               文字 #fff 分级 80% / 60% / 50% / 30%
- *               品牌色 #4ca66a（绿，带 .12 透明度光晕）、#007aff（蓝）、#c28a30（琥珀）、#e64340（红）
- * 浅色：--ink-bg-primary #fafafa / --ink-bg-card #fff / --ink-text-primary #1a1a1a /
- *       --ink-text-secondary #666 / --ink-border #e0e0e0 / --ink-accent #333
- * 圆角：6 / 8 / 10 / 12 / 16 dp（HStudio 主体是 8–12px，胶囊用 999px）
- * 排版：紧凑档（HStudio 用 9–18px，移动端等比放大到可读下限 11–20sp）
+ * 官方真值见 `docs/design-tokens-0.7.38.tsv`，映射关系：
+ *   --bg-primary        -> background（浅 #fafafa / 深 #1a1a1a）
+ *   --bg-card           -> surface（浅 #fff / 深 #2a2a2a）
+ *   --text-primary      -> inkTextPrimary
+ *   --text-secondary    -> inkTextSecondary
+ *   --text-muted        -> inkTextMuted
+ *   --border-color      -> inkBorder
+ *   --border-light      -> inkBorderLight
+ *   --code-bg           -> inkCodeBg
+ *   --msg-assistant-bg  -> inkMessageBg
+ *   --success/--warning/--accent-info -> inkSuccess / inkWarning / inkInfo
+ *
+ * 注意：0.7.38 的产物里已经**没有** `--ink-*` 这一族变量（grep 计数为 0），
+ * 旧注释引用它属于历史遗留，不要再按它去找样式。
+ *
+ * 圆角：6 / 8 / 10 / 12 / 16 dp，胶囊用 999px。
+ * 排版：基准 14sp（官方 --font-size-base: 14px），紧凑档下限 11sp。
  */
 private val StudioDarkColors = darkColorScheme(
     // 品牌绿 #4ca66a
@@ -67,11 +76,11 @@ private val StudioDarkColors = darkColorScheme(
 )
 
 private val StudioLightColors = lightColorScheme(
-    primary = Color(0xFF333333),             // --ink-accent
+    primary = Color(0xFF333333),             // `inkAccent`
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFF0F0F0),    // --ink-bg-secondary
+    primaryContainer = Color(0xFFF0F0F0),    // ink-bg-secondary
     onPrimaryContainer = Color(0xFF1A1A1A),
-    secondary = Color(0xFF666666),           // --ink-text-secondary
+    secondary = Color(0xFF666666),           // `inkTextSecondary`
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFF0F0F0),
     onSecondaryContainer = Color(0xFF1A1A1A),
@@ -79,9 +88,9 @@ private val StudioLightColors = lightColorScheme(
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFF0F0F0),
     onTertiaryContainer = Color(0xFF1A1A1A),
-    background = Color(0xFFFAFAFA),          // --ink-bg-primary
+    background = Color(0xFFFAFAFA),          // ink-bg-primary
     onBackground = Color(0xFF1A1A1A),
-    surface = Color(0xFFFFFFFF),             // --ink-bg-card
+    surface = Color(0xFFFFFFFF),             // ink-bg-card
     onSurface = Color(0xFF1A1A1A),
     surfaceVariant = Color(0xFFF0F0F0),
     onSurfaceVariant = Color(0xFF666666),
@@ -90,9 +99,9 @@ private val StudioLightColors = lightColorScheme(
     surfaceContainer = Color(0xFFF0F0F0),
     surfaceContainerHigh = Color(0xFFF1F1F1),
     surfaceContainerHighest = Color(0xFFE5E7EA),
-    outline = Color(0xFFE0E0E0),             // --ink-border
+    outline = Color(0xFFE0E0E0),             // `inkBorder`
     outlineVariant = Color(0xFFEBEBEB),
-    error = Color(0xFFC62828),               // --ink-error
+    error = Color(0xFFC62828),               // `inkError`
     onError = Color.White,
     errorContainer = Color(0xFFF6E9E9),
     onErrorContainer = Color(0xFF5F1612),
@@ -153,7 +162,11 @@ fun HermesTheme(
 }
 
 /**
- * HStudio ink tokens (app.css `--ink-*`).
+ * Palette lookups shared by every screen.
+ *
+ * The values are ported from the official 0.7.38 tokens (see
+ * docs/design-tokens-0.7.38.tsv); the `--ink-*` CSS family these were once named
+ * after no longer exists in the product.
  *
  * These are deliberately **plain functions**, not @Composable: they are pure
  * lookups against a dark/light flag, so calling them inside a recomposition
@@ -162,15 +175,15 @@ fun HermesTheme(
  */
 fun ColorScheme.isInkDark(): Boolean = background.luminance() < 0.5f
 
-/** --ink-bg-message: AI message bubble background. */
+/** ink-bg-message: AI message bubble background. */
 fun inkMessageBg(dark: Boolean): Color =
     if (dark) Color(0xFF262828) else Color(0xFFF1F1F1)
 
-/** --ink-accent: user bubble / active send button (#333 light, #eeeeeb dark). */
+/** `inkAccent`: user bubble / active send button (#333 light, #eeeeeb dark). */
 fun inkAccent(dark: Boolean): Color =
     if (dark) Color(0xFFEEEEEB) else Color(0xFF333333)
 
-/** --ink-on-accent: text drawn on [inkAccent]. */
+/** `inkOnAccent`: text drawn on [inkAccent]. */
 fun inkOnAccent(dark: Boolean): Color =
     if (dark) Color(0xFF191A1A) else Color.White
 
@@ -234,95 +247,95 @@ fun inkInfo(dark: Boolean): Color =
 fun inkSystemBorder(dark: Boolean): Color =
     if (dark) Color(0xFF555555) else Color(0xFFBDBDBD)
 
-/** --ink-bg-card-hover: tool-call rows, attach chips, avatar discs. */
+/** ink-bg-card-hover: tool-call rows, attach chips, avatar discs. */
 fun inkCardHover(dark: Boolean): Color =
     if (dark) Color(0xFF222323) else Color(0xFFFAFAFA)
 
-/** --ink-bg-input: composer field background. */
+/** ink-bg-input: composer field background. */
 fun inkInputBg(dark: Boolean): Color =
     if (dark) Color(0xFF1E1F1F) else Color.White
 
-/** --ink-input-border: hairline on the composer field and tool rows. */
+/** `inkInputBorder`: hairline on the composer field and tool rows. */
 fun inkInputBorder(dark: Boolean): Color =
     if (dark) Color(0x29FFFFFF) else Color(0x2E333333)   // .16 white / .18 #333
 
-/** --ink-bg-code: fenced code block background. */
+/** ink-bg-code: fenced code block background. */
 fun inkCodeBg(dark: Boolean): Color =
     if (dark) Color(0xFF131414) else Color(0xFFF4F4F4)
 
-/** --ink-selected-bg: dots, focus rings and tinted chips — NOT row fills. */
+/** `inkSelectedBg`: dots, focus rings and tinted chips — NOT row fills. */
 fun inkSelectedBg(dark: Boolean): Color =
     // Dark is rgba(255,255,255,.18) = 0x2E, deliberately *not* the .12 that
-    // --ink-focus-ring uses; the two are easy to conflate.
+    // `inkFocusRing` uses; the two are easy to conflate.
     if (dark) Color(0x2EFFFFFF) else Color(0x1A333333)
 
-/** --ink-text-muted: timestamps and secondary chrome. */
+/** `inkTextMuted`: timestamps and secondary chrome. */
 fun inkTextMuted(dark: Boolean): Color =
     if (dark) Color(0xFF858987) else Color(0xFF999999)
 
-/** --ink-error-soft: tinted background behind error notes and bubbles. */
+/** `inkErrorSoft`: tinted background behind error notes and bubbles. */
 fun inkErrorSoft(dark: Boolean): Color =
     if (dark) Color(0x1FEF8C87) else Color(0x14C62828)
 
-/** --ink-error: error foreground (#c62828 light, #ef8c87 dark). */
+/** `inkError`: error foreground (#c62828 light, #ef8c87 dark). */
 fun inkError(dark: Boolean): Color =
     if (dark) Color(0xFFEF8C87) else Color(0xFFC62828)
 
-/** --ink-bg-card: sheets, composer area, panels. */
+/** ink-bg-card: sheets, composer area, panels. */
 fun inkCardBg(dark: Boolean): Color =
     if (dark) Color(0xFF181919) else Color.White
 
-/** --ink-border / SCSS $border-color: blockquote bar, generic hairlines. */
+/** `inkBorder` / SCSS $border-color: blockquote bar, generic hairlines. */
 fun inkBorder(dark: Boolean): Color =
     if (dark) Color(0xFF383A39) else Color(0xFFE0E0E0)
 
-/** --ink-border-light / SCSS $border-light: soft panel hairlines. */
+/** `inkBorderLight` / SCSS $border-light: soft panel hairlines. */
 fun inkBorderLight(dark: Boolean): Color =
     if (dark) Color(0xFF2D2F2E) else Color(0xFFEBEBEB)
 
-/** --ink-text-secondary / SCSS $text-secondary: sender labels, quotes. */
+/** `inkTextSecondary` / SCSS $text-secondary: sender labels, quotes. */
 fun inkTextSecondary(dark: Boolean): Color =
     if (dark) Color(0xFFB8BAB8) else Color(0xFF666666)
 
-/** --ink-bg-secondary: agent badge fill, active session row (light #f0f0f0, dark #202121). */
+/** ink-bg-secondary: agent badge fill, active session row (light #f0f0f0, dark #202121). */
 fun inkSecondaryBg(dark: Boolean): Color =
     if (dark) Color(0xFF202121) else Color(0xFFF0F0F0)
 
-/** --ink-text-primary: body copy, inline code, attachment names. */
+/** `inkTextPrimary`: body copy, inline code, attachment names. */
 fun inkTextPrimary(dark: Boolean): Color =
     if (dark) Color(0xFFEEEEEB) else Color(0xFF1A1A1A)
 
-/** --ink-pressed: tap feedback and the code-block header strip. */
+/** `inkPressed`: tap feedback and the code-block header strip. */
 fun inkPressed(dark: Boolean): Color =
     if (dark) Color(0x0FFFFFFF) else Color(0x0A000000)
 
-/** --ink-code-text: foreground inside fenced code blocks. */
+/** `inkCodeText`: foreground inside fenced code blocks. */
 fun inkCodeText(dark: Boolean): Color =
     if (dark) Color(0xFFE5E7EB) else Color(0xFF1F2937)
 
-/** --ink-file-card-bg / --ink-file-card-border: official App dark tokens are real (#202121 / #2d2f2e). */
+/** `inkFileCardBg` / `inkFileCardBorder`: official App dark tokens are real (#202121 / #2d2f2e). */
 fun inkFileCardBg(dark: Boolean): Color =
     if (dark) Color(0xFF202121) else Color(0xFFE5E7EA)
 
 fun inkFileCardBorder(dark: Boolean): Color =
     if (dark) Color(0xFF2D2F2E) else Color(0xFFD1D5DA)
 
-/** --ink-file-card-icon-bg: glyph disc on file cards and attachment chips. */
+/** `inkFileCardIconBg`: glyph disc on file cards and attachment chips. */
 fun inkFileCardIconBg(dark: Boolean): Color =
     if (dark) Color(0xFF181919) else Color(0xFFF8F9FA)
 
 /**
- * --ink-focus-ring: 3px ring behind a focused `.field-shell`
+ * `inkFocusRing`: 3px ring behind a focused `.field-shell`
  * (login.css). Light rgba(51,51,51,.1), dark rgba(255,255,255,.12).
  */
 fun inkFocusRing(dark: Boolean): Color =
     if (dark) Color(0x1FFFFFFF) else Color(0x1A333333)
 
-/** --ink-shadow-lg ambient for elevated cards (.app-confirm-card). */
+/** `inkShadowLg` ambient for elevated cards (.app-confirm-card). */
 fun inkShadowLg(dark: Boolean): Color =
     if (dark) Color(0x4D000000) else Color(0x17000000)   // .3 / .09 black
 
-/** --ink-login-bg: the sheet that holds the auth forms. */
+/** `inkLoginBg`: the sheet that holds the auth forms. */
 fun inkLoginBg(dark: Boolean): Color =
     if (dark) Color(0xFF181919) else Color.White
 

@@ -914,7 +914,7 @@ private fun LoginBanner(state: UiState, viewModel: AppViewModel, dark: Boolean) 
 /**
  * A `.field-group`: `.field-label` over a 42dp `.field-shell` — leading glyph,
  * borderless [BasicTextField], optional trailing control. Focus swaps the
- * hairline to `--ink-accent` and paints the 3px `--ink-focus-ring` halo.
+ * hairline to ``inkAccent`` and paints the 3px ``inkFocusRing`` halo.
  */
 @Composable
 private fun LoginField(
@@ -1023,7 +1023,7 @@ private fun RememberCheck(label: String, checked: Boolean, onToggle: (Boolean) -
     }
 }
 
-/** `.primary-button` — 42dp, radius 7, `--ink-accent` on `--ink-on-accent`. */
+/** `.primary-button` — 42dp, radius 7, ``inkAccent`` on ``inkOnAccent``. */
 @Composable
 private fun LoginPrimaryButton(
     busy: Boolean,
@@ -1355,9 +1355,9 @@ private fun SessionRow(
     val running = session.running
     val locallyRunning = isRunningHere
     // HStudio .session-item--active (App app-service CSS): background
-    // --ink-bg-secondary + .session-title font-weight 550. The active flag is
+    // ink-bg-secondary + .session-title font-weight 550. The active flag is
     // computed at the call site from UiState.openSession (SessionSummary has
-    // no selection field). --ink-selected-bg is for dots/rings, not row fills.
+    // no selection field). `inkSelectedBg` is for dots/rings, not row fills.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     Column(
         modifier = Modifier
@@ -2255,12 +2255,12 @@ private fun MessageBubble(
     val hasWideContent = hasThinking || parsed.files.isNotEmpty()
 
     // HStudio .message-bubble: padding:10px 14px, border-radius:10px,
-    // background: var(--ink-bg-message) (#f1f1f1 light / #262828 dark).
+    // background: var(ink-bg-message) (#f1f1f1 light / #262828 dark).
     // The only user-specific rule is `.message.user .message-bubble { max-width:
-    // 100% }`, so both roles share one surface and --ink-text-primary colour.
+    // 100% }`, so both roles share one surface and `inkTextPrimary` colour.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     // Telegram colour-coding: outgoing is tinted, incoming is a flat card. The
-    // old build drew both on --ink-bg-message, so the two sides looked the same.
+    // old build drew both on ink-bg-message, so the two sides looked the same.
     val bubbleColor = when {
         line.isError -> inkErrorSoft(inkDark)
         isUser -> telegramOutgoingBg(inkDark)
@@ -2302,7 +2302,7 @@ private fun MessageBubble(
             }
 
             // HStudio .message-bubble: padding:10px 14px, border-radius:10px.
-            // Both roles draw on --ink-bg-message with --ink-text-primary text.
+            // Both roles draw on ink-bg-message with `inkTextPrimary` text.
             Card(
                 // Single tap opens the action sheet. Long press is deliberately
                 // NOT bound here: it belongs to the SelectionContainer inside, so
@@ -2414,9 +2414,9 @@ internal fun quoteForReply(quoted: String, reply: String): String {
 
 @Composable
 private fun ChatFileCard(file: ChatFileLink, onDownload: () -> Unit) {
-    // HStudio --ink-file-card-*: light #e5e7ea fill + #d1d5da hairline; the
+    // HStudio ink-file-card-*: light #e5e7ea fill + #d1d5da hairline; the
     // official App ships real dark tokens (#202121 / #2d2f2e) with the icon
-    // chip on --ink-file-card-icon-bg.
+    // chip on `inkFileCardIconBg`.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onDownload),
@@ -2589,7 +2589,7 @@ private fun ThinkingTimeline(line: ChatLine, notices: List<String> = emptyList()
 
 /**
  * HStudio .agent-badge: inline-flex pill, min-height 18px, padding 1px 6px,
- * --ink-bg-secondary fill, --ink-text-secondary text, 8sp/600. Used for the
+ * ink-bg-secondary fill, `inkTextSecondary` text, 8sp/600. Used for the
  * message-author line above AI bubbles.
  */
 @Composable
@@ -2630,7 +2630,7 @@ private fun ToolStepRow(tool: ChatToolStep, nowMillis: Long) {
         null
     }
     // HStudio .tool-call-item: 26dp compact bar, 7px radius, 11sp monospace,
-    // --ink-bg-card-hover fill + --ink-input-border hairline. Status rides on
+    // ink-bg-card-hover fill + `inkInputBorder` hairline. Status rides on
     // the leading dot/icon instead of a second text row.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val toolFont = MaterialTheme.typography.labelSmall.copy(
@@ -3124,8 +3124,8 @@ private fun Composer(
     }
 
     // HStudio .input-wrapper (official mobile chat, scope 8aca294f):
-    // --ink-bg-card fill, 1px --ink-input-border hairline, 18px radius,
-    // --ink-shadow-lg, min-height 78px, padding 8px 12px 6px, column gap 4px.
+    // ink-bg-card fill, 1px `inkInputBorder` hairline, 18px radius,
+    // `inkShadowLg`, min-height 78px, padding 8px 12px 6px, column gap 4px.
     // The mobile stylesheet has no focus/hover border-colour rule.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     Surface(
@@ -3225,7 +3225,7 @@ private fun Composer(
                     },
                 )
                 if (draft.isEmpty()) {
-                    // .input-placeholder: --ink-text-muted, nowrap + ellipsis.
+                    // .input-placeholder: `inkTextMuted`, nowrap + ellipsis.
                     Text(
                         stringResource(R.string.composer_hint),
                         style = fieldType,
@@ -3303,11 +3303,11 @@ private fun Composer(
  *
  * The official widget is a **row**, not a column: a 9px/14px muted label
  * (max-width 112px, ellipsis) sits *beside* a fixed **34×3** ring — not above a
- * full-width bar. The ring track is `--ink-border` and its fill is
- * `--ink-text-muted`; only the `--warning` / `--danger` states recolour it.
+ * full-width bar. The ring track is ``inkBorder`` and its fill is
+ * ``inkTextMuted``; only the `--warning` / `--danger` states recolour it.
  * Thresholds are read out of the bundled `app-service.js`, where the class
  * binding is `--warning: pct > 60 && pct <= 80` and `--danger: pct > 80`. The
- * `--warning` colour is the literal `#d59a2d` and `--danger` is `--ink-error`,
+ * `--warning` colour is the literal `#d59a2d` and `--danger` is ``inkError``,
  * and in both states the *whole* row adopts that colour, so the label changes
  * too. `--pressed` is `opacity: .66`, `--disabled` is `.52`. Upstream the widget
  * is `role="button"` named 点击编辑上下文长度, but editing the context window is a
@@ -3358,7 +3358,7 @@ private fun ContextUsage(state: UiState) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 220.dp),
         )
-        // .input-context-meter: 34×3, --ink-border track, 999px radius.
+        // .input-context-meter: 34×3, `inkBorder` track, 999px radius.
         Box(
             modifier = Modifier
                 .width(34.dp)
@@ -3444,8 +3444,8 @@ private fun ComposerActionButton(
     val runHere = state.runSessionId != null && state.runSessionId == state.openSession?.id
     val active = hasPayload || state.recording || runHere
     // HStudio .composer-send-button (official App): 30px circle; inactive is
-    // #fff glyph on --ink-text-muted, active is --ink-on-accent glyph on
-    // --ink-accent, and dark mode overrides the active pair to
+    // #fff glyph on `inkTextMuted`, active is `inkOnAccent` glyph on
+    // `inkAccent`, and dark mode overrides the active pair to
     // color:#191a1a / background:#e0e0e0.
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     val background = when {
@@ -3488,9 +3488,9 @@ private fun ToolbarChip(
     onClick: () -> Unit,
 ) {
     // HStudio .toolbar-button / .composer-toolbar-button (official App):
-    // no fill at all — just --ink-text-secondary glyph+label on transparent,
+    // no fill at all — just `inkTextSecondary` glyph+label on transparent,
     // min-width 35 × height 28, padding 0 4 0 6, gap 3, pill radius.
-    // Press feedback is --ink-pressed (handled by the clickable's ripple here).
+    // Press feedback is `inkPressed` (handled by the clickable's ripple here).
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     Row(
         modifier = Modifier
@@ -3526,8 +3526,8 @@ private fun ToolbarChip(
 
 /**
  * HStudio .composer-attachment (official App): 154×48 horizontal card on
- * --ink-bg-card-hover, radius 9px, padding 5/25/5/5, gap 7. A 38×38 icon tile
- * on --ink-bg-code carries the uppercase extension in 11sp/700 muted; the
+ * ink-bg-card-hover, radius 9px, padding 5/25/5/5, gap 7. A 38×38 icon tile
+ * on ink-bg-code carries the uppercase extension in 11sp/700 muted; the
  * name is 11sp/15 primary text. Images collapse to a 48×48 square and their
  * remove badge (17px, white glyph on rgba(0,0,0,.66)) floats to −5/−5. Files
  * keep the plain muted ✕ at top 3 / right 5. Size subline omitted: Upload has
@@ -4035,10 +4035,10 @@ private fun ManageSheet(
  * Stands between a stray tap and something that cannot be undone.
  *
  * Styled as the App's `.app-confirm-*`: a blurred-feel 40% scrim that dismisses
- * on tap, and a 360dp card (`--ink-bg-card`, 1px `--ink-border`, radius 14,
- * `--ink-shadow-lg`) with a 15sp title, 11sp muted body and a right-aligned
+ * on tap, and a 360dp card (`ink-bg-card`, 1px ``inkBorder``, radius 14,
+ * ``inkShadowLg``) with a 15sp title, 11sp muted body and a right-aligned
  * action row of 34dp pill-less buttons. [danger] moves the confirm button onto
- * `--ink-error` the way `.app-confirm-button--danger` does.
+ * ``inkError`` the way `.app-confirm-button--danger` does.
  */
 @Composable
 internal fun ConfirmDialog(
@@ -5836,27 +5836,6 @@ internal fun StudioTabs(state: UiState, viewModel: AppViewModel) {
             colors = colors,
         )
     }
-    }
-}
-
-@Composable
-private fun SectionHeader(label: String, count: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            count.toString(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

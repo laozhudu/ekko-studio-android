@@ -491,8 +491,8 @@ private fun MarkdownLine(
         text = chatMarkdownInline(
             text,
             linkColor = MaterialTheme.colorScheme.primary,
-            // HStudio .markdown-body code (official App): --ink-bg-code fill,
-            // --ink-text-primary text, 4px radius, 13px mono, 2px/6px padding.
+            // HStudio .markdown-body code (official App): ink-bg-code fill,
+            // `inkTextPrimary` text, 4px radius, 13px mono, 2px/6px padding.
             codeBackground = inkCodeBg(inkDark),
             codeColor = inkTextPrimary(inkDark),
         ),
@@ -550,10 +550,10 @@ private fun MarkdownQuoteRow(text: String) {
 
 /**
  * Fenced code keeps its own line breaks and scrolls sideways instead of
- * wrapping. HStudio .markdown-native-code-block (official App): --ink-bg-code
- * fill, 1px --ink-border hairline, 6px radius; when a language is known a
- * 36px header strip on --ink-pressed shows the uppercase 10px muted label and
- * a 48×30 copy affordance, split from the body by --ink-border.
+ * wrapping. HStudio .markdown-native-code-block (official App): ink-bg-code
+ * fill, 1px `inkBorder` hairline, 6px radius; when a language is known a
+ * 36px header strip on `inkPressed` shows the uppercase 10px muted label and
+ * a 48×30 copy affordance, split from the body by `inkBorder`.
  */
 @Composable
 private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
@@ -624,7 +624,7 @@ private fun MarkdownCodeBlock(block: ChatMarkdownBlock.Code) {
 /** Above this size the block falls back to plain text so streaming stays smooth. */
 private const val CODE_HIGHLIGHT_LIMIT = 20_000
 
-// HStudio --ink-code-* palette (app.css): keyword purple, string teal,
+// HStudio ink-code-* palette (app.css): keyword purple, string teal,
 // number amber, comment slate — identical roles to our token groups.
 private val CodeCommentLight = Color(0xFF6B7280)
 private val CodeCommentDark = Color(0xFF94A3B8)

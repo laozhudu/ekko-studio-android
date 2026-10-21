@@ -16,8 +16,6 @@
     <string name="message_fork">تفريع المحادثة</string>
     <string name="message_replying">الرد على</string>
     <string name="composer_expand">فتح كاتب الرسالة</string>
-    <string name="skills_write_approval">موافقة تعديلات المهارات</string>
-    <string name="skills_write_approval_note">طلب الموافقة قبل أن ينشئ الوكيل مهارة أو يعدّلها.</string>
     <string name="skills_pending_approvals">موافقات المهارات المعلّقة (%1$d)</string>
     <string name="skills_approve">موافقة</string>
     <string name="skills_reject">رفض</string>
@@ -74,7 +72,6 @@
     <string name="groups_title">المحادثة الجماعية</string>
     <string name="groups_tab">القروبات</string>
     <string name="groups_empty">لا توجد غرف بعد</string>
-    <string name="groups_section">الغرف</string>
     <string name="groups_counts">%1$d وكلاء · %2$d أعضاء</string>
     <string name="room_title">غرفة</string>
     <string name="room_empty">لا توجد رسائل في هذه الغرفة بعد</string>
@@ -82,9 +79,6 @@
     <!-- مركز الوكيل -->
     <string name="agent_hub_title">الوكيل</string>
     <string name="agent_hub_tab">الوكيل</string>
-    <string name="agent_hub_profile">البروفايل النشط: %1$s</string>
-    <string name="agent_hub_tools">أدوات الوكيل</string>
-    <string name="agent_hub_configuration">إعداد الوكيل</string>
     <string name="agent_hub_work">العمل</string>
     <string name="agent_hub_capabilities">القدرات</string>
     <string name="agent_hub_intelligence">الذكاء</string>
@@ -94,25 +88,18 @@
     <string name="agent_hub_skills">المهارات</string>
     <string name="agent_hub_plugins">الإضافات</string>
     <string name="agent_hub_mcp">MCP</string>
-    <string name="agent_hub_pets">الحيوانات المرافقة</string>
 
     <!-- المحادثة -->
     <string name="conversation_empty">أرسل رسالة إلى %1$s</string>
     <string name="run_requires_approval">هذا التشغيل ينتظر موافقة. افتح الاستديو للرد.</string>
     <string name="run_requires_clarification">هذا التشغيل يحتاج إجابة قبل أن يكمل. افتح الاستديو للرد.</string>
     <string name="conversation_your_agent">وكيلك</string>
-    <string name="conversation_thinking">يفكر…</string>
-    <string name="conversation_tool">ينفّذ %1$s…</string>
-    <string name="thinking_title">يفكّر</string>
-    <string name="thinking_chars">%1$d حرفًا</string>
     <string name="thinking_expand">عرض تفاصيل التفكير</string>
     <string name="thinking_collapse">إخفاء تفاصيل التفكير</string>
     <string name="tool_status_done">اكتمل</string>
     <string name="tool_status_running">قيد التشغيل</string>
     <string name="tool_status_failed">فشل</string>
     <string name="conversation_stop">إيقاف</string>
-    <string name="reasoning_show">التفكير</string>
-    <string name="download_action">تحميل الملف</string>
     <string name="download_started">جارٍ تحميل %1$s</string>
     <string name="download_description">ملف من البروفايل %1$s</string>
     <string name="download_failed">تعذر تحميل الملف: %1$s</string>
@@ -120,7 +107,6 @@
     <!-- صندوق الكتابة -->
     <string name="composer_hint">اكتب رسالة…</string>
     <string name="composer_recording">جارٍ التسجيل…</string>
-    <string name="context_usage">السياق %1$s / %2$s</string>
     <string name="context_loading">السياق…</string>
     <string name="context_unknown">السياق —</string>
     <string name="composer_transcribing">جارٍ التفريغ…</string>
@@ -159,18 +145,11 @@
     <string name="more_settings_note">جميع إعدادات هرمز استديو في مكان واحد</string>
     <string name="more_settings_footer">تبقى أدوات الوكيل في تبويب الوكيل، وتُجمع إعدادات الاستديو هنا لتبسيط التنقل.</string>
     <string name="more_settings_subtitle">إعدادات الاستديو في مكان واحد</string>
-    <string name="more_settings_studio">سلوك الاستديو</string>
     <string name="more_settings_agent">الوكيل</string>
     <string name="more_settings_conversation">المحادثة</string>
     <string name="more_settings_network_privacy">الشبكة والخصوصية</string>
     <string name="more_settings_management">الإدارة</string>
-    <string name="settings_section_server">السيرفر</string>
-    <string name="settings_section_profile">البروفايل النشط</string>
-    <string name="settings_section_appearance">المظهر</string>
-    <string name="settings_section_device">هذا الجهاز</string>
-    <string name="settings_section_account">الحساب</string>
     <string name="settings_section_about">عن التطبيق</string>
-    <string name="settings_section_studio">الاستديو</string>
     <string name="settings_studio_connection">اتصال الاستديو</string>
     <string name="settings_appearance">المظهر</string>
     <string name="appearance_system">النظام</string>
@@ -197,7 +176,6 @@
     <string name="settings_language_system">تبعًا للنظام</string>
     <string name="settings_reasoning">قوة التفكير</string>
     <string name="settings_reasoning_note">تُختار قوة التفكير لكل محادثة من زر + في صندوق الكتابة.</string>
-    <string name="settings_sign_out_note">يحذف الرمز المحفوظ من هذا الجهاز</string>
     <string name="settings_version">الإصدار</string>
     <string name="update_available_title">يتوفر تحديث جديد</string>
     <string name="update_available_body">توجد نسخة أندرويد أحدث على GitHub. هل تريد تنزيلها وتثبيتها الآن؟</string>
@@ -254,16 +232,7 @@
     <string name="agent_not_installed">غير مثبّت</string>
     <string name="developer_preview">معاينة المطوّر (وسوم المصدر)</string>
     <string name="studio_update_warning">قد تعيد هذه الإجراءات تشغيل Studio وتقطع اتصال التطبيق لحظة.</string>
-    <string name="studio_update_tags">الإصدارات المتاحة</string>
-    <string name="studio_update_unavailable">معلومات التحديث غير متاحة</string>
     <string name="task_plan_title">خطة المهمة</string>
-    <string name="task_plan_progress">%1$d/%2$d</string>
-    <string name="studio_update_prepare">تجهيز</string>
-    <string name="studio_update_start">تشغيل</string>
-    <string name="studio_update_stop">إيقاف</string>
-    <string name="studio_update_install">تثبيت</string>
-    <string name="studio_update_confirm_title">تأكيد %1$s</string>
-    <string name="studio_update_confirm_body">تنفيذ «%1$s» على %2$s؟ سيؤدي هذا إلى إعادة تشغيل Studio وانقطاع اتصال التطبيق لحظة.</string>
     <string name="studio_update_started">تم الطلب</string>
     <string name="update_downloading">جارٍ تنزيل التحديث…</string>
     <string name="update_failed">تعذّر تنزيل التحديث</string>
@@ -297,7 +266,6 @@
     <string name="room_offline">يعيد الاتصال…</string>
     <string name="room_hint">راسل الغرفة…</string>
     <string name="error_room_offline">لم يتم الاتصال بالغرفة بعد</string>
-    <string name="settings_section_channels">القنوات</string>
     <string name="settings_auto_start">تشغيل البوابة مع السيرفر</string>
     <string name="settings_auto_start_on">مفعّل</string>
     <string name="settings_auto_start_off">معطّل</string>
@@ -306,14 +274,11 @@
     <string name="settings_channels">القنوات</string>
     <string name="settings_channels_summary">%1$d من %2$d مُعدّة</string>
     <string name="channels_title">القنوات</string>
-    <string name="channel_configured">مُعدّة</string>
     <string name="channel_connected">متصلة</string>
     <string name="channel_missing">غير مُعدّة</string>
     <string name="channel_off">موقوفة</string>
     <string name="channel_enabled">مفعّلة</string>
     <string name="channel_enabled_note">يرد هرمز على هذه القناة</string>
-    <string name="channel_paired_elsewhere">واتساب يُقترن بمسح رمز على السيرفر، لا من هنا.</string>
-    <string name="channel_secret_set">محفوظة على السيرفر — اكتب قيمة جديدة لتبديلها</string>
     <string name="channel_save">حفظ وإعادة تشغيل البوابة</string>
     <string name="channel_clear">حذف بيانات الاعتماد</string>
     <string name="channel_clear_title">حذف بيانات %1$s؟</string>
@@ -409,24 +374,16 @@
     <string name="notice_channel_saved">حُفظت %1$s — البوابة تُعاد الآن</string>
     <string name="notice_channel_cleared">حُذفت بيانات %1$s</string>
     <string name="notice_weixin_linked">تم ربط Weixin — البوابة تُعاد الآن</string>
-    <string name="settings_auto_start_note">عند تفعيله يشغّل سيرفرك بوابة كل بروفايل عند الإقلاع، فترد القنوات دون أن يفتح أحد الاستديو.</string>
 
     <string name="settings_group_server">السيرفر والحساب</string>
-    <string name="settings_group_server_note">العنوان والمستخدم وتسجيل الخروج</string>
     <string name="settings_group_profile">البروفايل النشط</string>
-    <string name="settings_group_profile_note">الوكيل الذي تتحدث معه المحادثات الجديدة وموديله الافتراضي</string>
     <string name="settings_group_agent">الوكيل</string>
     <string name="settings_group_agent_note">حدود الجولات والمهل واستخدام الأدوات وتشغيل البوابة</string>
     <string name="settings_group_channels_note">تيليقرام وديسكورد وسلاك وغيرها</string>
     <string name="settings_group_device">هذا الجهاز</string>
-    <string name="settings_group_device_note">اللغة وشعار التطبيق وقوة التفكير</string>
-    <string name="settings_group_about_note">الإصدار والاعتمادات</string>
     <string name="agent_max_turns">أقصى عدد جولات</string>
-    <string name="agent_max_turns_note">جولات التفاعل في المحادثة الواحدة</string>
     <string name="agent_gateway_timeout">مهلة البوابة</string>
-    <string name="agent_gateway_timeout_note">مهلة الخمول بالثواني، و0 تعني بلا حد</string>
     <string name="agent_drain_timeout">مهلة الإنهاء قبل إعادة التشغيل</string>
-    <string name="agent_drain_timeout_note">ثوانٍ تُمنح للعمل الجاري قبل إعادة التشغيل</string>
     <string name="agent_tool_enforcement">إلزام استخدام الأدوات</string>
     <string name="agent_tool_auto">تلقائي</string>
     <string name="agent_tool_always">دائمًا</string>
@@ -525,9 +482,6 @@
     <string name="notice_default_model">الموديل الافتراضي لـ%1$s صار %2$s</string>
     <string name="notice_gateway_restarting">جارٍ إعادة تشغيل البوابة لـ%1$s</string>
     <!-- إعدادات هرمز استديو الكاملة -->
-    <string name="settings_category_account">الحساب</string>
-    <string name="settings_category_profile">البروفايل النشط</string>
-    <string name="settings_category_integrations">الربط والأتمتة</string>
     <string name="settings_category_app">التطبيق</string>
     <string name="settings_group_users">إدارة الحسابات</string>
     <string name="settings_group_users_note">إنشاء المستخدمين وتحديد أدوارهم وحالتهم والبروفايلات المتاحة</string>
@@ -680,7 +634,6 @@
     <string name="agent_hub_skills_note">تصفح مهارات الوكيل وتفعيلها واستيرادها وتحريرها</string>
     <string name="agent_hub_plugins_note">فحص إضافات الاستديو والتحكم بها</string>
     <string name="agent_hub_mcp_note">إدارة سيرفرات MCP وأدواتها</string>
-    <string name="agent_hub_pets_note">اختيار الحيوان المرافق وضبطه</string>
 
     <string name="kanban_title">كانبان</string>
     <string name="kanban_mobile_note">لوحات مهام الاستديو بتجربة مخصصة للجوال</string>
@@ -851,17 +804,11 @@
     <string name="action_test">اختبار</string>
     <string name="action_add">إضافة</string>
     <string name="profile_runtime_status">حالة المحرك: %1$s</string>
-    <string name="files_title">ملفات الاستديو</string><string name="files_hub_note">تصفح ملفات مساحة عمل البروفايل وتعديلها</string><string name="files_new_folder">مجلد جديد</string><string name="files_edit">قراءة أو تعديل</string><string name="files_open_external">فتح خارجيًا</string><string name="files_saved">تم حفظ الملف</string><string name="files_empty">هذا المجلد فارغ</string><string name="files_directory">مجلد</string><string name="files_file">ملف</string><string name="files_more_actions">إجراءات إضافية</string>
-    <string name="logs_title">السجلات</string><string name="logs_hub_note">تشخيصات الاستديو والجسر والوكلاء</string>
-    <string name="connections_title">الاتصالات</string><string name="connections_hub_note">ترحيل التطبيق وأجهزة الاستديو المرتبطة</string><string name="app_relay_title">ترحيل التطبيق</string><string name="devices_title">أجهزتي</string><string name="connected">متصل</string><string name="disconnected">غير متصل</string><string name="connect">اتصال</string><string name="disconnect">قطع الاتصال</string><string name="refresh_pairing">رمز اقتران جديد</string>
-    <string name="insights_by_agent">حسب الوكيل</string><string name="insights_daily">الاستهلاك اليومي</string>
+    <string name="files_title">ملفات الاستديو</string><string name="files_hub_note">تصفح ملفات مساحة عمل البروفايل وتعديلها</string><string name="files_new_folder">مجلد جديد</string><string name="files_edit">قراءة أو تعديل</string>    <string name="logs_title">السجلات</string><string name="logs_hub_note">تشخيصات الاستديو والجسر والوكلاء</string>
+    <string name="connections_title">الاتصالات</string><string name="connections_hub_note">ترحيل التطبيق وأجهزة الاستديو المرتبطة</string>    <string name="insights_by_agent">حسب الوكيل</string><string name="insights_daily">الاستهلاك اليومي</string>
     <string name="files_upload">رفع ملف</string><string name="files_download">تنزيل أو فتح</string><string name="files_copy_to">نسخ إلى مسار</string>
-    <string name="authorize_lan">تفويض شبكة LAN</string><string name="authorize_cloud">تفويض سحابي</string><string name="authorization_code">رمز التفويض</string><string name="app_connections_title">التطبيقات المفوّضة</string>
-    <string name="profile_make_active">جعله البروفايل النشط</string><string name="profile_export">تصدير البروفايل</string>
-    <string name="ekko_skill_new">مهارة Ekko جديدة</string>
     <string name="profile_import">استيراد بروفايل</string><string name="profile_avatar">اختيار صورة البروفايل</string><string name="profile_avatar_clear">حذف صورة البروفايل</string>
-    <string name="profile_export_started">بدأ تنزيل البروفايل</string><string name="ekko_external_dirs">المجلدات الخارجية</string><string name="revoke_connection">إلغاء تفويض التطبيق؟</string><string name="manual_device">إضافة جهاز يدويًا</string><string name="block">حظر</string><string name="unblock">إلغاء الحظر</string>
-    <string name="name">الاسم</string>
+    <string name="profile_export_started">بدأ تنزيل البروفايل</string><string name="ekko_external_dirs">المجلدات الخارجية</string><string name="revoke_connection">إلغاء تفويض التطبيق؟</string>    <string name="name">الاسم</string>
     <string name="journey_title">الرحلة</string><string name="journey_note">مخطط المهارات والذاكرة مع الاستخدام</string>
     <string name="webhooks_title">خطافات الويب</string><string name="webhooks_note">نقاط الإرسال والاختبارات والأحداث المحلية</string><string name="webhooks_add">إضافة خطاف ويب</string><string name="clear_events">مسح الأحداث</string><string name="local_events">أحداث الاختبار المحلية</string>
     <string name="runtime_versions_title">إصدارات التشغيل</string><string name="runtime_versions_note">تنزيل وتفعيل وإعادة تشغيل البيئات المدارة</string><string name="restart_webui">إعادة تشغيل واجهة الويب</string><string name="activate">تفعيل</string>
@@ -874,13 +821,8 @@
     <string name="queued_run_insert">تشغيل تالياً</string>
     <string name="queued_run_cancel">إلغاء الرسالة من الطابور</string>
     <string name="background_agent_summary">%1$s · %2$s</string>
-    <string name="instances_title">الخوادم</string>
-    <string name="instances_add">إضافة خادم</string>
     <string name="instances_current">الحالي</string>
-    <string name="instances_empty">لا توجد خوادم محفوظة</string>
     <string name="instances_saved">الخوادم المحفوظة</string>
-    <string name="instances_label_hint">الاسم (المنزل، المكتب…)</string>
-    <string name="instances_delete_body">إزالة هذا الخادم من هذا الهاتف؟ لا يتأثر الخادم.</string>
 
     <!-- Official pages/devices (see docs/parity/devices.md) -->
     <string name="devices_description">إدارة Ekko Studio الخاصة بك</string>
@@ -983,7 +925,6 @@
     <string name="slash_abort">إيقاف المهمة</string>
     <string name="slash_yolo">تخطي طلبات الموافقة</string>
     <string name="run_status_working">يعمل الآن</string>
-    <string name="run_status_done">تم</string>
     <string name="process_title">العملية</string>
     <string name="process_tools">%1$d أدوات</string>
     <string name="approval_banner">%1$d موافقات بالانتظار</string>

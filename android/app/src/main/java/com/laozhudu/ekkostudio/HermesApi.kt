@@ -456,11 +456,6 @@ class HermesApi(
         call("/api/hermes/weixin/save", "POST", body, profile)
     }
 
-    /** Turns a channel on or off without touching its credentials. */
-    fun setChannelEnabled(profile: String, platform: String, enabled: Boolean) {
-        updateConfigSection(profile, platform, JSONObject().put("enabled", enabled), restart = true)
-    }
-
     /** The agent knobs Studio keeps under its Agent tab. */
     fun agentSettings(profile: String): AgentSettings {
         val agent = call("/api/hermes/config?profile=${enc(profile)}&section=agent").optJSONObject("agent")
