@@ -1097,4 +1097,27 @@
     <string name="preset_count">%1$d 个预设</string>
     <string name="preset_create">新建预设</string>
     <string name="preset_delete">删除这个预设？</string>
+    <string name="room_tab_remote">远程</string>
+    <string name="room_agent_avatar">头像</string>
+    <string name="room_agent_avatar_random">换一个</string>
+    <string name="room_agent_avatar_upload">上传</string>
+    <string name="room_agent_avatar_clear">清除</string>
+    <string name="room_agent_avatar_invalid">PNG / JPEG / WebP，1MB 以内</string>
+    <string name="room_files_title">群文件</string>
+    <string name="room_files_empty">这个目录是空的。</string>
+    <string name="room_files_new_folder">新建目录</string>
+    <string name="room_files_rename">重命名</string>
+    <string name="room_files_delete">删除这个？</string>
+    <string name="room_files_unsaved">有未保存的修改</string>
+    <string name="room_files_saved">已保存</string>
+    <string name="room_remote_protocol">群链接协议 v%1$d</string>
+    <string name="room_remote_pairing">手动配对码</string>
+    <string name="room_remote_relay">出站中继</string>
+    <string name="room_remote_requests">入群请求</string>
+    <string name="room_remote_approve">批准</string>
+    <string name="room_remote_deny">拒绝</string>
+    <string name="room_remote_connections">连接</string>
+    <string name="room_remote_empty">还没有远程机器向这个群提供智能体。局域网内的 Studio 可以配对；自建服务器自身没有中继中枢。</string>
+    <string name="room_remote_agent_count">%1$d 个智能体</string>
+    <string name="room_remote_disconnect">断开</string>
 </resources>

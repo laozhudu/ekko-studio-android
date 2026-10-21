@@ -1097,4 +1097,27 @@
     <string name="preset_count">%1$d إعدادات</string>
     <string name="preset_create">إعداد جديد</string>
     <string name="preset_delete">حذف الإعداد؟</string>
+    <string name="room_tab_remote">بعيد</string>
+    <string name="room_agent_avatar">الصورة</string>
+    <string name="room_agent_avatar_random">عشوائي</string>
+    <string name="room_agent_avatar_upload">رفع</string>
+    <string name="room_agent_avatar_clear">مسح</string>
+    <string name="room_agent_avatar_invalid">PNG أو JPEG أو WebP أقل من 1 م.ب</string>
+    <string name="room_files_title">ملفات الغرفة</string>
+    <string name="room_files_empty">المجلد فارغ.</string>
+    <string name="room_files_new_folder">مجلد جديد</string>
+    <string name="room_files_rename">إعادة تسمية</string>
+    <string name="room_files_delete">حذف؟</string>
+    <string name="room_files_unsaved">تغييرات غير محفوظة</string>
+    <string name="room_files_saved">تم الحفظ</string>
+    <string name="room_remote_protocol">بروتوكول v%1$d</string>
+    <string name="room_remote_pairing">رمز اقتران يدوي</string>
+    <string name="room_remote_relay">ترحيل صادر</string>
+    <string name="room_remote_requests">طلبات الانضمام</string>
+    <string name="room_remote_approve">موافقة</string>
+    <string name="room_remote_deny">رفض</string>
+    <string name="room_remote_connections">الاتصالات</string>
+    <string name="room_remote_empty">لا توجد اتصالات.</string>
+    <string name="room_remote_agent_count">%1$d وكلاء</string>
+    <string name="room_remote_disconnect">قطع</string>
 </resources>

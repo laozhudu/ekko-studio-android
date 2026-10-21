@@ -39,6 +39,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -80,6 +83,8 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
     val clipboard = LocalClipboardManager.current
 
     LaunchedEffect(Unit) { viewModel.loadAgentPresets() }
+    // Connector state is live, not stored: read it when its tab is opened.
+    LaunchedEffect(tab) { if (tab == 2) viewModel.refreshGroupLink() }
 
     if (addingAgent || editingAgent != null) {
         RoomAgentDialog(
@@ -157,9 +162,10 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
                 listOf(
                     stringResource(R.string.room_tab_agents),
                     stringResource(R.string.room_tab_members),
+                    stringResource(R.string.room_tab_remote),
                     stringResource(R.string.room_tab_settings),
                 ).forEachIndexed { index, label ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label, fontSize = 12.sp) })
+                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label, fontSize = 11.sp, maxLines = 1) })
                 }
             }
             when (tab) {
@@ -179,6 +185,15 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
                     onRegenerate = { room?.id?.let(viewModel::regenerateInviteCode) },
                     onRemove = { removingMember = it },
                 )
+                2 -> RemoteTab(
+                    capabilities = state.groupLink,
+                    connections = state.groupConnections,
+                    requests = state.agentLinkRequests,
+                    canManage = room?.canManage == true,
+                    onRefresh = viewModel::refreshGroupLink,
+                    onDisconnect = viewModel::disconnectGroupLink,
+                    onDecide = viewModel::decideAgentLinkRequest,
+                )
                 else -> SettingsTab(
                     room = room,
                     busy = state.busy,
@@ -187,6 +202,7 @@ fun RoomSettingsScreen(state: UiState, viewModel: AppViewModel) {
                     onHandoffDepth = { depth -> room?.id?.let { viewModel.saveRoomConfig(it, handoffMaxDepth = depth) } },
                     onSummaryTurns = { turns -> room?.id?.let { viewModel.saveRoomConfig(it, summaryEveryTurns = turns) } },
                     onClear = { confirmClear = true },
+                    onOpenFiles = viewModel::openRoomFiles,
                 )
             }
         }
@@ -353,6 +369,7 @@ private fun SettingsTab(
     onHandoffDepth: (Int) -> Unit,
     onSummaryTurns: (Int) -> Unit,
     onClear: () -> Unit,
+    onOpenFiles: () -> Unit,
 ) {
     val inkDark = MaterialTheme.colorScheme.isInkDark()
     var name by remember(room?.id) { mutableStateOf(room?.name.orEmpty()) }
@@ -442,6 +459,8 @@ private fun SettingsTab(
         room?.workspace?.takeIf { it.isNotBlank() }?.let { workspace ->
             Text(stringResource(R.string.room_workspace, workspace), fontSize = 10.sp, color = inkTextMuted(inkDark))
         }
+        // The room's own files, not the session workspace: a separate tree.
+        TextButton(onClick = onOpenFiles) { Text(stringResource(R.string.room_files_title)) }
     }
 }
 
@@ -495,7 +514,25 @@ private fun RoomAgentDialog(
     var provider by remember { mutableStateOf(initial?.provider.orEmpty()) }
     var effort by remember { mutableStateOf(initial?.reasoningEffort.orEmpty()) }
     var preset by remember { mutableStateOf(initial?.preset.orEmpty()) }
+    var avatar by remember { mutableStateOf(initial?.avatar.orEmpty()) }
+    var avatarError by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val valid = name.isNotBlank() && profile.isNotBlank()
+
+    // The server accepts png/jpeg/webp up to a fixed size; anything else is
+    // refused here rather than after a failed round trip.
+    val pickAvatar = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val mime = context.contentResolver.getType(uri) ?: ""
+        val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+        val encoded = bytes?.let { AgentAvatar.image(mime, it) }
+        if (encoded == null) {
+            avatarError = true
+        } else {
+            avatar = encoded
+            avatarError = false
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -507,6 +544,37 @@ private fun RoomAgentDialog(
                 Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ProfileAvatar(
+                        name = name.ifBlank { "agent" },
+                        spec = AgentAvatar.parse(avatar),
+                        size = 40.dp,
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.room_agent_avatar), fontSize = 11.sp)
+                        if (avatarError) {
+                            Text(
+                                stringResource(R.string.room_agent_avatar_invalid),
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    TextButton(onClick = {
+                        // A generated avatar costs nothing to store: the client
+                        // renders it from the seed.
+                        avatar = AgentAvatar.generated(AgentAvatar.randomSeed(name))
+                        avatarError = false
+                    }) { Text(stringResource(R.string.room_agent_avatar_random), fontSize = 11.sp) }
+                    TextButton(onClick = { pickAvatar.launch("image/*") }) {
+                        Text(stringResource(R.string.room_agent_avatar_upload), fontSize = 11.sp)
+                    }
+                    if (avatar.isNotBlank()) {
+                        TextButton(onClick = { avatar = ""; avatarError = false }) {
+                            Text(stringResource(R.string.room_agent_avatar_clear), fontSize = 11.sp)
+                        }
+                    }
+                }
                 OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.name)) }, singleLine = true)
                 OutlinedTextField(
                     description, { description = it },
@@ -565,6 +633,7 @@ private fun RoomAgentDialog(
                             model = model.trim(),
                             reasoningEffort = effort.trim(),
                             presetId = preset,
+                            avatar = avatar,
                         ),
                     )
                 },
@@ -686,4 +755,102 @@ private fun PresetManagerDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } },
     )
+}
+
+/**
+ * Remote agents: another machine offering an agent into this room.
+ *
+ * A self-hosted Studio has no relay hub, so the connection normally does not
+ * exist — but the capability handshake, the connector list and the approval
+ * queue are all local routes, and a remote Studio on the LAN can use them. The
+ * tab therefore always renders, and says plainly when nothing is connected
+ * instead of hiding the feature.
+ */
+@Composable
+private fun RemoteTab(
+    capabilities: GroupLinkCapabilities?,
+    connections: List<GroupLinkConnection>,
+    requests: List<AgentLinkRequest>,
+    canManage: Boolean,
+    onRefresh: () -> Unit,
+    onDisconnect: (GroupLinkConnection) -> Unit,
+    onDecide: (AgentLinkRequest, Boolean) -> Unit,
+) {
+    val inkDark = MaterialTheme.colorScheme.isInkDark()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        capabilities?.let { caps ->
+            Text(
+                stringResource(R.string.room_remote_protocol, caps.protocolVersion),
+                fontSize = 10.sp,
+                color = inkTextMuted(inkDark),
+            )
+            Text(
+                listOfNotNull(
+                    if (caps.supportsManualPairingCode) stringResource(R.string.room_remote_pairing) else null,
+                    if (caps.supportsOutboundRelay) stringResource(R.string.room_remote_relay) else null,
+                ).joinToString(" · "),
+                fontSize = 10.sp,
+                color = inkTextMuted(inkDark),
+            )
+        }
+
+        if (requests.isNotEmpty()) {
+            Text(stringResource(R.string.room_remote_requests), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            requests.forEach { request ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(request.agentName.ifBlank { request.id }, fontSize = 13.sp)
+                        Text(
+                            request.origin.ifBlank { request.requestedAt },
+                            fontSize = 10.sp,
+                            color = inkTextMuted(inkDark),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (canManage) {
+                        TextButton(onClick = { onDecide(request, true) }) { Text(stringResource(R.string.room_remote_approve)) }
+                        TextButton(onClick = { onDecide(request, false) }) { Text(stringResource(R.string.room_remote_deny)) }
+                    }
+                }
+            }
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+        }
+
+        Text(stringResource(R.string.room_remote_connections), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (connections.isEmpty()) {
+            Text(
+                stringResource(R.string.room_remote_empty),
+                fontSize = 11.sp,
+                color = inkTextMuted(inkDark),
+            )
+        }
+        connections.forEach { connection ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(connection.label, fontSize = 13.sp)
+                    Text(
+                        listOfNotNull(
+                            connection.origin.takeIf { it.isNotBlank() },
+                            stringResource(
+                                if (connection.online) R.string.devices_status_online else R.string.devices_status_offline,
+                            ),
+                            if (connection.agentCount > 0) stringResource(R.string.room_remote_agent_count, connection.agentCount) else null,
+                        ).joinToString(" · "),
+                        fontSize = 10.sp,
+                        color = inkTextMuted(inkDark),
+                    )
+                }
+                if (canManage) {
+                    TextButton(onClick = { onDisconnect(connection) }) {
+                        Text(stringResource(R.string.room_remote_disconnect), color = inkError(inkDark))
+                    }
+                }
+            }
+        }
+        TextButton(onClick = onRefresh) { Text(stringResource(R.string.action_refresh)) }
+    }
 }

@@ -1098,4 +1098,27 @@
     <string name="preset_count">%1$d presets</string>
     <string name="preset_create">New preset</string>
     <string name="preset_delete">Delete this preset?</string>
+    <string name="room_tab_remote">Remote</string>
+    <string name="room_agent_avatar">Avatar</string>
+    <string name="room_agent_avatar_random">Random</string>
+    <string name="room_agent_avatar_upload">Upload</string>
+    <string name="room_agent_avatar_clear">Clear</string>
+    <string name="room_agent_avatar_invalid">PNG, JPEG or WebP under 1 MB</string>
+    <string name="room_files_title">Room files</string>
+    <string name="room_files_empty">This folder is empty.</string>
+    <string name="room_files_new_folder">New folder</string>
+    <string name="room_files_rename">Rename</string>
+    <string name="room_files_delete">Delete this?</string>
+    <string name="room_files_unsaved">Unsaved changes</string>
+    <string name="room_files_saved">Saved</string>
+    <string name="room_remote_protocol">Group link protocol v%1$d</string>
+    <string name="room_remote_pairing">manual pairing code</string>
+    <string name="room_remote_relay">outbound relay</string>
+    <string name="room_remote_requests">Join requests</string>
+    <string name="room_remote_approve">Approve</string>
+    <string name="room_remote_deny">Deny</string>
+    <string name="room_remote_connections">Connections</string>
+    <string name="room_remote_empty">No remote machine has offered an agent to this room. A Studio on the LAN can pair here; a self-hosted server has no relay hub of its own.</string>
+    <string name="room_remote_agent_count">%1$d agents</string>
+    <string name="room_remote_disconnect">Disconnect</string>
 </resources>

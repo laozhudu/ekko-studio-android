@@ -1881,6 +1881,152 @@ class HermesApi(
         call("/api/studio/group-chat/rooms/${enc(roomId)}/clear-context", "POST", JSONObject())
     }
 
+    // ── room workspace files ─────────────────────────────────────────────
+
+    /**
+     * GET /api/studio/group-chat/rooms/{id}/workspace-files/list
+     *
+     * Verified live: `{entries:[{name,path,absolutePath,isDir,size,modTime}],
+     * path, absolutePath}`. Paths are relative to the room workspace, which is
+     * its own directory under the Studio data folder.
+     */
+    fun roomWorkspaceListing(roomId: String, path: String = ""): RoomWorkspaceListing {
+        val query = if (path.isBlank()) "" else "?path=${enc(path)}"
+        val root = call("/api/studio/group-chat/rooms/${enc(roomId)}/workspace-files/list$query")
+        val entries = (0 until (root.optJSONArray("entries")?.length() ?: 0)).mapNotNull { index ->
+            root.optJSONArray("entries")?.optJSONObject(index)?.let { item ->
+                val name = item.optString("name")
+                if (name.isBlank()) return@mapNotNull null
+                RoomWorkspaceEntry(
+                    name = name,
+                    path = item.optString("path"),
+                    isDir = item.optBoolean("isDir"),
+                    size = item.optLong("size"),
+                    modified = item.optString("modTime"),
+                )
+            }
+        }
+        return RoomWorkspaceListing(
+            path = root.optString("path"),
+            absolutePath = root.optString("absolutePath"),
+            entries = entries,
+        )
+    }
+
+    /** GET .../workspace-file/read — `{content, path, size}`; text only. */
+    fun roomWorkspaceRead(roomId: String, path: String): String =
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/read?path=${enc(path)}")
+            .optString("content")
+
+    /** PUT .../workspace-file/write — the body is a plain string, not an object. */
+    fun roomWorkspaceWrite(roomId: String, path: String, content: String) {
+        val body = JSONObject().put("path", path).put("content", content)
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/write", "PUT", body)
+    }
+
+    fun roomWorkspaceMkdir(roomId: String, path: String) {
+        call("/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/mkdir", "POST", JSONObject().put("path", path))
+    }
+
+    fun roomWorkspaceRename(roomId: String, oldPath: String, newPath: String) {
+        call(
+            "/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/rename",
+            "POST",
+            JSONObject().put("oldPath", oldPath).put("newPath", newPath),
+        )
+    }
+
+    fun roomWorkspaceCopy(roomId: String, srcPath: String, destPath: String) {
+        call(
+            "/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/copy",
+            "POST",
+            JSONObject().put("srcPath", srcPath).put("destPath", destPath),
+        )
+    }
+
+    /** DELETE .../workspace-file/delete — `recursive` is required for a directory. */
+    fun roomWorkspaceDelete(roomId: String, path: String, recursive: Boolean) {
+        call(
+            "/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/delete",
+            "DELETE",
+            JSONObject().put("path", path).put("recursive", recursive),
+        )
+    }
+
+    /** GET .../workspace-file/diff — a unified diff against the room's baseline. */
+    fun roomWorkspaceDiff(roomId: String, path: String): String {
+        val root = call("/api/studio/group-chat/rooms/${enc(roomId)}/workspace-file/diff?path=${enc(path)}")
+        return root.optString("diff").ifBlank { root.optString("content") }
+    }
+
+    // ── remote agent connectors (group-chat-link) ────────────────────────
+
+    /** GET /api/studio/group-chat-link/v1/capabilities */
+    fun groupLinkCapabilities(): GroupLinkCapabilities {
+        val root = call("/api/studio/group-chat-link/v1/capabilities")
+        return GroupLinkCapabilities(
+            service = root.optString("service"),
+            protocolVersion = root.optInt("protocolVersion"),
+            authorizationPath = root.optString("authorizationPath"),
+            supportsManualPairingCode = root.optBoolean("supportsManualPairingCode"),
+            supportsOutboundRelay = root.optBoolean("supportsOutboundRelay"),
+        )
+    }
+
+    /** GET /api/studio/group-chat-link/v1/connections */
+    fun groupLinkConnections(): List<GroupLinkConnection> {
+        val array = call("/api/studio/group-chat-link/v1/connections").optJSONArray("connections") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let { item ->
+                val id = item.optString("connectorId").ifBlank { item.optString("id") }
+                if (id.isBlank()) return@mapNotNull null
+                GroupLinkConnection(
+                    connectorId = id,
+                    label = item.optString("label").ifBlank { item.optString("name").ifBlank { id.take(8) } },
+                    origin = item.optString("origin").ifBlank { item.optString("remoteOrigin") },
+                    online = item.optBoolean("connected", item.optString("status") == "online"),
+                    agentCount = item.optInt("agentCount", 0),
+                )
+            }
+        }
+    }
+
+    fun disconnectGroupLink(connectorId: String) {
+        call("/api/studio/group-chat-link/v1/disconnect", "POST", JSONObject().put("connectorId", connectorId))
+    }
+
+    /** GET .../rooms/{id}/agent-link-requests — remote agents asking to join. */
+    fun roomAgentLinkRequests(roomId: String): List<AgentLinkRequest> {
+        val array = call("/api/studio/group-chat/rooms/${enc(roomId)}/agent-link-requests")
+            .optJSONArray("requests") ?: JSONArray()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optJSONObject(index)?.let { item ->
+                val id = item.optString("requestId").ifBlank { item.optString("id") }
+                if (id.isBlank()) return@mapNotNull null
+                AgentLinkRequest(
+                    id = id,
+                    agentName = item.optString("agentName").ifBlank { item.optString("name") },
+                    origin = item.optString("origin").ifBlank { item.optString("remoteOrigin") },
+                    requestedAt = item.optString("requestedAt").ifBlank { item.optString("createdAt") },
+                )
+            }
+        }
+    }
+
+    /**
+     * POST .../agent-link-requests/{requestId}/decision
+     *
+     * The body field is `approved`, and the published schema types it as a
+     * string — so it is sent as `"true"`/`"false"` rather than a boolean.
+     */
+    fun decideAgentLinkRequest(roomId: String, requestId: String, approved: Boolean) {
+        call(
+            "/api/studio/group-chat/rooms/${enc(roomId)}/agent-link-requests/${enc(requestId)}/decision",
+            "POST",
+            JSONObject().put("approved", approved.toString()),
+        )
+    }
+
     // ── agent presets ────────────────────────────────────────────────────
 
     /** GET /api/studio/group-chat/agent-presets */
@@ -3069,6 +3215,43 @@ data class RoomAgentDraft(
     val reasoningEffort: String = "",
     val avatar: String = "",
     val presetId: String = "",
+)
+
+data class RoomWorkspaceEntry(
+    val name: String,
+    val path: String,
+    val isDir: Boolean,
+    val size: Long,
+    val modified: String,
+)
+
+data class RoomWorkspaceListing(
+    val path: String,
+    val absolutePath: String,
+    val entries: List<RoomWorkspaceEntry>,
+)
+
+data class GroupLinkCapabilities(
+    val service: String,
+    val protocolVersion: Int,
+    val authorizationPath: String,
+    val supportsManualPairingCode: Boolean,
+    val supportsOutboundRelay: Boolean,
+)
+
+data class GroupLinkConnection(
+    val connectorId: String,
+    val label: String,
+    val origin: String,
+    val online: Boolean,
+    val agentCount: Int,
+)
+
+data class AgentLinkRequest(
+    val id: String,
+    val agentName: String,
+    val origin: String,
+    val requestedAt: String,
 )
 
 data class AgentPreset(

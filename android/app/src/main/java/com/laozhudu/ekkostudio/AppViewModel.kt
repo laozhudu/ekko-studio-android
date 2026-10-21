@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 enum class Screen {
     Loading, Onboarding, Login, Chats, Groups, AgentHub, Conversation, Room, Profiles,
     Settings, MoreSettings, SettingsGroup, Channels, Channel, CronJobs, CronJob, CronHistory,
-    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings,
+    Kanban, KanbanTask, Skills, Skill, Plugins, Mcp, Pets, Insights, AgentRuntimes, Workflows, GlobalAgent, EkkoHub, Files, Logs, Connections, Journey, Webhooks, RuntimeVersions, Appearance, Terminal, WriteGate, ModelSettings, StudioUpdate, Workspace, Pricing, ApiKeys, RoomSettings, RoomFiles,
     /** The official `pages/devices` screen: saved Studios, pairing, account menu. */
     Devices,
 }
@@ -125,6 +125,17 @@ data class UiState(
     /** Set while a group agent add/edit/delete is in flight. */
     val roomAgentBusy: String? = null,
     val roomSaving: Boolean = false,
+    /** Room workspace browser. */
+    val roomFiles: RoomWorkspaceListing = RoomWorkspaceListing("", "", emptyList()),
+    val roomFilesPath: String = "",
+    val roomFilesLoading: Boolean = false,
+    val roomFileOpen: RoomWorkspaceEntry? = null,
+    val roomFileContent: String = "",
+    val roomFileSaving: Boolean = false,
+    /** Remote agent connectors and the pending requests to join this room. */
+    val groupLink: GroupLinkCapabilities? = null,
+    val groupConnections: List<GroupLinkConnection> = emptyList(),
+    val agentLinkRequests: List<AgentLinkRequest> = emptyList(),
     val lines: List<ChatLine> = emptyList(),
     val loadingHistory: Boolean = false,
     val sending: Boolean = false,
@@ -3317,6 +3328,157 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         },
     )
 
+    // ── room workspace files ─────────────────────────────────────────────
+
+    fun openRoomFiles() {
+        _state.update { it.copy(screen = Screen.RoomFiles) }
+        loadRoomFiles()
+    }
+
+    fun loadRoomFiles(path: String = _state.value.roomFilesPath) {
+        val roomId = _state.value.openRoom?.id ?: return
+        _state.update { it.copy(roomFilesLoading = true, roomFilesPath = path, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.roomWorkspaceListing(roomId, path) } }
+                .onSuccess { listing ->
+                    _state.update { it.copy(roomFiles = listing, roomFilesPath = listing.path, roomFilesLoading = false) }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(roomFilesLoading = false, error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    fun openRoomFolder(path: String) = loadRoomFiles(path)
+
+    /** One level up; the room root has no parent to climb to. */
+    fun roomFilesUp() {
+        val current = _state.value.roomFilesPath
+        if (current.isBlank()) {
+            back()
+            return
+        }
+        loadRoomFiles(current.substringBeforeLast('/', ""))
+    }
+
+    fun openRoomFile(path: String) {
+        val roomId = _state.value.openRoom?.id ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.roomWorkspaceRead(roomId, path) } }
+                .onSuccess { content ->
+                    _state.update {
+                        it.copy(
+                            roomFileContent = content,
+                            roomFileOpen = it.roomFiles.entries.firstOrNull { entry -> entry.path == path }
+                                ?: RoomWorkspaceEntry(path.substringAfterLast('/'), path, false, content.length.toLong(), ""),
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    // A binary file lands here: the read route only speaks text.
+                    _state.update { it.copy(error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    fun closeRoomFile() = _state.update { it.copy(roomFileOpen = null, roomFileContent = "") }
+
+    fun saveRoomFile(content: String) {
+        val roomId = _state.value.openRoom?.id ?: return
+        val target = _state.value.roomFileOpen ?: return
+        _state.update { it.copy(roomFileSaving = true) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.roomWorkspaceWrite(roomId, target.path, content) } }
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            roomFileSaving = false,
+                            roomFileContent = content,
+                            roomFileOpen = null,
+                            notice = str(R.string.room_files_saved),
+                        )
+                    }
+                    loadRoomFiles()
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(roomFileSaving = false, error = failure.readableMessage(localized)) }
+                }
+        }
+    }
+
+    fun createRoomFolder(parent: String, name: String) {
+        val roomId = _state.value.openRoom?.id ?: return
+        val path = if (parent.isBlank()) name else "$parent/$name"
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.roomWorkspaceMkdir(roomId, path) } }
+                .onSuccess { loadRoomFiles() }
+                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
+        }
+    }
+
+    fun renameRoomFile(entry: RoomWorkspaceEntry, newName: String) {
+        val roomId = _state.value.openRoom?.id ?: return
+        val parent = entry.path.substringBeforeLast('/', "")
+        val target = if (parent.isBlank()) newName else "$parent/$newName"
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { api.roomWorkspaceRename(roomId, entry.path, target) } }
+                .onSuccess { loadRoomFiles() }
+                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
+        }
+    }
+
+    fun deleteRoomFile(entry: RoomWorkspaceEntry) {
+        val roomId = _state.value.openRoom?.id ?: return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.roomWorkspaceDelete(roomId, entry.path, recursive = entry.isDir) }
+            }
+                .onSuccess { loadRoomFiles() }
+                .onFailure { failure -> _state.update { it.copy(error = failure.readableMessage(localized)) } }
+        }
+    }
+
+    // ── remote connectors ────────────────────────────────────────────────
+
+    /** Capabilities, connections and pending join requests, in one pass. */
+    fun refreshGroupLink() {
+        val roomId = _state.value.openRoom?.id ?: return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Triple(
+                        api.groupLinkCapabilities(),
+                        api.groupLinkConnections(),
+                        api.roomAgentLinkRequests(roomId),
+                    )
+                }
+            }.onSuccess { (capabilities, connections, requests) ->
+                _state.update {
+                    it.copy(groupLink = capabilities, groupConnections = connections, agentLinkRequests = requests)
+                }
+            }.onFailure { failure ->
+                _state.update { it.copy(error = failure.readableMessage(localized)) }
+            }
+        }
+    }
+
+    fun disconnectGroupLink(connection: GroupLinkConnection) = launchWork(
+        work = { api.disconnectGroupLink(connection.connectorId) },
+        onSuccess = { refreshGroupLink() },
+    )
+
+    /** Approve or deny a remote agent asking to join; the list is re-read either way. */
+    fun decideAgentLinkRequest(request: AgentLinkRequest, approved: Boolean) {
+        val roomId = _state.value.openRoom?.id ?: return
+        launchWork(
+            work = { api.decideAgentLinkRequest(roomId, request.id, approved) },
+            onSuccess = {
+                refreshGroupLink()
+                reopenRoom(roomId)
+            },
+        )
+    }
+
     // ── agent presets ─────────────────────────────────────────────────────
 
     fun loadAgentPresets() {
@@ -4988,6 +5150,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.Room -> leaveRoom()
             // Room settings are part of the room; back goes to the conversation.
             Screen.RoomSettings -> _state.update { it.copy(screen = Screen.Room) }
+            Screen.RoomFiles -> _state.update { it.copy(screen = Screen.RoomSettings) }
             else -> Unit
         }
         _state.update { state ->

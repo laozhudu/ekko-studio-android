@@ -506,7 +506,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
     // The system back gesture belongs to the app while there is somewhere to go
     // back to. Only the two root lists let it fall through and close the app.
     when (state.screen) {
-        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.Profiles, Screen.Settings,
+        Screen.Conversation, Screen.Room, Screen.RoomSettings, Screen.RoomFiles, Screen.Profiles, Screen.Settings,
         Screen.MoreSettings, Screen.SettingsGroup, Screen.Channels, Screen.Channel, Screen.CronJobs,
         Screen.CronJob, Screen.CronHistory, Screen.Kanban, Screen.KanbanTask, Screen.Skills,
         Screen.Skill, Screen.Plugins, Screen.Mcp, Screen.Pets, Screen.Insights, Screen.AgentRuntimes, Screen.Workflows, Screen.GlobalAgent, Screen.EkkoHub, Screen.Files, Screen.Logs, Screen.Connections, Screen.Journey, Screen.Webhooks, Screen.RuntimeVersions, Screen.Appearance,
@@ -570,6 +570,7 @@ private fun AppContent(state: UiState, viewModel: AppViewModel) {
         Screen.Conversation -> ConversationScreen(state, viewModel)
         Screen.Room -> RoomScreen(state, viewModel)
         Screen.RoomSettings -> RoomSettingsScreen(state, viewModel)
+        Screen.RoomFiles -> RoomFilesScreen(state, viewModel)
         Screen.Profiles -> ProfilesScreen(state, viewModel)
         Screen.Devices -> DevicesScreen(state, viewModel)
         Screen.Terminal -> TerminalScreen(
