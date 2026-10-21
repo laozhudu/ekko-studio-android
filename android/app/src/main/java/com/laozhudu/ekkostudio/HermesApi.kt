@@ -947,9 +947,18 @@ class HermesApi(
         call("/api/hermes/sessions/${enc(sessionId)}/model", "POST", body)
     }
 
-    /** GET /api/hermes/sessions/conversations/{id}/messages — existing history. */
-    fun conversationHistory(sessionId: String, humanOnly: Boolean = true): ConversationHistory {
-        val path = "/api/hermes/sessions/conversations/${enc(sessionId)}/messages?humanOnly=$humanOnly"
+    /**
+     * One page of history, newest-first offsets.
+     *
+     * `GET /api/studio/sessions/conversations/{id}/messages/paginated`
+     * — offset 0 is the newest message, each page comes back in chronological
+     * order, and the response also carries the live task plan and the workspace
+     * diff for that session. The unpaginated `/messages` route returns the whole
+     * transcript (572 human messages in this session) and carries no plan.
+     */
+    fun conversationPage(sessionId: String, limit: Int = 50, offset: Int = 0): ConversationPage {
+        val path = "/api/studio/sessions/conversations/${enc(sessionId)}/messages/paginated" +
+            "?limit=${limit.coerceIn(1, 500)}&offset=${offset.coerceAtLeast(0)}"
         val root = call(path)
         val array = root.optJSONArray("messages") ?: JSONArray()
         val messages = (0 until array.length()).mapNotNull { index ->
@@ -963,10 +972,37 @@ class HermesApi(
                 timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
             )
         }
-        return ConversationHistory(
+        return ConversationPage(
             messages = messages,
-            contextTokens = root.firstLong("contextTokens", "context_tokens", "tokenCount", "token_count"),
+            total = root.optInt("total", messages.size),
+            offset = root.optInt("offset", offset),
+            limit = root.optInt("limit", limit),
+            hasMore = root.optBoolean("hasMore", false),
+            taskPlans = parseTaskPlans(root),
         )
+    }
+
+    /** Whole transcript, kept for callers that genuinely need every message. */
+    fun conversationHistory(sessionId: String, humanOnly: Boolean = true): ConversationHistory {
+        val path = "/api/studio/sessions/conversations/${enc(sessionId)}/messages?humanOnly=$humanOnly"
+        val root = call(path)
+        val array = root.optJSONArray("messages") ?: JSONArray()
+        val messages = (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val content = item.optString("content")
+            if (content.isBlank()) return@mapNotNull null
+            Message(
+                id = item.optString("id"),
+                role = item.optString("role").ifBlank { "assistant" },
+                content = content,
+                timestamp = firstNonBlank(item, "timestamp", "created_at", "createdAt"),
+            )
+        }
+        // This response has no contextTokens field at all (verified against
+        // 0.7.38: session_id / messages / visible_count / thread_session_count).
+        // Reading it produced a permanent null, so the caller now gets null and
+        // the UI shows "—" instead of a fabricated number.
+        return ConversationHistory(messages = messages, contextTokens = null)
     }
 
     fun messages(sessionId: String, humanOnly: Boolean = true): List<Message> =
@@ -2337,6 +2373,21 @@ data class Message(
 data class ConversationHistory(
     val messages: List<Message>,
     val contextTokens: Long?,
+)
+
+/**
+ * One page of a conversation, newest-first offsets.
+ *
+ * [taskPlans] comes straight from the same response, which is why the app no
+ * longer needs a separate polling socket to keep the task card current.
+ */
+data class ConversationPage(
+    val messages: List<Message>,
+    val total: Int,
+    val offset: Int,
+    val limit: Int,
+    val hasMore: Boolean,
+    val taskPlans: List<TaskPlanSnapshot>,
 )
 
 data class UsageStats(

@@ -172,6 +172,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1928,6 +1929,30 @@ private fun RoomScreen(state: UiState, viewModel: AppViewModel) {
 
 // ── conversation ─────────────────────────────────────────────────────────
 
+
+/** Header row that backfills history; also acts as the spinner while loading. */
+@Composable
+private fun LoadOlderRow(loading: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !loading, onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            stringResource(if (loading) R.string.history_loading_older else R.string.history_load_older),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
@@ -1942,6 +1967,14 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
     var replyingTo by remember { mutableStateOf<ChatLine?>(null) }
     var selectingText by remember { mutableStateOf<ChatLine?>(null) }
     var reachedInitialBottom by remember(conversationKey) { mutableStateOf(false) }
+    // Follow new messages only while the user is already at the bottom. Loading an
+    // older page prepends items, and would otherwise yank the viewport down.
+    var followBottom by remember(conversationKey) { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.canScrollForward }.collect { canForward ->
+            followBottom = !canForward
+        }
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
 
 
@@ -1968,7 +2001,7 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                 // appear to open at the top.
                 listState.scrollToItem(last, Int.MAX_VALUE / 2)
                 reachedInitialBottom = true
-            } else {
+            } else if (followBottom) {
                 listState.animateScrollToItem(last, Int.MAX_VALUE / 2)
             }
         }
@@ -2081,7 +2114,20 @@ private fun ConversationScreen(state: UiState, viewModel: AppViewModel) {
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    itemsIndexed(state.lines) { index, line ->
+                    if (state.historyHasMore) {
+                        item(key = "load-older") {
+                            LoadOlderRow(
+                                loading = state.loadingOlder,
+                                onClick = { viewModel.loadOlderMessages() },
+                            )
+                        }
+                    }
+                    itemsIndexed(
+                        items = state.lines,
+                        // Stable keys: without them, prepending an older page
+                        // re-numbers every row and the viewport jumps.
+                        key = { index, line -> line.messageId ?: "live-$index" },
+                    ) { index, line ->
                         val previous = state.lines.getOrNull(index - 1)
                         val next = state.lines.getOrNull(index + 1)
                         val sameSender = previous != null && previous.fromUser == line.fromUser &&

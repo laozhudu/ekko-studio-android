@@ -994,4 +994,6 @@
     <string name="approval_banner">%1$d 条审批在等你</string>
     <string name="approval_banner_open">去处理</string>
     <string name="day_today">今天</string>
+    <string name="history_load_older">加载更早的消息</string>
+    <string name="history_loading_older">正在加载更早的消息…</string>
 </resources>

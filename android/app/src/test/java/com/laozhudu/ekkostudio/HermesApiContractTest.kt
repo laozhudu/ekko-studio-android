@@ -357,18 +357,43 @@ class HermesApiContractTest {
     }
 
     @Test
-    fun `conversation context usage and model window preserve Studio values`() {
-        enqueue("""{"messages":[{"id":"1","role":"user","content":"hello"}],"contextTokens":24576}""")
+    fun `conversation history uses the studio route and reports no context tokens`() {
+        // The real 0.7.38 response carries no contextTokens field at all, so the
+        // honest result is null (the UI shows an em dash instead of a fake 0).
+        enqueue("""{"session_id":"s","messages":[{"id":"1","role":"user","content":"hello"}],"visible_count":1,"thread_session_count":1}""")
         enqueue("""{"context_length":131072}""")
 
         val history = api.conversationHistory("session 1")
         val window = api.contextLength("manager", "openai", "gpt-5")
 
-        assertEquals(24_576L, history.contextTokens)
+        assertNull(history.contextTokens)
         assertEquals("hello", history.messages.single().content)
         assertEquals(131_072L, window)
-        assertEquals("/api/hermes/sessions/conversations/session+1/messages?humanOnly=true", server.takeRequest().path)
+        assertEquals("/api/studio/sessions/conversations/session+1/messages?humanOnly=true", server.takeRequest().path)
         assertEquals("/api/hermes/sessions/context-length?profile=manager&provider=openai&model=gpt-5", server.takeRequest().path)
+    }
+
+    @Test
+    fun `conversation page carries paging fields and the live plan`() {
+        enqueue(
+            """{"session":{"id":"s"},"messages":[{"id":"9","role":"assistant","content":"hi"}],"""
+                + """"total":3098,"offset":0,"limit":50,"hasMore":true,"workspaceRunChanges":[],"""
+                + """"taskPlans":[{"plan":[{"id":"1","step":"a","status":"completed"}],"session_id":"s",""""
+                + """"plan_id":"p","revision":1,"execution_state":"running","updated_at":1792489489357}]}""",
+        )
+
+        val page = api.conversationPage("s", limit = 50, offset = 0)
+
+        assertEquals(3_098, page.total)
+        assertTrue(page.hasMore)
+        assertEquals(0, page.offset)
+        assertEquals("hi", page.messages.single().content)
+        assertEquals(1, page.taskPlans.size)
+        assertEquals(1, page.taskPlans.single().steps.size)
+        assertEquals(
+            "/api/studio/sessions/conversations/s/messages/paginated?limit=50&offset=0",
+            server.takeRequest().path,
+        )
     }
 
     @Test

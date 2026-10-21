@@ -989,4 +989,6 @@
     <string name="approval_banner">%1$d موافقات بالانتظار</string>
     <string name="approval_banner_open">مراجعة</string>
     <string name="day_today">اليوم</string>
+    <string name="history_load_older">تحميل رسائل أقدم</string>
+    <string name="history_loading_older">جارٍ تحميل رسائل أقدم…</string>
 </resources>

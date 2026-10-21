@@ -222,6 +222,11 @@ data class UiState(
     val workspaceLoading: Boolean = false,
     val workspaceFile: String? = null,
     val workspaceFileName: String = "",
+    /** History paging: newest-first offsets, as the server defines them. */
+    val historyTotal: Int = 0,
+    val historyHasMore: Boolean = false,
+    val historyOffset: Int = 0,
+    val loadingOlder: Boolean = false,
     /** True once an update finished and the server still has to be restarted. */
     val restartRequired: Boolean = false,
     /** 0..100, or -1 when the update reports no progress of its own. */
@@ -1103,47 +1108,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---- Task plan watcher ---------------------------------------------
-
-    private var planWatchJob: Job? = null
-    private var planWatcher: PlanSocket? = null
-
-    /**
-     * While a run is in flight the agent keeps rewriting its plan, but the only
-     * place Studio exposes it is the resume payload. Poll it with a throwaway
-     * socket so the card tracks the live plan without reloading the transcript.
-     */
-    private fun startPlanWatch() {
-        val session = _state.value.openSession ?: return
-        stopPlanWatch()
-        val sessionId = session.id
-        val profile = session.profile?.ifBlank { null } ?: currentProfile()
-        planWatchJob = viewModelScope.launch {
-            while (true) {
-                val watcher = PlanSocket(store.baseUrl, store.token)
-                watcher.onPlans = { plans ->
-                    // Ignore a late reply for a conversation the user already left,
-                    // and let an empty list clear the card rather than keeping the
-                    // previous conversation's plan.
-                    if (_state.value.openSession?.id == sessionId) {
-                        _state.update { it.copy(taskPlans = plans) }
-                    }
-                }
-                planWatcher = watcher
-                watcher.connect(sessionId, profile)
-                delay(10_000)
-                watcher.close()
-            }
-        }
-    }
-
-    private fun stopPlanWatch() {
-        planWatchJob?.cancel()
-        planWatchJob = null
-        planWatcher?.close()
-        planWatcher = null
-    }
-
     // ---- Write gate ----------------------------------------------------
 
     fun openWriteGate() {
@@ -1594,7 +1558,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             else -> cancelActiveRun(abort = false)
         }
-        stopPlanWatch()
         historyJob?.cancel()
         val profile = session.profile?.ifBlank { null }
             ?: _state.value.activeProfile.ifBlank { "default" }
@@ -1628,12 +1591,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         historyJob = viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val history = api.conversationHistory(session.id)
+                    // One page, not the whole transcript: this session has 572
+                    // human messages and the unpaginated route returned all of them.
+                    val page = api.conversationPage(session.id, limit = HISTORY_PAGE_SIZE, offset = 0)
                     val window = runCatching { api.contextLength(profile, session.provider, session.model) }.getOrDefault(0)
-                    history to window
+                    page to window
                 }
             }
-                .onSuccess { (history, window) ->
+                .onSuccess { (page, window) ->
                     _state.update { state ->
                         if (state.screen != Screen.Conversation || state.openSession?.id != session.id) {
                             return@update state
@@ -1641,11 +1606,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         state.copy(
                             loadingHistory = false,
                             loadingContext = false,
-                            contextTokens = history.contextTokens ?: -1,
+                            contextTokens = -1,
                             contextWindow = window,
+                            historyTotal = page.total,
+                            historyHasMore = page.hasMore,
+                            historyOffset = page.offset + page.messages.size,
+                            // The page carries the live plan, so the card is correct
+                            // on open without a second socket.
+                            taskPlans = page.taskPlans,
                             // Re-attaching a live run happens after this copy: the
                             // history above would otherwise erase the partial answer.
-                            lines = history.messages.map { message ->
+                            lines = page.messages.map { message ->
                                 ChatLine(
                                     text = message.content,
                                     fromUser = message.fromUser,
@@ -1674,38 +1645,100 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Reloads the open conversation without dropping the composer or flashing an empty screen. */
-    fun refreshConversation() {
+    /** Key of the streaming bubble; never collides with a server message id. */
+    private val LIVE_LINE_ID = "live"
+
+    /** Older messages are fetched a page at a time, newest-first offsets. */
+    private val HISTORY_PAGE_SIZE = 50
+    private val HISTORY_PAGE_MAX = 500
+
+    /**
+     * Prepends one older page. The server counts offsets from the newest message,
+     * so "older" means moving [historyOffset] forward.
+     */
+    fun loadOlderMessages() {
         val session = _state.value.openSession ?: return
-        historyJob?.cancel()
-        _state.update { it.copy(loadingHistory = true, loadingContext = true, error = null) }
-        historyJob = viewModelScope.launch {
+        val snapshot = _state.value
+        if (snapshot.loadingOlder || !snapshot.historyHasMore || snapshot.historyOffset >= HISTORY_PAGE_MAX) return
+        _state.update { it.copy(loadingOlder = true, error = null) }
+        viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val profile = session.profile?.ifBlank { null } ?: currentProfile()
-                    val history = api.conversationHistory(session.id)
-                    val window = runCatching { api.contextLength(profile, session.provider, session.model) }.getOrDefault(0)
-                    history to window
+                    api.conversationPage(session.id, limit = HISTORY_PAGE_SIZE, offset = snapshot.historyOffset)
                 }
             }
-                .onSuccess { (history, window) ->
+                .onSuccess { page ->
                     _state.update { state ->
-                        if (state.screen != Screen.Conversation || state.openSession?.id != session.id) {
-                            return@update state
-                        }
-                        state.copy(
-                            loadingHistory = false,
-                            loadingContext = false,
-                            contextTokens = history.contextTokens ?: state.contextTokens,
-                            contextWindow = window.takeIf { it > 0 } ?: state.contextWindow,
-                            lines = history.messages.map { message ->
+                        if (state.openSession?.id != session.id || state.screen != Screen.Conversation) return@update state
+                        // Guard against a double tap producing the same page twice.
+                        val known = state.lines.mapNotNull { it.messageId }.toSet()
+                        val older = page.messages
+                            .filter { it.id.isBlank() || it.id !in known }
+                            .map { message ->
                                 ChatLine(
                                     text = message.content,
                                     fromUser = message.fromUser,
                                     timestamp = message.timestamp,
                                     messageId = message.id,
                                 )
-                            },
+                            }
+                        state.copy(
+                            loadingOlder = false,
+                            historyHasMore = page.hasMore,
+                            historyOffset = page.offset + page.messages.size,
+                            lines = older + state.lines,
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    if (failure is kotlinx.coroutines.CancellationException) return@onFailure
+                    _state.update {
+                        it.copy(loadingOlder = false, error = failure.readableMessage(localized))
+                    }
+                }
+        }
+    }
+
+    /**
+     * Reloads the open conversation without dropping the composer or flashing an
+     * empty screen, keeping however much history is already on screen.
+     */
+    fun refreshConversation() {
+        val session = _state.value.openSession ?: return
+        historyJob?.cancel()
+        _state.update { it.copy(loadingHistory = true, loadingContext = true, error = null) }
+        val wanted = _state.value.historyOffset.coerceIn(HISTORY_PAGE_SIZE, HISTORY_PAGE_MAX)
+        historyJob = viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val profile = session.profile?.ifBlank { null } ?: currentProfile()
+                    val page = api.conversationPage(session.id, limit = wanted, offset = 0)
+                    val window = runCatching { api.contextLength(profile, session.provider, session.model) }.getOrDefault(0)
+                    page to window
+                }
+            }
+                .onSuccess { (page, window) ->
+                    _state.update { state ->
+                        if (state.screen != Screen.Conversation || state.openSession?.id != session.id) {
+                            return@update state
+                        }
+                        val live = state.lines.filter { it.streaming && !it.fromUser }
+                        state.copy(
+                            loadingHistory = false,
+                            loadingContext = false,
+                            contextWindow = window.takeIf { it > 0 } ?: state.contextWindow,
+                            historyTotal = page.total,
+                            historyHasMore = page.hasMore,
+                            historyOffset = page.offset + page.messages.size,
+                            taskPlans = if (page.taskPlans.isNotEmpty()) page.taskPlans else state.taskPlans,
+                            lines = page.messages.map { message ->
+                                ChatLine(
+                                    text = message.content,
+                                    fromUser = message.fromUser,
+                                    timestamp = message.timestamp,
+                                    messageId = message.id,
+                                )
+                            } + live,
                         )
                     }
                 }
@@ -1724,7 +1757,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startNewConversation(runtime: AgentRuntimeSelection = AgentRuntimeSelection()) {
         cancelActiveRun(abort = false)
-        stopPlanWatch()
         historyJob?.cancel()
         historyJob = null
         val profile = _state.value.activeProfile.ifBlank { "default" }
@@ -1858,7 +1890,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         runThinking.setLength(0)
         runStreamed = false
         runStartedAtMillis = System.currentTimeMillis()
-        startPlanWatch()
         runJob = viewModelScope.launch {
             var finalReply = ""
             val answer = runAnswer
@@ -1883,6 +1914,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             fromUser = false,
                             streaming = true,
                             startedAtMillis = startedAtMillis,
+                            // Stable key: the live bubble must survive a history
+                            // page being prepended above it.
+                            messageId = LIVE_LINE_ID,
                         ),
                         activity = null,
                     )
@@ -2307,6 +2341,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     fromUser = false,
                     streaming = true,
                     startedAtMillis = runStartedAtMillis,
+                    messageId = LIVE_LINE_ID,
                 ),
             )
         }
@@ -2317,7 +2352,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (activeRunSessionId != sessionId) return
         activeRunSessionId = null
         runJob = null
-        stopPlanWatch()
         _state.update {
             it.copy(
                 sending = false,
@@ -4391,7 +4425,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             consumingBackNavigation = true
-            if (state.screen == Screen.Conversation) stopPlanWatch()
             state.copy(
                 screen = target,
                 error = null,

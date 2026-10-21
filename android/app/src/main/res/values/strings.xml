@@ -990,4 +990,6 @@
     <string name="approval_banner">%1$d approval(s) waiting</string>
     <string name="approval_banner_open">Review</string>
     <string name="day_today">Today</string>
+    <string name="history_load_older">Load earlier messages</string>
+    <string name="history_loading_older">Loading earlier messages…</string>
 </resources>
