@@ -1010,7 +1010,7 @@
     <string name="compression_running">Compacting context…</string>
     <string name="compression_done">Context compacted</string>
     <string name="sheet_bundles">Skill bundles</string>
-    <string name="sheet_bundles_detail">Tap to insert the bundle's command</string>
+    <string name="sheet_bundles_detail">Tap to insert the bundle\'s command</string>
     <string name="bundle_skill_count">%1$d skills</string>
     <string name="bundle_created">Bundle %1$s created</string>
     <string name="bundle_deleted">Bundle %1$s deleted</string>

@@ -91,12 +91,46 @@ def normalize(path):
     return path.rstrip("/") or "/"
 
 
-def client_calls():
-    """Every /api literal in the network layer, normalized.
+def segments(path):
+    """Normalize one path into comparable segments.
 
-    Also records the static prefix of interpolated literals: the client builds
-    `/api/hermes/mcp/reload${query}`, which resolves to the documented
-    `/api/hermes/mcp/reload` but never normalizes to it.
+    `${enc(id)}` and `{id}` both become `{}`; a trailing interpolation such as
+    `assign${suffix}` keeps its literal prefix and gains `{}`.
+    """
+    path = path.split("?")[0].rstrip("/")
+    # A trailing interpolation may contain nested braces/quotes, so collapse
+    # everything from the last `$` when no path separator follows it.
+    if "$" in path and "/" not in path.split("$", 1)[1]:
+        path = path.split("$", 1)[0] + "{}"
+    path = re.sub(r"\$\{[^}]*}", "{}", path)
+    path = re.sub(r"\$[A-Za-z_][A-Za-z0-9_]*", "{}", path)
+    path = re.sub(r"\{[^}]*}", "{}", path)
+    return [s for s in path.split("/") if s]
+
+
+def seg_match(client, spec):
+    # A wildcard only matches a wildcard: `/api/hermes/kanban/{}` must not be
+    # credited to the distinct literal route `/api/hermes/kanban/complete`.
+    if client == spec:
+        return True
+    if client.endswith("{}") and spec == client[:-2]:
+        return True
+    if spec.endswith("{}") and client == spec[:-2]:
+        return True
+    return False
+
+
+def matches(client_path, spec_path):
+    c, s = segments(client_path), segments(spec_path)
+    return len(c) == len(s) and all(seg_match(a, b) for a, b in zip(c, s))
+
+
+def client_calls():
+    """Every /api literal in the network layer.
+
+    Returned raw: matching happens segment by segment so an interpolated literal
+    like `/api/hermes/mcp/reload${query}` lines up with the documented
+    `/api/hermes/mcp/reload`, without crediting every sibling route of the module.
     """
     calls = set()
     for name in os.listdir(SRC_DIR):
@@ -104,26 +138,16 @@ def client_calls():
             continue
         text = open(os.path.join(SRC_DIR, name)).read()
         for match in re.finditer(r'"(/api/[^"]*)"', text):
-            literal = match.group(1)
-            calls.add(normalize(literal))
-            if "$" in literal:
-                prefix = normalize(literal.split("$")[0]).rstrip("/")
-                if len(prefix) > 12:
-                    calls.add(prefix)
+            calls.add(match.group(1))
     return calls
 
 
 def main():
     spec = json.load(open(SPEC))
     calls = client_calls()
-    prefixes = {c.rstrip("/") for c in calls}
 
     def used(path):
-        norm = normalize(path)
-        if norm in calls:
-            return True
-        # dynamic tails on either side only line up by prefix
-        return any(norm.startswith(p + "/") or p.startswith(norm + "/") for p in prefixes if len(p) > 12)
+        return any(matches(call, path) for call in calls)
 
     rows = []
     for path, item in spec["paths"].items():

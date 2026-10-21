@@ -249,16 +249,14 @@ class HermesApi(
         }
     }
 
-    /** POST /api/hermes/sessions/{id}/rename */
+    /** POST /api/studio/sessions/{id}/rename */
     fun renameSession(sessionId: String, title: String) {
-        runCatching { call("/api/studio/sessions/${enc(sessionId)}/rename", "POST", JSONObject().put("title", title)) }
-            .getOrElse { call("/api/hermes/sessions/${enc(sessionId)}/rename", "POST", JSONObject().put("title", title)) }
+        call("/api/studio/sessions/${enc(sessionId)}/rename", "POST", JSONObject().put("title", title))
     }
 
-    /** DELETE /api/hermes/sessions/{id} */
+    /** DELETE /api/studio/sessions/{id} */
     fun deleteSession(sessionId: String) {
-        runCatching { call("/api/studio/sessions/${enc(sessionId)}", "DELETE") }
-            .getOrElse { call("/api/hermes/sessions/${enc(sessionId)}", "DELETE") }
+        call("/api/studio/sessions/${enc(sessionId)}", "DELETE")
     }
 
     fun archiveSession(sessionId: String, archived: Boolean) {
@@ -567,17 +565,15 @@ class HermesApi(
         call("/api/hermes/config?profile=${enc(profile)}", "PUT", body)
     }
 
-    /** GET /api/hermes/sessions — most recent conversations for a profile. */
+    /** GET /api/studio/sessions — most recent conversations for a profile. */
     fun sessions(profile: String?, limit: Int = 80): List<SessionSummary> {
         val canonical = if (profile.isNullOrBlank()) {
             "/api/studio/sessions?limit=$limit"
         } else {
             "/api/studio/sessions?profile=${enc(profile)}&limit=$limit"
         }
-        val result = runCatching { call(canonical) }.getOrElse {
-            val legacy = canonical.replace("/api/studio/sessions", "/api/hermes/sessions")
-            call(legacy)
-        }
+        // Official route only: the studio route is what the web client calls.
+        val result = call(canonical)
         return parseSessions(result.optJSONArray("sessions") ?: JSONArray())
     }
 
@@ -967,12 +963,11 @@ class HermesApi(
     fun kanbanAttachments(board: String, task: String): List<String> { val r = call("/api/hermes/kanban/${enc(task)}/attachments?board=${enc(board)}"); val a = r.optJSONArray("attachments") ?: JSONArray(); return (0 until a.length()).mapNotNull { i -> when(val v=a.opt(i)){ is JSONObject -> firstNonBlank(v,"name","filename","path"); is String -> v; else -> null } } }
     fun kanbanCommand(board: String, task: String, action: String, value: String = "") { val body: JSONObject; val path = when(action) { "complete" -> { body = JSONObject().put("task_ids", JSONArray().put(task)).put("summary", value); "/api/hermes/kanban/complete" }; "unblock" -> { body = JSONObject().put("task_ids", JSONArray().put(task)); "/api/hermes/kanban/unblock" }; "dispatch" -> { body = JSONObject().put("max", 1); "/api/hermes/kanban/dispatch" }; "block" -> { body = JSONObject().put("reason", value); "/api/hermes/kanban/${enc(task)}/block" }; "reassign" -> { body = JSONObject().put("profile", value).put("reclaim", true); "/api/hermes/kanban/${enc(task)}/reassign" }; else -> return }; call("$path?board=${enc(board)}", "POST", body) }
 
-    /** POST /api/hermes/sessions/{id}/model */
+    /** POST /api/studio/sessions/{id}/model */
     fun setSessionModel(sessionId: String, model: String, provider: String?) {
         val body = JSONObject().put("model", model)
         if (!provider.isNullOrBlank()) body.put("provider", provider)
-        runCatching { call("/api/studio/sessions/${enc(sessionId)}/model", "POST", body) }
-            .getOrElse { call("/api/hermes/sessions/${enc(sessionId)}/model", "POST", body) }
+        call("/api/studio/sessions/${enc(sessionId)}/model", "POST", body)
     }
 
     /**
@@ -1075,11 +1070,7 @@ class HermesApi(
             provider?.takeIf(String::isNotBlank)?.let { "provider=${enc(it)}" },
             model?.takeIf(String::isNotBlank)?.let { "model=${enc(it)}" },
         ).joinToString("&")
-        val root = runCatching {
-            call("/api/studio/sessions/context-length?$query", profile = profile)
-        }.getOrElse {
-            call("/api/hermes/sessions/context-length?$query", profile = profile)
-        }
+        val root = call("/api/studio/sessions/context-length?$query", profile = profile)
         return root.firstLong("context_length", "contextLength")?.takeIf { it > 0 }
             ?: throw HermesException("Studio returned no context length")
     }

@@ -32,15 +32,6 @@ class ApiPathAlignmentTest {
      * path may live outside the published list.
      */
     private val allowed = mapOf(
-        // Legacy fallbacks: documented under /api/studio, the /api/hermes alias is
-        // tried second so an older server still answers.
-        "/api/hermes/sessions" to "fallback for /api/studio/sessions",
-        "/api/hermes/sessions/{}" to "fallback for /api/studio/sessions/{id}",
-        "/api/hermes/sessions/{}/model" to "fallback for /api/studio/sessions/{id}/model",
-        "/api/hermes/sessions/{}/rename" to "fallback for /api/studio/sessions/{id}/rename",
-        "/api/hermes/sessions/context-length" to "fallback for the studio route",
-        // Compatibility alias kept for the sessions list fallback.
-        "/api/hermes/download" to "superseded by /api/studio/files/download",
         // WebSocket upgrade endpoints never appear in the OpenAPI document.
         "/api/hermes/terminal" to "websocket upgrade, not part of the REST spec",
     )

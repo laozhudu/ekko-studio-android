@@ -11,27 +11,32 @@
 | 指标 | 数值 |
 |---|---|
 | 官方操作总数 | **529** |
-| 客户端已使用 | **311** |
-| 明确不适用（有理由） | **108** |
-| **缺口** | **110** |
-| 可达覆盖率 | **73.9%**（311 / 421） |
+| 客户端已使用 | **204** |
+| 明确不适用（有理由） | **114** |
+| **缺口** | **211** |
+| 可达覆盖率 | **49.2%**（204 / 415） |
 
-### 缺口分布（前 10）
+> 这个数字此前报过 73.9% / 85.1%，都是错的：旧脚本用「字符串前缀」判断覆盖，
+> 一个 `/api/coding-agents/${id}/install` 就把整个 coding-agents 模块算成已用。
+> 现在脚本与 `ApiCoverageTest` 使用同一套**分段匹配**，并且测试会钉住规则本身
+> （通配符不得吞掉字面路由）。**49.2% 是第一个可靠数字。**
+
+### 缺口分布（前 12）
 
 | 模块 | 已用 | 缺口 | 说明 |
 |---|---|---|---|
-| Coding Agents | 2 | 28 | 只做了安装，未做运行/预设/插件清单 |
-| Group Chat | 40 | 23 | 房间/邀请/成员之外的能力未接 |
-| Kanban | 12 | 15 | bulk / assignees / diagnostics / links 等 |
-| Models | 7 | 7 | 自定义模型、别名、可见性、provider-models |
-| Sessions | 52 | 7 | workspace directories / folders 管理 |
-| Theme | 5 | 7 | 主题预设 CRUD + 导入导出 + 激活 |
-| Auth | 12 | 5 | status / setup / app-login / mcu-login / 改密 |
-| Skill Bundles | 0 | 3 | 技能包完全未接 |
-| Session Shares | 4 | 3 | access / check / claim |
-| 其余 | — | 13 | MCP reload/tools、webhook 测试、app-relay route 等 |
-
----
+| Group Chat | 6 | 57 | 房间/成员之外的邀请、链接、附件、agent-link 全未接 |
+| Sessions | 19 | 40 | 分类、分享、workspace、批处理等 |
+| Coding Agents | 2 | 28 | 只有安装/更新策略，无运行、预设、插件清单 |
+| Models | 5 | 9 | 自定义模型、别名、可见性、provider-models |
+| Kanban | 18 | 9 | bulk/links/assignees/diagnostics |
+| Runtime Versions | 2 | 9 | 多运行时下载/激活/删除 |
+| Config | 4 | 8 | 凭据、provider 编辑与模型刷新 |
+| Session Shares | 0 | 7 | 只读分享链接完全未接 |
+| Theme | 5 | 7 | 主题预设 CRUD/导入导出/激活 |
+| Providers | 4 | 6 | api-relay 用量、provider 细节 |
+| Auth | 12 | 5 | status/setup/app-login/mcu-login/改密 |
+| Skills | 7 | 4 | toggle/pin/import 之外的细节 |
 
 ## 二、判定标准：什么算「不适用」
 
@@ -92,12 +97,12 @@ Compose screen (Screen)    ← 只读 UiState + 调 ViewModel
 
 ## 四、分期
 
-### 第一期：客户端可独立完成、收益明确（本轮）
+### 第一期：客户端可独立完成、收益明确（✅ 已完成 v0.12.1）
 
 | 能力 | 操作 | 入口 |
 |---|---|---|
-| 技能包（bundles） | `GET/POST /api/hermes/bundles`、`DELETE /{commandName}` | 斜杠命令面板新增「技能包」段 |
-| MCP 重载与工具清单 | `POST /api/hermes/mcp/reload`、`GET /api/hermes/mcp/tools` | MCP 页面新增「重载」按钮 |
+| 技能包（bundles） | `GET/POST /api/hermes/bundles`、`DELETE /{commandName}` | ✅ 斜杠命令面板已列技能包 |
+| MCP 重载与工具清单 | `POST /api/hermes/mcp/reload`、`GET /api/hermes/mcp/tools` | 重载已有；工具清单待做 |
 
 理由：两者都已有现成页面，接口语义清晰，无需服务端改动，能立刻减少 5 个缺口。
 
@@ -139,3 +144,18 @@ cd android && ./gradlew testDebugUnitTest # CI 同款
 
 `ApiCoverageTest` 会读取 `docs/api-coverage-baseline.json`，**不允许 used 数下降**，
 也不允许出现既非 used 又非 out-of-scope 的新条目。
+
+---
+
+## 六、关于「能换官方形式的一律替换」
+
+2026-10 复核结论：客户端剩余的 `/api/hermes/*` 调用，全部落在**规范里只提供
+hermes 形式**的模块（kanban / config / profiles / skills / jobs / mcp /
+runtime-versions / write-gate / weixin / bundles / plugins / model-context /
+available-models / journey）。逐模块与 `/api/studio/*` 比对过，这些模块没有 studio
+孪生路由，因此现在的写法**就是官方形式**。
+
+同时删除了三处「双保底」：`sessions` 列表、`sessions/{id}/model`、
+`sessions/context-length` 原本先试 studio、失败再试 hermes。官方只有 studio 形式且
+实测可用，保底只会掩盖问题，已改为单一官方调用。`ApiPathAlignmentTest` 的白名单
+因此从 7 条缩到 1 条（仅 WebSocket 终端，因为规范不收录 WS 升级端点）。
